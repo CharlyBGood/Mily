@@ -98,85 +98,179 @@ export default function MealHistory() {
     setSelectedMeal(meal)
     setIsSharing(true)
 
-    // Wait for the share card to render
-    setTimeout(async () => {
+    try {
+      // Create a new div for the share card
+      const shareCardContainer = document.createElement("div")
+      shareCardContainer.style.position = "absolute"
+      shareCardContainer.style.left = "-9999px"
+      document.body.appendChild(shareCardContainer)
+
+      // Render the share card into the container
+      const shareCard = document.createElement("div")
+      shareCardContainer.appendChild(shareCard)
+
+      // Set the content of the share card
+      shareCard.innerHTML = `
+        <div class="card-container" style="width: 400px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); font-family: system-ui, sans-serif;">
+          <div style="padding: 16px; background: #e6f7f5; border-bottom: 1px solid #d1e7e5;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="margin: 0; color: #0f766e; font-weight: 500;">NutriApp</h3>
+              <div style="font-size: 14px; color: #0f766e;">
+                ${format(parseISO(meal.created_at || new Date().toISOString()), "EEEE, d 'de' MMMM", { locale: es })} • 
+                ${format(parseISO(meal.created_at || new Date().toISOString()), "HH:mm")}
+              </div>
+            </div>
+          </div>
+          ${
+            meal.photo_url
+              ? `
+            <div style="width: 100%; height: 225px; overflow: hidden;">
+              <img src="${meal.photo_url}" alt="${meal.description}" style="width: 100%; height: 100%; object-fit: cover;" crossorigin="anonymous" />
+            </div>
+          `
+              : ""
+          }
+          <div style="padding: 16px;">
+            <div style="display: inline-block; padding: 4px 8px; background: #e6f7f5; color: #0f766e; font-size: 14px; border-radius: 4px; margin-bottom: 4px;">
+              ${getMealTypeLabel(meal.meal_type)}
+            </div>
+            <h3 style="margin: 8px 0 0 0; font-size: 18px; font-weight: 500;">${meal.description}</h3>
+            ${meal.notes ? `<p style="margin: 8px 0 0 0; color: #4b5563;">${meal.notes}</p>` : ""}
+          </div>
+          <div style="padding: 12px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px; color: #6b7280;">
+            Registrado con NutriApp
+          </div>
+        </div>
+      `
+
+      // Wait for images to load
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Generate image from the share card
+      const imageUrl = await generateShareableImage(shareCard)
+
+      // Clean up
+      document.body.removeChild(shareCardContainer)
+
+      if (!imageUrl) {
+        throw new Error("Failed to generate image")
+      }
+
+      // Convert to blob and file
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const file = new File([blob], "nutri-meal.png", { type: "image/png" })
+
+      // Share or download
+      const shareResult = await shareContent(
+        "Mi comida en NutriApp",
+        `${getMealTypeLabel(meal.meal_type)}: ${meal.description}`,
+        undefined,
+        [file],
+      )
+
+      if (!shareResult.success && !shareResult.fallback) {
+        // If sharing failed and no fallback was used, download the image
+        downloadImage(imageUrl, "nutri-meal.png")
+      }
+    } catch (error) {
+      console.error("Error sharing meal:", error)
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al compartir la comida. Intentando descargar la imagen...",
+        variant: "destructive",
+      })
+
+      // Fallback to direct download if sharing fails
       if (shareCardRef.current) {
         try {
           const imageUrl = await generateShareableImage(shareCardRef.current)
-
-          if (!imageUrl) {
-            toast({
-              title: "Error",
-              description: "Error al generar la imagen para compartir",
-              variant: "destructive",
-            })
-            setIsSharing(false)
-            return
-          }
-
-          // Try to use Web Share API
-          const response = await fetch(imageUrl)
-          const blob = await response.blob()
-          const file = new File([blob], "nutri-meal.png", { type: "image/png" })
-
-          const shareResult = await shareContent(
-            "Mi comida en NutriApp",
-            `${getMealTypeLabel(meal.meal_type)}: ${meal.description}`,
-            undefined,
-            [file],
-          )
-
-          if (!shareResult.success) {
-            // Fallback to download
+          if (imageUrl) {
             downloadImage(imageUrl, "nutri-meal.png")
           }
-        } catch (error) {
-          console.error("Error sharing meal:", error)
-          toast({
-            title: "Error",
-            description: "Ocurrió un error al compartir la comida",
-            variant: "destructive",
-          })
-        } finally {
-          setIsSharing(false)
+        } catch (e) {
+          console.error("Fallback download failed:", e)
         }
       }
-    }, 100)
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   const handleDownloadMeal = async (meal: Meal) => {
     setSelectedMeal(meal)
     setIsSharing(true)
 
-    // Wait for the share card to render
-    setTimeout(async () => {
-      if (shareCardRef.current) {
-        try {
-          const imageUrl = await generateShareableImage(shareCardRef.current)
+    try {
+      // Create a new div for the share card
+      const shareCardContainer = document.createElement("div")
+      shareCardContainer.style.position = "absolute"
+      shareCardContainer.style.left = "-9999px"
+      document.body.appendChild(shareCardContainer)
 
-          if (!imageUrl) {
-            toast({
-              title: "Error",
-              description: "Error al generar la imagen para descargar",
-              variant: "destructive",
-            })
-            setIsSharing(false)
-            return
+      // Render the share card into the container
+      const shareCard = document.createElement("div")
+      shareCardContainer.appendChild(shareCard)
+
+      // Set the content of the share card
+      shareCard.innerHTML = `
+        <div class="card-container" style="width: 400px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); font-family: system-ui, sans-serif;">
+          <div style="padding: 16px; background: #e6f7f5; border-bottom: 1px solid #d1e7e5;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="margin: 0; color: #0f766e; font-weight: 500;">NutriApp</h3>
+              <div style="font-size: 14px; color: #0f766e;">
+                ${format(parseISO(meal.created_at || new Date().toISOString()), "EEEE, d 'de' MMMM", { locale: es })} • 
+                ${format(parseISO(meal.created_at || new Date().toISOString()), "HH:mm")}
+              </div>
+            </div>
+          </div>
+          ${
+            meal.photo_url
+              ? `
+            <div style="width: 100%; height: 225px; overflow: hidden;">
+              <img src="${meal.photo_url}" alt="${meal.description}" style="width: 100%; height: 100%; object-fit: cover;" crossorigin="anonymous" />
+            </div>
+          `
+              : ""
           }
+          <div style="padding: 16px;">
+            <div style="display: inline-block; padding: 4px 8px; background: #e6f7f5; color: #0f766e; font-size: 14px; border-radius: 4px; margin-bottom: 4px;">
+              ${getMealTypeLabel(meal.meal_type)}
+            </div>
+            <h3 style="margin: 8px 0 0 0; font-size: 18px; font-weight: 500;">${meal.description}</h3>
+            ${meal.notes ? `<p style="margin: 8px 0 0 0; color: #4b5563;">${meal.notes}</p>` : ""}
+          </div>
+          <div style="padding: 12px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px; color: #6b7280;">
+            Registrado con NutriApp
+          </div>
+        </div>
+      `
 
-          downloadImage(imageUrl, "nutri-meal.png")
-        } catch (error) {
-          console.error("Error downloading meal:", error)
-          toast({
-            title: "Error",
-            description: "Ocurrió un error al descargar la comida",
-            variant: "destructive",
-          })
-        } finally {
-          setIsSharing(false)
-        }
+      // Wait for images to load
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Generate image from the share card
+      const imageUrl = await generateShareableImage(shareCard)
+
+      // Clean up
+      document.body.removeChild(shareCardContainer)
+
+      if (!imageUrl) {
+        throw new Error("Failed to generate image")
       }
-    }, 100)
+
+      // Download the image
+      downloadImage(imageUrl, "nutri-meal.png")
+    } catch (error) {
+      console.error("Error downloading meal:", error)
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al descargar la comida",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSharing(false)
+    }
   }
 
   if (loading) {
@@ -313,7 +407,7 @@ export default function MealHistory() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Hidden Share Card for generating images */}
+      {/* Hidden Share Card for fallback */}
       {isSharing && selectedMeal && (
         <div className="hidden">
           <div ref={shareCardRef}>

@@ -58,8 +58,8 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
     "zod": "^3.24.1",
-    "html-to-image": "latest",
-    "uuid": "latest"
+    "uuid": "latest",
+    "html-to-image": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
