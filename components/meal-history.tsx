@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Share2, Download, Trash2 } from "lucide-react"
@@ -9,8 +9,8 @@ import { es } from "date-fns/locale"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import { type Meal, getUserMeals, deleteMeal } from "@/lib/local-storage"
-import { getMealTypeLabel, generateShareableImage, shareContent, downloadImage } from "@/lib/utils"
-import MealShareCard from "./meal-share-card"
+import { getMealTypeLabel, shareContent, downloadImage } from "@/lib/utils"
+import ShareableImageGenerator from "./shareable-image-generator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,8 +28,8 @@ export default function MealHistory() {
   const [loading, setLoading] = useState(true)
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [isSharing, setIsSharing] = useState(false)
-  const shareCardRef = useRef<HTMLDivElement>(null)
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [shareMode, setShareMode] = useState<"share" | "download" | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -94,183 +94,73 @@ export default function MealHistory() {
     }
   }
 
-  const handleShareMeal = async (meal: Meal) => {
+  const handleShareMeal = (meal: Meal) => {
     setSelectedMeal(meal)
-    setIsSharing(true)
+    setShareMode("share")
+    setIsGeneratingImage(true)
+  }
 
+  const handleDownloadMeal = (meal: Meal) => {
+    setSelectedMeal(meal)
+    setShareMode("download")
+    setIsGeneratingImage(true)
+  }
+
+  const handleImageGenerated = async (imageUrl: string) => {
     try {
-      // Create a new div for the share card
-      const shareCardContainer = document.createElement("div")
-      shareCardContainer.style.position = "absolute"
-      shareCardContainer.style.left = "-9999px"
-      document.body.appendChild(shareCardContainer)
+      if (shareMode === "share") {
+        // Convert to blob and file for sharing
+        const response = await fetch(imageUrl)
+        const blob = await response.blob()
+        const file = new File([blob], "nutri-meal.png", { type: "image/png" })
 
-      // Render the share card into the container
-      const shareCard = document.createElement("div")
-      shareCardContainer.appendChild(shareCard)
+        // Share the image
+        const shareResult = await shareContent(
+          "Mi comida en NutriApp",
+          selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
+          undefined,
+          [file],
+        )
 
-      // Set the content of the share card
-      shareCard.innerHTML = `
-        <div class="card-container" style="width: 400px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); font-family: system-ui, sans-serif;">
-          <div style="padding: 16px; background: #e6f7f5; border-bottom: 1px solid #d1e7e5;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="margin: 0; color: #0f766e; font-weight: 500;">NutriApp</h3>
-              <div style="font-size: 14px; color: #0f766e;">
-                ${format(parseISO(meal.created_at || new Date().toISOString()), "EEEE, d 'de' MMMM", { locale: es })} • 
-                ${format(parseISO(meal.created_at || new Date().toISOString()), "HH:mm")}
-              </div>
-            </div>
-          </div>
-          ${
-            meal.photo_url
-              ? `
-            <div style="width: 100%; height: 225px; overflow: hidden;">
-              <img src="${meal.photo_url}" alt="${meal.description}" style="width: 100%; height: 100%; object-fit: cover;" crossorigin="anonymous" />
-            </div>
-          `
-              : ""
-          }
-          <div style="padding: 16px;">
-            <div style="display: inline-block; padding: 4px 8px; background: #e6f7f5; color: #0f766e; font-size: 14px; border-radius: 4px; margin-bottom: 4px;">
-              ${getMealTypeLabel(meal.meal_type)}
-            </div>
-            <h3 style="margin: 8px 0 0 0; font-size: 18px; font-weight: 500;">${meal.description}</h3>
-            ${meal.notes ? `<p style="margin: 8px 0 0 0; color: #4b5563;">${meal.notes}</p>` : ""}
-          </div>
-          <div style="padding: 12px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px; color: #6b7280;">
-            Registrado con NutriApp
-          </div>
-        </div>
-      `
-
-      // Wait for images to load
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      // Generate image from the share card
-      const imageUrl = await generateShareableImage(shareCard)
-
-      // Clean up
-      document.body.removeChild(shareCardContainer)
-
-      if (!imageUrl) {
-        throw new Error("Failed to generate image")
-      }
-
-      // Convert to blob and file
-      const response = await fetch(imageUrl)
-      const blob = await response.blob()
-      const file = new File([blob], "nutri-meal.png", { type: "image/png" })
-
-      // Share or download
-      const shareResult = await shareContent(
-        "Mi comida en NutriApp",
-        `${getMealTypeLabel(meal.meal_type)}: ${meal.description}`,
-        undefined,
-        [file],
-      )
-
-      if (!shareResult.success && !shareResult.fallback) {
-        // If sharing failed and no fallback was used, download the image
+        if (!shareResult.success && !shareResult.fallback) {
+          // If sharing failed and no fallback was used, download the image
+          downloadImage(imageUrl, "nutri-meal.png")
+        }
+      } else if (shareMode === "download") {
+        // Download the image
         downloadImage(imageUrl, "nutri-meal.png")
       }
     } catch (error) {
-      console.error("Error sharing meal:", error)
+      console.error("Error processing image:", error)
       toast({
         title: "Error",
-        description: "Ocurrió un error al compartir la comida. Intentando descargar la imagen...",
+        description: "Ocurrió un error al procesar la imagen. Intentando descargar directamente...",
         variant: "destructive",
       })
 
-      // Fallback to direct download if sharing fails
-      if (shareCardRef.current) {
-        try {
-          const imageUrl = await generateShareableImage(shareCardRef.current)
-          if (imageUrl) {
-            downloadImage(imageUrl, "nutri-meal.png")
-          }
-        } catch (e) {
-          console.error("Fallback download failed:", e)
-        }
+      // Fallback to direct download
+      try {
+        downloadImage(imageUrl, "nutri-meal.png")
+      } catch (e) {
+        console.error("Fallback download failed:", e)
       }
     } finally {
-      setIsSharing(false)
+      setIsGeneratingImage(false)
+      setShareMode(null)
+      setSelectedMeal(null)
     }
   }
 
-  const handleDownloadMeal = async (meal: Meal) => {
-    setSelectedMeal(meal)
-    setIsSharing(true)
-
-    try {
-      // Create a new div for the share card
-      const shareCardContainer = document.createElement("div")
-      shareCardContainer.style.position = "absolute"
-      shareCardContainer.style.left = "-9999px"
-      document.body.appendChild(shareCardContainer)
-
-      // Render the share card into the container
-      const shareCard = document.createElement("div")
-      shareCardContainer.appendChild(shareCard)
-
-      // Set the content of the share card
-      shareCard.innerHTML = `
-        <div class="card-container" style="width: 400px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); font-family: system-ui, sans-serif;">
-          <div style="padding: 16px; background: #e6f7f5; border-bottom: 1px solid #d1e7e5;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3 style="margin: 0; color: #0f766e; font-weight: 500;">NutriApp</h3>
-              <div style="font-size: 14px; color: #0f766e;">
-                ${format(parseISO(meal.created_at || new Date().toISOString()), "EEEE, d 'de' MMMM", { locale: es })} • 
-                ${format(parseISO(meal.created_at || new Date().toISOString()), "HH:mm")}
-              </div>
-            </div>
-          </div>
-          ${
-            meal.photo_url
-              ? `
-            <div style="width: 100%; height: 225px; overflow: hidden;">
-              <img src="${meal.photo_url}" alt="${meal.description}" style="width: 100%; height: 100%; object-fit: cover;" crossorigin="anonymous" />
-            </div>
-          `
-              : ""
-          }
-          <div style="padding: 16px;">
-            <div style="display: inline-block; padding: 4px 8px; background: #e6f7f5; color: #0f766e; font-size: 14px; border-radius: 4px; margin-bottom: 4px;">
-              ${getMealTypeLabel(meal.meal_type)}
-            </div>
-            <h3 style="margin: 8px 0 0 0; font-size: 18px; font-weight: 500;">${meal.description}</h3>
-            ${meal.notes ? `<p style="margin: 8px 0 0 0; color: #4b5563;">${meal.notes}</p>` : ""}
-          </div>
-          <div style="padding: 12px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px; color: #6b7280;">
-            Registrado con NutriApp
-          </div>
-        </div>
-      `
-
-      // Wait for images to load
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      // Generate image from the share card
-      const imageUrl = await generateShareableImage(shareCard)
-
-      // Clean up
-      document.body.removeChild(shareCardContainer)
-
-      if (!imageUrl) {
-        throw new Error("Failed to generate image")
-      }
-
-      // Download the image
-      downloadImage(imageUrl, "nutri-meal.png")
-    } catch (error) {
-      console.error("Error downloading meal:", error)
-      toast({
-        title: "Error",
-        description: "Ocurrió un error al descargar la comida",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSharing(false)
-    }
+  const handleImageError = (error: Error) => {
+    console.error("Image generation error:", error)
+    toast({
+      title: "Error",
+      description: "No se pudo generar la imagen para compartir",
+      variant: "destructive",
+    })
+    setIsGeneratingImage(false)
+    setShareMode(null)
+    setSelectedMeal(null)
   }
 
   if (loading) {
@@ -407,11 +297,21 @@ export default function MealHistory() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Hidden Share Card for fallback */}
-      {isSharing && selectedMeal && (
-        <div className="hidden">
-          <div ref={shareCardRef}>
-            <MealShareCard meal={selectedMeal} />
+      {/* Image Generator */}
+      {isGeneratingImage && selectedMeal && (
+        <ShareableImageGenerator
+          meal={selectedMeal}
+          onImageGenerated={handleImageGenerated}
+          onError={handleImageError}
+        />
+      )}
+
+      {/* Loading indicator for image generation */}
+      {isGeneratingImage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
+            <p className="text-neutral-700">Generando imagen...</p>
           </div>
         </div>
       )}
