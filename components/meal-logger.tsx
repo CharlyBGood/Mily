@@ -14,6 +14,7 @@ import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { type Meal, type MealType, saveMeal, savePhotoToLocalStorage } from "@/lib/local-storage"
+import { useRouter } from "next/navigation"
 
 export default function MealLogger() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -24,6 +25,7 @@ export default function MealLogger() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const router = useRouter()
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -41,6 +43,19 @@ export default function MealLogger() {
     fileInputRef.current?.click()
   }
 
+  const resetForm = () => {
+    setPhoto(null)
+    setPhotoPreview(null)
+    setDescription("")
+    setMealType("")
+    setNotes("")
+
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -56,8 +71,11 @@ export default function MealLogger() {
     setIsSubmitting(true)
 
     try {
+      console.log("Saving meal...")
+
       // Save photo to localStorage as base64
       const photoUrl = await savePhotoToLocalStorage(photo)
+      console.log("Photo saved")
 
       // Save meal
       const meal: Meal = {
@@ -68,6 +86,7 @@ export default function MealLogger() {
       }
 
       const { success, error } = await saveMeal(meal)
+      console.log("Meal save result:", success)
 
       if (!success) {
         toast({
@@ -80,16 +99,15 @@ export default function MealLogger() {
       }
 
       // Reset form
-      setPhoto(null)
-      setPhotoPreview(null)
-      setDescription("")
-      setMealType("")
-      setNotes("")
+      resetForm()
 
       toast({
         title: "Comida guardada",
         description: "Tu comida ha sido registrada exitosamente",
       })
+
+      // Force a refresh of the router to update the history tab
+      router.refresh()
     } catch (error) {
       console.error("Error saving meal:", error)
       toast({

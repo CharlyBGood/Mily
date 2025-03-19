@@ -16,7 +16,19 @@ export default function HomePage() {
   useEffect(() => {
     // Check if localStorage is available
     setStorageAvailable(isLocalStorageAvailable())
+
+    // Check if we should switch to history tab after adding a meal
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("tab") === "history") {
+      setActiveTab("history")
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
   }, [])
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+  }
 
   if (!storageAvailable) {
     return (
@@ -46,7 +58,7 @@ export default function HomePage() {
         <div className="w-10"></div> {/* Spacer for centering */}
       </header>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
         <main className="flex-1 overflow-auto">
           <TabsContent value="logger" className="h-full p-0 m-0">
             <MealLogger />

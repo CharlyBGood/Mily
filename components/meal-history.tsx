@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Share2, Download, Trash2 } from "lucide-react"
+import { Share2, Download, Trash2, RefreshCw } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -51,7 +51,15 @@ export default function MealHistory() {
         return
       }
 
-      setMeals(data)
+      // Sort meals by date (newest first)
+      const sortedMeals = [...data].sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return dateB - dateA
+      })
+
+      setMeals(sortedMeals)
+      console.log(`Loaded ${sortedMeals.length} meals`)
     } catch (error) {
       console.error("Error loading meals:", error)
       toast({
@@ -114,17 +122,30 @@ export default function MealHistory() {
         const blob = await response.blob()
         const file = new File([blob], "nutri-meal.png", { type: "image/png" })
 
-        // Share the image
-        const shareResult = await shareContent(
-          "Mi comida en NutriApp",
-          selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
-          undefined,
-          [file],
-        )
+        // Detect iOS/Safari
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
-        if (!shareResult.success && !shareResult.fallback) {
-          // If sharing failed and no fallback was used, download the image
+        if (isIOS || isSafari) {
+          // For iOS/Safari, download directly as fallback
           downloadImage(imageUrl, "nutri-meal.png")
+          toast({
+            title: "Imagen guardada",
+            description: "La imagen se ha guardado en tu dispositivo",
+          })
+        } else {
+          // For other browsers, try Web Share API
+          const shareResult = await shareContent(
+            "Mi comida en NutriApp",
+            selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
+            undefined,
+            [file],
+          )
+
+          if (!shareResult.success && !shareResult.fallback) {
+            // If sharing failed and no fallback was used, download the image
+            downloadImage(imageUrl, "nutri-meal.png")
+          }
         }
       } else if (shareMode === "download") {
         // Download the image
@@ -163,6 +184,10 @@ export default function MealHistory() {
     setSelectedMeal(null)
   }
 
+  const handleRefresh = () => {
+    loadMeals()
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
@@ -194,6 +219,10 @@ export default function MealHistory() {
         </div>
         <h3 className="text-lg font-medium mb-1">No hay comidas registradas</h3>
         <p className="text-neutral-500 mb-4">Tus comidas registradas aparecerán aquí</p>
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Actualizar
+        </Button>
       </div>
     )
   }
@@ -202,6 +231,13 @@ export default function MealHistory() {
     <>
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4">
+          <div className="flex justify-end mb-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Actualizar
+            </Button>
+          </div>
+
           {meals.map((meal) => {
             const date = meal.created_at ? parseISO(meal.created_at) : new Date()
             const formattedDate = format(date, "EEEE, d 'de' MMMM", { locale: es })
