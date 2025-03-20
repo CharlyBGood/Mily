@@ -128,11 +128,11 @@ export default function MealLogger() {
       <Card className="mb-4 overflow-hidden">
         <CardContent className="p-0">
           {photoPreview ? (
-            <div className="relative">
+            <div className="relative bg-white">
               <img
                 src={photoPreview || "/placeholder.svg"}
                 alt="Foto de comida"
-                className="w-full aspect-square object-cover"
+                className="w-full aspect-square object-contain"
               />
               <Button
                 variant="outline"

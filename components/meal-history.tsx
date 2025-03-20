@@ -116,25 +116,53 @@ export default function MealHistory() {
 
   const handleImageGenerated = async (imageUrl: string) => {
     try {
+      // Detect iOS/Safari
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+
       if (shareMode === "share") {
         // Convert to blob and file for sharing
         const response = await fetch(imageUrl)
         const blob = await response.blob()
         const file = new File([blob], "nutri-meal.png", { type: "image/png" })
 
-        // Detect iOS/Safari
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-
+        // For iOS/Safari, we need special handling
         if (isIOS || isSafari) {
-          // For iOS/Safari, download directly as fallback
-          downloadImage(imageUrl, "nutri-meal.png")
-          toast({
-            title: "Imagen guardada",
-            description: "La imagen se ha guardado en tu dispositivo",
-          })
+          try {
+            // First try native sharing if available
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title: "Mi comida en NutriApp",
+                text: selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
+                files: [file],
+              })
+
+              toast({
+                title: "Compartido",
+                description: "La imagen se ha compartido exitosamente",
+              })
+            } else {
+              // Fallback to download for iOS/Safari if sharing not available
+              downloadImage(imageUrl, "nutri-meal.png")
+
+              toast({
+                title: "Imagen guardada",
+                description: "La imagen se ha guardado en tu dispositivo",
+              })
+            }
+          } catch (error) {
+            console.error("Error sharing on iOS/Safari:", error)
+
+            // Fallback to download
+            downloadImage(imageUrl, "nutri-meal.png")
+
+            toast({
+              title: "Imagen guardada",
+              description: "La imagen se ha guardado en tu dispositivo",
+            })
+          }
         } else {
-          // For other browsers, try Web Share API
+          // For other browsers, use our shareContent utility
           const shareResult = await shareContent(
             "Mi comida en NutriApp",
             selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
@@ -145,11 +173,21 @@ export default function MealHistory() {
           if (!shareResult.success && !shareResult.fallback) {
             // If sharing failed and no fallback was used, download the image
             downloadImage(imageUrl, "nutri-meal.png")
+
+            toast({
+              title: "Imagen guardada",
+              description: "La imagen se ha guardado en tu dispositivo",
+            })
           }
         }
       } else if (shareMode === "download") {
         // Download the image
         downloadImage(imageUrl, "nutri-meal.png")
+
+        toast({
+          title: "Imagen guardada",
+          description: "La imagen se ha guardado en tu dispositivo",
+        })
       }
     } catch (error) {
       console.error("Error processing image:", error)
@@ -246,11 +284,11 @@ export default function MealHistory() {
             return (
               <Card key={meal.id} className="overflow-hidden">
                 {meal.photo_url && (
-                  <div className="aspect-video relative">
+                  <div className="aspect-video relative bg-white">
                     <img
                       src={meal.photo_url || "/placeholder.svg"}
                       alt={meal.description}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   </div>
                 )}

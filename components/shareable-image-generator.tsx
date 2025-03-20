@@ -247,7 +247,8 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
                 if (imgElement && proxyImageUrl) {
                   imgElement.src = proxyImageUrl
                   imgElement.crossOrigin = "anonymous"
-                  imgElement.style.objectFit = "cover"
+                  imgElement.style.objectFit = "contain"
+                  imgElement.style.backgroundColor = "#FFFFFF"
                 }
               },
             })
@@ -296,17 +297,18 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
           </CardHeader>
 
           {imageUrl && (
-            <div className="w-full" style={{ height: `${PHOTO_HEIGHT}px` }}>
+            <div className="w-full bg-white" style={{ height: `${PHOTO_HEIGHT}px` }}>
               <img
                 src={imageUrl || "/placeholder.svg"}
                 alt={meal.description}
-                className="w-full h-full object-cover"
+                className="w-full h-full"
                 crossOrigin="anonymous"
                 style={{
-                  objectFit: "cover",
+                  objectFit: "contain",
                   display: "block",
                   width: "100%",
                   height: "100%",
+                  backgroundColor: "white",
                 }}
               />
             </div>

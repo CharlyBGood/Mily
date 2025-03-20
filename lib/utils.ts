@@ -38,32 +38,50 @@ export async function shareContent(title: string, text: string, url?: string, fi
         if (navigator.canShare && navigator.canShare({ files })) {
           // Standard Web Share API with files
           shareData.files = files
+          await navigator.share(shareData)
+          return { success: true }
         } else if (isIOS && isSafari) {
           // For iOS Safari, try sharing without files first
-          await navigator.share({
-            title,
-            text,
-            url,
-          })
+          try {
+            await navigator.share({
+              title,
+              text,
+              url,
+            })
 
-          // Then download the image separately
-          downloadImage(files[0])
-          return { success: true, fallback: true }
+            // Then download the image separately
+            if (files[0] instanceof File) {
+              downloadImage(files[0])
+            }
+            return { success: true, fallback: true }
+          } catch (error) {
+            console.error("Error sharing on iOS:", error)
+            // Fallback to download
+            if (files[0] instanceof File) {
+              downloadImage(files[0])
+            }
+            return { success: true, fallback: true }
+          }
         } else {
           // For other browsers that don't support file sharing
-          downloadImage(files[0])
+          if (files[0] instanceof File) {
+            downloadImage(files[0])
+          }
           return { success: true, fallback: true }
         }
+      } else {
+        // Sharing without files
+        await navigator.share(shareData)
+        return { success: true }
       }
-
-      await navigator.share(shareData)
-      return { success: true }
     } catch (error) {
       console.error("Error sharing:", error)
 
       // Special handling for Safari
       if (files && files.length > 0) {
-        downloadImage(files[0])
+        if (files[0] instanceof File) {
+          downloadImage(files[0])
+        }
         return { success: true, fallback: true }
       }
 
@@ -72,7 +90,9 @@ export async function shareContent(title: string, text: string, url?: string, fi
   } else {
     // Fallback for browsers that don't support Web Share API
     if (files && files.length > 0) {
-      downloadImage(files[0])
+      if (files[0] instanceof File) {
+        downloadImage(files[0])
+      }
       return { success: true, fallback: true }
     }
     return { success: false, error: "Web Share API not supported" }
