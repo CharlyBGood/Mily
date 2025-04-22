@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Database } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
-import { type Meal, getUserMeals, deleteMeal } from "@/lib/meal-service"
+import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
 import DaySection from "./day-section"
 import MealEditor from "./meal-editor"
 import ShareDropdown from "./share-dropdown"
 import { useAuth } from "@/lib/auth-context"
+import { useStorage } from "@/lib/storage-provider"
 import { useRouter } from "next/navigation"
 import {
   AlertDialog,
@@ -39,16 +40,17 @@ export default function MealHistory() {
   const pdfContentRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
   const router = useRouter()
+  const { getUserMeals, deleteMeal, storageType } = useStorage()
 
   useEffect(() => {
     setMounted(true)
-    if (user) {
+    if (user || storageType === "local") {
       loadMeals()
     }
-  }, [user])
+  }, [user, storageType])
 
   const loadMeals = async () => {
-    if (!user) {
+    if (storageType === "supabase" && !user) {
       setLoading(false)
       return
     }
@@ -284,25 +286,11 @@ export default function MealHistory() {
     )
   }
 
-  if (!user) {
+  if (storageType === "supabase" && !user) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <div className="mb-4 text-neutral-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M3 9h18" />
-            <path d="M9 21V9" />
-          </svg>
+          <Database className="h-16 w-16 mx-auto" />
         </div>
         <h3 className="text-lg font-medium mb-1">Inicia sesión para ver tu historial</h3>
         <p className="text-neutral-500 mb-4">Debes iniciar sesión para ver tu historial de comidas</p>
@@ -365,12 +353,25 @@ export default function MealHistory() {
               Actualizar
             </Button>
 
-            <ShareDropdown
-              meals={meals}
-              disabled={loading}
-              onBeforePdfExport={prepareForPdfExport}
-              onAfterPdfExport={cleanupAfterPdfExport}
-            />
+            <div className="flex space-x-2">
+              {storageType === "local" && user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push("/migrate")}
+                  className="text-teal-600 border-teal-600"
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  Migrar a la nube
+                </Button>
+              )}
+              <ShareDropdown
+                meals={meals}
+                disabled={loading}
+                onBeforePdfExport={prepareForPdfExport}
+                onAfterPdfExport={cleanupAfterPdfExport}
+              />
+            </div>
           </div>
 
           <div id="pdf-content" ref={contentRef} className="pdf-content">

@@ -12,10 +12,11 @@ import { Camera, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
-import { type Meal, type MealType, saveMeal, uploadImage } from "@/lib/meal-service"
+import type { Meal, MealType } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
+import { useStorage } from "@/lib/storage-provider"
 
 export default function MealLogger() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -32,6 +33,7 @@ export default function MealLogger() {
   const { toast } = useToast()
   const router = useRouter()
   const { user } = useAuth()
+  const { saveMeal, uploadImage, storageType } = useStorage()
 
   useEffect(() => {
     setMounted(true)
@@ -91,7 +93,8 @@ export default function MealLogger() {
       return
     }
 
-    if (!user) {
+    // If using Supabase storage, we need to be logged in
+    if (storageType === "supabase" && !user) {
       toast({
         title: "No autenticado",
         description: "Debes iniciar sesión para guardar comidas",
@@ -105,14 +108,14 @@ export default function MealLogger() {
     try {
       console.log("Saving meal...")
 
-      // Upload photo to Supabase Storage if provided
+      // Upload photo if provided
       let photoUrl = undefined
       if (photo) {
         photoUrl = await uploadImage(photo)
-        console.log("Photo uploaded to Supabase Storage")
+        console.log("Photo uploaded")
       }
 
-      // Save meal to Supabase
+      // Save meal
       const meal: Meal = {
         description,
         meal_type: mealType as MealType,

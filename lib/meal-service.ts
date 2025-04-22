@@ -1,17 +1,6 @@
 import { v4 as uuidv4 } from "uuid"
-import { supabase } from "./supabase"
-
-export type MealType = "desayuno" | "colacion1" | "almuerzo" | "postre1" | "merienda" | "colacion2" | "cena" | "postre2"
-
-export interface Meal {
-  id?: string
-  user_id?: string
-  description: string
-  meal_type: MealType
-  photo_url?: string
-  notes?: string
-  created_at?: string
-}
+import { supabase } from "./supabase-client"
+import type { Meal } from "./types"
 
 // Helper function to upload an image to Supabase Storage
 export async function uploadImage(file: File): Promise<string> {
