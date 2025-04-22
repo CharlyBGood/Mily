@@ -1,0 +1,166 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
+import MilyLogo from "@/components/mily-logo"
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<"login" | "register">("login")
+  const { toast } = useToast()
+  const { signIn, signUp } = useAuth()
+  const router = useRouter()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      if (activeTab === "login") {
+        const { success, error } = await signIn(email, password)
+        if (success) {
+          toast({
+            title: "Inicio de sesión exitoso",
+            description: "Has iniciado sesión correctamente",
+          })
+          router.push("/")
+        } else {
+          toast({
+            title: "Error",
+            description: error?.message || "Error al iniciar sesión",
+            variant: "destructive",
+          })
+        }
+      } else {
+        const { success, error } = await signUp(email, password)
+        if (success) {
+          toast({
+            title: "Registro exitoso",
+            description: "Te has registrado correctamente. Revisa tu correo para confirmar tu cuenta.",
+          })
+          setActiveTab("login")
+        } else {
+          toast({
+            title: "Error",
+            description: error?.message || "Error al registrarse",
+            variant: "destructive",
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Auth error:", error)
+      toast({
+        title: "Error",
+        description: "Ocurrió un error durante la autenticación",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen bg-neutral-50">
+      <header className="p-4 border-b bg-white flex justify-center items-center">
+        <MilyLogo />
+      </header>
+
+      <main className="flex-1 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">
+              {activeTab === "login" ? "Iniciar sesión" : "Crear cuenta"}
+            </CardTitle>
+            <CardDescription className="text-center">
+              {activeTab === "login"
+                ? "Ingresa tus credenciales para acceder a tu cuenta"
+                : "Crea una cuenta para comenzar a registrar tus comidas"}
+            </CardDescription>
+          </CardHeader>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "login" | "register")}>
+            <TabsList className="grid grid-cols-2 w-full">
+              <TabsTrigger value="login">Iniciar sesión</TabsTrigger>
+              <TabsTrigger value="register">Registrarse</TabsTrigger>
+            </TabsList>
+            <TabsContent value="login">
+              <form onSubmit={handleSubmit}>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo electrónico</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="tu@ejemplo.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+                  </Button>
+                </CardFooter>
+              </form>
+            </TabsContent>
+            <TabsContent value="register">
+              <form onSubmit={handleSubmit}>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo electrónico</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="tu@ejemplo.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-neutral-500">La contraseña debe tener al menos 6 caracteres</p>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Registrando..." : "Registrarse"}
+                  </Button>
+                </CardFooter>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </main>
+    </div>
+  )
+}

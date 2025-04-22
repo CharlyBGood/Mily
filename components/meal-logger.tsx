@@ -12,9 +12,10 @@ import { Camera, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
-import { type Meal, type MealType, saveMeal, savePhotoToLocalStorage } from "@/lib/local-storage"
+import { type Meal, type MealType, saveMeal, uploadImage } from "@/lib/meal-service"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/lib/auth-context"
 
 export default function MealLogger() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -30,6 +31,7 @@ export default function MealLogger() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const { user } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -80,10 +82,19 @@ export default function MealLogger() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!mealType || !description || !photo) {
+    if (!mealType || !description) {
       toast({
         title: "Campos requeridos",
         description: "Por favor completa todos los campos requeridos",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!user) {
+      toast({
+        title: "No autenticado",
+        description: "Debes iniciar sesión para guardar comidas",
         variant: "destructive",
       })
       return
@@ -94,11 +105,14 @@ export default function MealLogger() {
     try {
       console.log("Saving meal...")
 
-      // Save photo to localStorage as base64
-      const photoUrl = await savePhotoToLocalStorage(photo)
-      console.log("Photo saved")
+      // Upload photo to Supabase Storage if provided
+      let photoUrl = undefined
+      if (photo) {
+        photoUrl = await uploadImage(photo)
+        console.log("Photo uploaded to Supabase Storage")
+      }
 
-      // Save meal
+      // Save meal to Supabase
       const meal: Meal = {
         description,
         meal_type: mealType as MealType,
@@ -110,29 +124,13 @@ export default function MealLogger() {
       console.log("Meal save result:", success)
 
       if (!success) {
-        let errorMessage = "Error al guardar la comida"
-
-        // Check if it's a storage error
-        if (error && typeof error === "string" && (error.includes("quota") || error.includes("storage"))) {
-          errorMessage = "No hay suficiente espacio de almacenamiento. Intenta eliminar algunas comidas antiguas."
-        }
-
         toast({
           title: "Error",
-          description: errorMessage,
+          description: error?.message || "Error al guardar la comida",
           variant: "destructive",
         })
         setIsSubmitting(false)
         return
-      }
-
-      // Check if we had to remove an old meal to make space
-      if (error && typeof error === "string" && error.includes("oldest meal")) {
-        toast({
-          title: "Espacio limitado",
-          description: "Se eliminó automáticamente la comida más antigua para hacer espacio.",
-          variant: "default",
-        })
       }
 
       // Reset form
@@ -262,7 +260,7 @@ export default function MealLogger() {
         <Button
           type="submit"
           className="w-full bg-teal-600 hover:bg-teal-700 text-base py-6"
-          disabled={!photoPreview || !description || !mealType || isSubmitting}
+          disabled={!description || !mealType || isSubmitting}
         >
           {isSubmitting ? "Guardando..." : "Guardar comida"}
         </Button>

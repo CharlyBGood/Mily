@@ -2,31 +2,31 @@
 
 import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Camera, History } from "lucide-react"
+import { Camera, History, User } from "lucide-react"
 import MealLogger from "@/components/meal-logger"
 import MealHistory from "@/components/meal-history"
-import { isLocalStorageAvailable } from "@/lib/utils"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("logger")
-  const [storageAvailable, setStorageAvailable] = useState(true)
   const [mounted, setMounted] = useState(false)
+  const { user } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     setMounted(true)
 
-    // Check if localStorage is available
-    setStorageAvailable(isLocalStorageAvailable())
-
     // Check if we should switch to history tab after adding a meal
-    const params = new URLSearchParams(window.location.search)
-    if (params.get("tab") === "history") {
-      setActiveTab("history")
-      // Clean up the URL
-      window.history.replaceState({}, document.title, window.location.pathname)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("tab") === "history") {
+        setActiveTab("history")
+        // Clean up the URL
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
     }
   }, [])
 
@@ -52,7 +52,7 @@ export default function HomePage() {
     )
   }
 
-  if (!storageAvailable) {
+  if (!user) {
     return (
       <div className="flex flex-col h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white">
@@ -60,15 +60,17 @@ export default function HomePage() {
             <MilyLogo />
           </div>
         </header>
-        <main className="flex-1 p-4">
-          <Alert variant="destructive" className="max-w-md mx-auto mt-8">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              Esta aplicación requiere acceso a localStorage para funcionar correctamente. Por favor, asegúrate de que
-              tu navegador tenga habilitado localStorage y que no estés en modo incógnito.
-            </AlertDescription>
-          </Alert>
+        <main className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+          <h1 className="text-2xl font-bold mb-4">Bienvenido a NutriApp</h1>
+          <p className="text-neutral-600 mb-8 max-w-md">
+            Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
+          </p>
+          <Button onClick={() => router.push("/login")} className="mb-4">
+            Iniciar sesión
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/login?tab=register")}>
+            Crear cuenta
+          </Button>
         </main>
       </div>
     )
@@ -76,8 +78,12 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex justify-center items-center">
+      <header className="p-4 border-b bg-white flex justify-between items-center">
+        <div className="w-10"></div> {/* Spacer for centering */}
         <MilyLogo />
+        <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
+          <User className="h-5 w-5" />
+        </Button>
       </header>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">

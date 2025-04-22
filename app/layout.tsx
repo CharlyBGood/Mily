@@ -2,11 +2,12 @@ import type React from "react"
 import "./globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthProvider } from "@/lib/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Mily",
+  title: "NutriApp",
   description: "Una aplicación para registrar tus comidas diarias",
   icons: {
     icon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",
@@ -25,7 +26,7 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="light">
-          {children}
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>

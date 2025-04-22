@@ -62,7 +62,8 @@
     "html2canvas": "latest",
     "jspdf": "latest",
     "uuid": "latest",
-    "@react-pdf/renderer": "latest"
+    "@react-pdf/renderer": "latest",
+    "@supabase/supabase-js": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

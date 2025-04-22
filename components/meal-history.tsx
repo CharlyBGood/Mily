@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
-import { type Meal, getUserMeals, deleteMeal } from "@/lib/local-storage"
+import { type Meal, getUserMeals, deleteMeal } from "@/lib/meal-service"
 import { groupMealsByDay } from "@/lib/utils"
 import DaySection from "./day-section"
 import MealEditor from "./meal-editor"
 import ShareDropdown from "./share-dropdown"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,13 +37,22 @@ export default function MealHistory() {
   const [mounted, setMounted] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
   const pdfContentRef = useRef<HTMLDivElement>(null)
+  const { user } = useAuth()
+  const router = useRouter()
 
   useEffect(() => {
     setMounted(true)
-    loadMeals()
-  }, [])
+    if (user) {
+      loadMeals()
+    }
+  }, [user])
 
   const loadMeals = async () => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       const { success, data, error } = await getUserMeals()
@@ -269,6 +280,35 @@ export default function MealHistory() {
       <div className="flex flex-col items-center justify-center h-full p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
         <p className="text-neutral-500">Cargando historial...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+        <div className="mb-4 text-neutral-400">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M3 9h18" />
+            <path d="M9 21V9" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium mb-1">Inicia sesión para ver tu historial</h3>
+        <p className="text-neutral-500 mb-4">Debes iniciar sesión para ver tu historial de comidas</p>
+        <Button variant="default" onClick={() => router.push("/login")}>
+          Iniciar sesión
+        </Button>
       </div>
     )
   }
