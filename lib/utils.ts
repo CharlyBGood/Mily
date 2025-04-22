@@ -1,5 +1,8 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { format, parseISO, formatISO } from "date-fns"
+import { es } from "date-fns/locale"
+import type { Meal } from "@/lib/local-storage"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -106,7 +109,7 @@ export function downloadImage(fileOrUrl: File | string, filename?: string) {
 
     const link = document.createElement("a")
     link.href = url
-    link.download = filename || (typeof fileOrUrl === "string" ? "nutri-meal.png" : fileOrUrl.name || "nutri-meal.png")
+    link.download = filename || (typeof fileOrUrl === "string" ? "mily-meal.png" : fileOrUrl.name || "mily-meal.png")
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -132,3 +135,47 @@ export function isLocalStorageAvailable() {
   }
 }
 
+// Function to format date for display - always show full date
+export function formatDateForDisplay(dateString: string) {
+  const date = parseISO(dateString)
+  return format(date, "EEEE, d 'de' MMMM", { locale: es })
+}
+
+// Function to get local date string (YYYY-MM-DD) from a date
+export function getLocalDateString(date: Date): string {
+  return formatISO(date, { representation: "date" })
+}
+
+// Function to group meals by day
+export function groupMealsByDay(meals: Meal[]) {
+  const groupedMeals: Record<string, Meal[]> = {}
+
+  meals.forEach((meal) => {
+    if (!meal.created_at) return
+
+    // Parse the date in the user's local timezone
+    const mealDate = new Date(meal.created_at)
+
+    // Get date part only (YYYY-MM-DD) in local timezone
+    const datePart = getLocalDateString(mealDate)
+
+    if (!groupedMeals[datePart]) {
+      groupedMeals[datePart] = []
+    }
+
+    groupedMeals[datePart].push(meal)
+  })
+
+  // Sort dates in descending order (newest first)
+  const sortedDates = Object.keys(groupedMeals).sort().reverse()
+
+  // Create the final array of grouped meals
+  return sortedDates.map((date) => ({
+    date,
+    displayDate: formatDateForDisplay(date),
+    meals: groupedMeals[date].sort((a, b) => {
+      // Sort meals within a day by time (newest first)
+      return new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime()
+    }),
+  }))
+}

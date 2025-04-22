@@ -8,35 +8,49 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Camera, AlertTriangle } from "lucide-react"
-import { format } from "date-fns"
+import { Camera, AlertTriangle, ArrowLeft } from "lucide-react"
+import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { type Meal, type MealType, saveMeal, savePhotoToLocalStorage } from "@/lib/local-storage"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-export default function MealLogger() {
+interface MealEditorProps {
+  meal: Meal
+  onCancel: () => void
+  onSaved: () => void
+}
+
+export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps) {
   const [photo, setPhoto] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [description, setDescription] = useState("")
-  const [mealType, setMealType] = useState<MealType | "">("")
-  const [notes, setNotes] = useState("")
+  const [photoPreview, setPhotoPreview] = useState<string | null>(meal.photo_url || null)
+  const [description, setDescription] = useState(meal.description || "")
+  const [mealType, setMealType] = useState<MealType | "">(meal.meal_type || "")
+  const [notes, setNotes] = useState(meal.notes || "")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [currentDate, setCurrentDate] = useState("")
   const [currentTime, setCurrentTime] = useState("")
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
+  const [originalDate, setOriginalDate] = useState<string>("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
 
   useEffect(() => {
     setMounted(true)
-    // Only format dates on the client side
+
+    // Format the original creation date
+    if (meal.created_at) {
+      const date = parseISO(meal.created_at)
+      setOriginalDate(format(date, "EEEE, d 'de' MMMM • HH:mm", { locale: es }))
+    }
+
+    // Current date/time for display
     setCurrentDate(format(new Date(), "EEEE, d 'de' MMMM", { locale: es }))
     setCurrentTime(format(new Date(), "HH:mm"))
-  }, [])
+  }, [meal])
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -63,24 +77,10 @@ export default function MealLogger() {
     fileInputRef.current?.click()
   }
 
-  const resetForm = () => {
-    setPhoto(null)
-    setPhotoPreview(null)
-    setDescription("")
-    setMealType("")
-    setNotes("")
-    setStorageWarning(null)
-
-    // Reset the file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!mealType || !description || !photo) {
+    if (!mealType || !description) {
       toast({
         title: "Campos requeridos",
         description: "Por favor completa todos los campos requeridos",
@@ -92,25 +92,29 @@ export default function MealLogger() {
     setIsSubmitting(true)
 
     try {
-      console.log("Saving meal...")
+      console.log("Updating meal...")
 
-      // Save photo to localStorage as base64
-      const photoUrl = await savePhotoToLocalStorage(photo)
-      console.log("Photo saved")
+      // Only process new photo if one was selected
+      let photoUrl = meal.photo_url
+      if (photo) {
+        photoUrl = await savePhotoToLocalStorage(photo)
+        console.log("New photo saved")
+      }
 
-      // Save meal
-      const meal: Meal = {
+      // Prepare updated meal - preserve original ID and creation timestamp
+      const updatedMeal: Meal = {
+        ...meal,
         description,
         meal_type: mealType as MealType,
         photo_url: photoUrl,
         notes: notes || undefined,
       }
 
-      const { success, data, error } = await saveMeal(meal)
-      console.log("Meal save result:", success)
+      const { success, data, error } = await saveMeal(updatedMeal)
+      console.log("Meal update result:", success)
 
       if (!success) {
-        let errorMessage = "Error al guardar la comida"
+        let errorMessage = "Error al actualizar la comida"
 
         // Check if it's a storage error
         if (error && typeof error === "string" && (error.includes("quota") || error.includes("storage"))) {
@@ -126,33 +130,21 @@ export default function MealLogger() {
         return
       }
 
-      // Check if we had to remove an old meal to make space
-      if (error && typeof error === "string" && error.includes("oldest meal")) {
-        toast({
-          title: "Espacio limitado",
-          description: "Se eliminó automáticamente la comida más antigua para hacer espacio.",
-          variant: "default",
-        })
-      }
-
-      // Reset form
-      resetForm()
-
       toast({
-        title: "Comida guardada",
-        description: "Tu comida ha sido registrada exitosamente",
+        title: "Comida actualizada",
+        description: "Tu comida ha sido actualizada exitosamente",
       })
 
       // Force a refresh of the router to update the history tab
       router.refresh()
 
-      // Navigate to history tab
-      router.push("?tab=history")
+      // Notify parent component
+      onSaved()
     } catch (error) {
-      console.error("Error saving meal:", error)
+      console.error("Error updating meal:", error)
       toast({
         title: "Error",
-        description: "Ocurrió un error al guardar la comida",
+        description: "Ocurrió un error al actualizar la comida",
         variant: "destructive",
       })
     } finally {
@@ -162,6 +154,14 @@ export default function MealLogger() {
 
   return (
     <div className="p-4 max-w-md mx-auto">
+      <div className="flex items-center mb-4">
+        <Button variant="ghost" size="sm" onClick={onCancel} className="mr-2">
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          <span>Volver</span>
+        </Button>
+        <h2 className="text-lg font-medium">Editar comida</h2>
+      </div>
+
       <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
         <CardContent className="p-0">
           {photoPreview ? (
@@ -204,10 +204,8 @@ export default function MealLogger() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {mounted && (
-          <div className="text-base text-neutral-500 mb-2 font-medium">
-            {currentDate} • {currentTime}
-          </div>
+        {mounted && originalDate && (
+          <div className="text-base text-neutral-500 mb-2 font-medium">Fecha original: {originalDate}</div>
         )}
 
         <div className="space-y-2">
@@ -259,13 +257,18 @@ export default function MealLogger() {
           />
         </div>
 
-        <Button
-          type="submit"
-          className="w-full bg-teal-600 hover:bg-teal-700 text-base py-6"
-          disabled={!photoPreview || !description || !mealType || isSubmitting}
-        >
-          {isSubmitting ? "Guardando..." : "Guardar comida"}
-        </Button>
+        <div className="flex space-x-2">
+          <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1 bg-teal-600 hover:bg-teal-700 text-base"
+            disabled={!description || !mealType || isSubmitting}
+          >
+            {isSubmitting ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </div>
       </form>
     </div>
   )

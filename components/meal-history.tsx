@@ -1,16 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Share2, Download, Trash2, RefreshCw } from "lucide-react"
-import { format, parseISO } from "date-fns"
-import { es } from "date-fns/locale"
+import { RefreshCw } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import { type Meal, getUserMeals, deleteMeal } from "@/lib/local-storage"
-import { getMealTypeLabel, shareContent, downloadImage } from "@/lib/utils"
-import ShareableImageGenerator from "./shareable-image-generator"
+import { groupMealsByDay } from "@/lib/utils"
+import DaySection from "./day-section"
+import MealEditor from "./meal-editor"
+import ShareDropdown from "./share-dropdown"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,18 +20,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function MealHistory() {
+  const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
-  const [shareMode, setShareMode] = useState<"share" | "download" | null>(null)
+  const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
+  const [expandAllForPdf, setExpandAllForPdf] = useState(false)
+  const [isPdfMode, setIsPdfMode] = useState(false)
   const { toast } = useToast()
+  const [mounted, setMounted] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const pdfContentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    setMounted(true)
     loadMeals()
   }, [])
 
@@ -51,15 +56,13 @@ export default function MealHistory() {
         return
       }
 
-      // Sort meals by date (newest first)
-      const sortedMeals = [...data].sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
-        return dateB - dateA
-      })
+      // Store raw meals for PDF export
+      setMeals(data)
 
-      setMeals(sortedMeals)
-      console.log(`Loaded ${sortedMeals.length} meals`)
+      // Group meals by day for display
+      const grouped = groupMealsByDay(data)
+      setGroupedMeals(grouped)
+      console.log(`Loaded ${data.length} meals in ${grouped.length} days`)
     } catch (error) {
       console.error("Error loading meals:", error)
       toast({
@@ -72,9 +75,11 @@ export default function MealHistory() {
     }
   }
 
-  const handleDeleteMeal = async (mealId: string) => {
+  const handleDeleteMeal = async (meal: Meal) => {
+    if (!meal.id) return
+
     try {
-      const { success, error } = await deleteMeal(mealId)
+      const { success, error } = await deleteMeal(meal.id)
 
       if (!success) {
         toast({
@@ -85,8 +90,8 @@ export default function MealHistory() {
         return
       }
 
-      // Update the meals list
-      setMeals(meals.filter((meal) => meal.id !== mealId))
+      // Reload meals to update the grouped structure
+      await loadMeals()
 
       toast({
         title: "Comida eliminada",
@@ -102,128 +107,170 @@ export default function MealHistory() {
     }
   }
 
-  const handleShareMeal = (meal: Meal) => {
-    setSelectedMeal(meal)
-    setShareMode("share")
-    setIsGeneratingImage(true)
+  const handleRefresh = () => {
+    loadMeals()
   }
 
-  const handleDownloadMeal = (meal: Meal) => {
-    setSelectedMeal(meal)
-    setShareMode("download")
-    setIsGeneratingImage(true)
-  }
-
-  const handleImageGenerated = async (imageUrl: string) => {
-    try {
-      // Detect iOS/Safari
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-
-      if (shareMode === "share") {
-        // Convert to blob and file for sharing
-        const response = await fetch(imageUrl)
-        const blob = await response.blob()
-        const file = new File([blob], "nutri-meal.png", { type: "image/png" })
-
-        // For iOS/Safari, we need special handling
-        if (isIOS || isSafari) {
-          try {
-            // First try native sharing if available
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                title: "Mi comida en NutriApp",
-                text: selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
-                files: [file],
-              })
-
-              toast({
-                title: "Compartido",
-                description: "La imagen se ha compartido exitosamente",
-              })
-            } else {
-              // Fallback to download for iOS/Safari if sharing not available
-              downloadImage(imageUrl, "nutri-meal.png")
-
-              toast({
-                title: "Imagen guardada",
-                description: "La imagen se ha guardado en tu dispositivo",
-              })
-            }
-          } catch (error) {
-            console.error("Error sharing on iOS/Safari:", error)
-
-            // Fallback to download
-            downloadImage(imageUrl, "nutri-meal.png")
-
-            toast({
-              title: "Imagen guardada",
-              description: "La imagen se ha guardado en tu dispositivo",
-            })
-          }
-        } else {
-          // For other browsers, use our shareContent utility
-          const shareResult = await shareContent(
-            "Mi comida en NutriApp",
-            selectedMeal ? `${getMealTypeLabel(selectedMeal.meal_type)}: ${selectedMeal.description}` : "",
-            undefined,
-            [file],
-          )
-
-          if (!shareResult.success && !shareResult.fallback) {
-            // If sharing failed and no fallback was used, download the image
-            downloadImage(imageUrl, "nutri-meal.png")
-
-            toast({
-              title: "Imagen guardada",
-              description: "La imagen se ha guardado en tu dispositivo",
-            })
-          }
-        }
-      } else if (shareMode === "download") {
-        // Download the image
-        downloadImage(imageUrl, "nutri-meal.png")
-
-        toast({
-          title: "Imagen guardada",
-          description: "La imagen se ha guardado en tu dispositivo",
-        })
-      }
-    } catch (error) {
-      console.error("Error processing image:", error)
-      toast({
-        title: "Error",
-        description: "Ocurrió un error al procesar la imagen. Intentando descargar directamente...",
-        variant: "destructive",
-      })
-
-      // Fallback to direct download
-      try {
-        downloadImage(imageUrl, "nutri-meal.png")
-      } catch (e) {
-        console.error("Fallback download failed:", e)
-      }
-    } finally {
-      setIsGeneratingImage(false)
-      setShareMode(null)
-      setSelectedMeal(null)
+  const handleDeleteClick = (meal: Meal) => {
+    if (meal && meal.id) {
+      setSelectedMeal(meal)
+      setShowDeleteDialog(true)
     }
   }
 
-  const handleImageError = (error: Error) => {
-    console.error("Image generation error:", error)
-    toast({
-      title: "Error",
-      description: "No se pudo generar la imagen para compartir",
-      variant: "destructive",
-    })
-    setIsGeneratingImage(false)
-    setShareMode(null)
-    setSelectedMeal(null)
+  const handleEditClick = (meal: Meal) => {
+    setEditingMeal(meal)
   }
 
-  const handleRefresh = () => {
+  const handleEditCancel = () => {
+    setEditingMeal(null)
+  }
+
+  const handleEditSaved = () => {
+    setEditingMeal(null)
     loadMeals()
+  }
+
+  const handleSectionExpand = (date: string) => {
+    // If we're in PDF export mode, don't change expanded sections
+    if (expandAllForPdf) return
+
+    // If date is empty or matches current expanded section, collapse it
+    if (!date || date === expandedSection) {
+      setExpandedSection(null)
+    } else {
+      setExpandedSection(date)
+    }
+  }
+
+  // Prepare content for PDF export
+  const prepareForPdfExport = async (): Promise<HTMLElement | null> => {
+    console.log("Preparing content for PDF export")
+
+    try {
+      // Set PDF mode to true
+      setIsPdfMode(true)
+      setExpandAllForPdf(true)
+
+      // Wait for state update and rendering
+      console.log("Waiting for state update and rendering")
+      await new Promise((resolve) => setTimeout(resolve, 1000)) // Increased timeout for better rendering
+
+      // Create a clone of the content for PDF export
+      if (!contentRef.current) {
+        console.error("Content ref is null")
+        return null
+      }
+
+      // Create a new div for PDF content
+      if (!pdfContentRef.current) {
+        console.error("PDF content ref is null")
+        return null
+      }
+
+      // Clear previous content
+      pdfContentRef.current.innerHTML = ""
+
+      // Clone the content
+      const clone = contentRef.current.cloneNode(true) as HTMLElement
+
+      // Append the clone to the PDF content div
+      pdfContentRef.current.appendChild(clone)
+
+      // Process the clone to ensure all sections are expanded and buttons are hidden
+      const sections = pdfContentRef.current.querySelectorAll(".day-section")
+      console.log(`Found ${sections.length} day sections`)
+
+      sections.forEach((section) => {
+        // Ensure all sections are expanded
+        const collapsible = section.querySelector("[data-state]")
+        if (collapsible) {
+          collapsible.setAttribute("data-state", "open")
+        }
+
+        // Hide thumbnails
+        const thumbnails = section.querySelector(".meal-thumbnails")
+        if (thumbnails) {
+          ;(thumbnails as HTMLElement).style.display = "none"
+        }
+
+        // Hide any buttons or interactive elements
+        const buttons = section.querySelectorAll("button")
+        buttons.forEach((button) => {
+          ;(button as HTMLElement).style.display = "none"
+        })
+
+        // Make sure all content is visible
+        const collapsibleContent = section.querySelector('[data-state="closed"]')
+        if (collapsibleContent) {
+          collapsibleContent.setAttribute("data-state", "open")
+          ;(collapsibleContent as HTMLElement).style.display = "block"
+        }
+      })
+
+      // Process all images to ensure they load properly
+      const images = pdfContentRef.current.querySelectorAll("img")
+      console.log(`Found ${images.length} images to process`)
+
+      // Wait for all images to load
+      const imagePromises = Array.from(images).map((img) => {
+        return new Promise<void>((resolve) => {
+          if (img.complete) {
+            resolve()
+          } else {
+            img.onload = () => resolve()
+            img.onerror = () => resolve() // Continue even if image fails
+          }
+
+          // Force reload the image with crossOrigin
+          if (img.src && !img.src.includes("placeholder")) {
+            const originalSrc = img.src
+            img.crossOrigin = "anonymous"
+            img.src = originalSrc
+          }
+        })
+      })
+
+      // Wait for all images to process
+      await Promise.all(imagePromises)
+      console.log("All images processed")
+
+      // Wait a bit more for any DOM updates to complete
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      console.log("Content prepared successfully")
+      return pdfContentRef.current
+    } catch (error) {
+      console.error("Error preparing content for PDF export:", error)
+      return null
+    }
+  }
+
+  // Restore state after PDF export
+  const cleanupAfterPdfExport = () => {
+    console.log("Cleaning up after PDF export")
+    setExpandAllForPdf(false)
+    setIsPdfMode(false)
+
+    // Clear the PDF content
+    if (pdfContentRef.current) {
+      pdfContentRef.current.innerHTML = ""
+    }
+  }
+
+  // If we're editing a meal, show the editor
+  if (editingMeal) {
+    return <MealEditor meal={editingMeal} onCancel={handleEditCancel} onSaved={handleEditSaved} />
+  }
+
+  if (!mounted) {
+    // Return a placeholder with the same structure to prevent hydration mismatch
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
+        <p className="text-neutral-500">Cargando historial...</p>
+      </div>
+    )
   }
 
   if (loading) {
@@ -235,7 +282,7 @@ export default function MealHistory() {
     )
   }
 
-  if (meals.length === 0) {
+  if (groupedMeals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <div className="mb-4 text-neutral-400">
@@ -257,10 +304,13 @@ export default function MealHistory() {
         </div>
         <h3 className="text-lg font-medium mb-1">No hay comidas registradas</h3>
         <p className="text-neutral-500 mb-4">Tus comidas registradas aparecerán aquí</p>
-        <Button variant="outline" size="sm" onClick={handleRefresh}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Actualizar
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Actualizar
+          </Button>
+          <ShareDropdown meals={meals} disabled={true} />
+        </div>
       </div>
     )
   }
@@ -268,82 +318,41 @@ export default function MealHistory() {
   return (
     <>
       <ScrollArea className="h-full">
-        <div className="p-4 space-y-4">
-          <div className="flex justify-end mb-2">
+        <div className="p-4 pb-40">
+          <div className="flex justify-between mb-4">
             <Button variant="outline" size="sm" onClick={handleRefresh}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualizar
             </Button>
+
+            <ShareDropdown
+              meals={meals}
+              disabled={loading}
+              onBeforePdfExport={prepareForPdfExport}
+              onAfterPdfExport={cleanupAfterPdfExport}
+            />
           </div>
 
-          {meals.map((meal) => {
-            const date = meal.created_at ? parseISO(meal.created_at) : new Date()
-            const formattedDate = format(date, "EEEE, d 'de' MMMM", { locale: es })
-            const formattedTime = format(date, "HH:mm")
-
-            return (
-              <Card key={meal.id} className="overflow-hidden">
-                {meal.photo_url && (
-                  <div className="aspect-video relative bg-white">
-                    <img
-                      src={meal.photo_url || "/placeholder.svg"}
-                      alt={meal.description}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                )}
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-medium">{meal.description}</h3>
-                      <div className="text-sm text-neutral-500">{getMealTypeLabel(meal.meal_type)}</div>
-                    </div>
-                    <div className="text-right text-sm text-neutral-500">
-                      <div>{formattedDate}</div>
-                      <div>{formattedTime}</div>
-                    </div>
-                  </div>
-
-                  {meal.notes && <div className="mt-2 text-sm text-neutral-600">{meal.notes}</div>}
-                </CardContent>
-                <CardFooter className="px-4 py-2 border-t bg-neutral-50 flex justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => {
-                      setSelectedMeal(meal)
-                      setShowDeleteDialog(true)
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    <span>Eliminar</span>
-                  </Button>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-neutral-600">
-                        <Share2 className="h-4 w-4 mr-1" />
-                        <span>Compartir</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleShareMeal(meal)}>
-                        <Share2 className="h-4 w-4 mr-2" />
-                        <span>Compartir imagen</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDownloadMeal(meal)}>
-                        <Download className="h-4 w-4 mr-2" />
-                        <span>Descargar imagen</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </CardFooter>
-              </Card>
-            )
-          })}
+          <div id="pdf-content" ref={contentRef} className="pdf-content">
+            {groupedMeals.map((group) => (
+              <DaySection
+                key={group.date}
+                date={group.date}
+                displayDate={group.displayDate}
+                meals={group.meals}
+                onDeleteMeal={handleDeleteClick}
+                onEditMeal={handleEditClick}
+                onExpand={handleSectionExpand}
+                isExpanded={expandAllForPdf || expandedSection === group.date}
+                isPdfMode={isPdfMode}
+              />
+            ))}
+          </div>
         </div>
       </ScrollArea>
+
+      {/* Hidden div for PDF rendering */}
+      <div ref={pdfContentRef} className="hidden pdf-render-container"></div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -360,7 +369,7 @@ export default function MealHistory() {
               className="bg-red-600 hover:bg-red-700"
               onClick={() => {
                 if (selectedMeal?.id) {
-                  handleDeleteMeal(selectedMeal.id)
+                  handleDeleteMeal(selectedMeal)
                 }
                 setShowDeleteDialog(false)
               }}
@@ -370,26 +379,6 @@ export default function MealHistory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Image Generator */}
-      {isGeneratingImage && selectedMeal && (
-        <ShareableImageGenerator
-          meal={selectedMeal}
-          onImageGenerated={handleImageGenerated}
-          onError={handleImageError}
-        />
-      )}
-
-      {/* Loading indicator for image generation */}
-      {isGeneratingImage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-            <p className="text-neutral-700">Generando imagen...</p>
-          </div>
-        </div>
-      )}
     </>
   )
 }
-

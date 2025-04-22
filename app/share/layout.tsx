@@ -1,5 +1,4 @@
 import type React from "react"
-import "./globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -13,10 +12,9 @@ export const metadata = {
     apple: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",
     shortcut: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",
   },
-    generator: 'v0.dev'
 }
 
-export default function RootLayout({
+export default function ShareLayout({
   children,
 }: {
   children: React.ReactNode

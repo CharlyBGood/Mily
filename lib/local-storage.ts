@@ -12,7 +12,8 @@ export interface Meal {
   created_at?: string
 }
 
-const MEALS_STORAGE_KEY = "nutriapp_meals"
+// Update the storage key from nutriapp_meals to mily_meals
+const MEALS_STORAGE_KEY = "mily_meals"
 
 // Helper function to save a meal photo (converts to base64)
 export async function savePhotoToLocalStorage(file: File): Promise<string> {
@@ -22,23 +23,16 @@ export async function savePhotoToLocalStorage(file: File): Promise<string> {
     reader.onload = () => {
       const result = reader.result as string
 
-      // For Safari compatibility, we'll check if we need to resize the image
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-
-      if (isSafari) {
-        // Resize the image for Safari to avoid memory issues
-        resizeImage(result, 1200, 1200)
-          .then((resizedImage) => {
-            resolve(resizedImage)
-          })
-          .catch((err) => {
-            console.error("Error resizing image:", err)
-            // Fall back to original image
-            resolve(result)
-          })
-      } else {
-        resolve(result)
-      }
+      // For mobile compatibility, we'll resize the image to reduce storage size
+      resizeImage(result, 800, 800)
+        .then((resizedImage) => {
+          resolve(resizedImage)
+        })
+        .catch((err) => {
+          console.error("Error resizing image:", err)
+          // Fall back to original image
+          resolve(result)
+        })
     }
 
     reader.onerror = reject
@@ -83,8 +77,8 @@ function resizeImage(dataUrl: string, maxWidth: number, maxHeight: number): Prom
       ctx.imageSmoothingQuality = "high"
       ctx.drawImage(img, 0, 0, width, height)
 
-      // Get data URL
-      const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.85)
+      // Get data URL with reduced quality for Android compatibility
+      const resizedDataUrl = canvas.toDataURL("image/jpeg", 0.7) // Lower quality for better storage
       resolve(resizedDataUrl)
     }
 
@@ -106,8 +100,23 @@ export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: M
     // Create new meal with unique ID and timestamp
     const newMeal: Meal = {
       ...meal,
-      id: uuidv4(),
-      created_at: new Date().toISOString(),
+      id: meal.id || uuidv4(),
+      created_at: meal.created_at || new Date().toISOString(),
+    }
+
+    // If updating an existing meal
+    if (meal.id) {
+      // Find and replace the existing meal
+      const updatedMeals = existingMeals.map((m) => (m.id === meal.id ? newMeal : m))
+      console.log("Updated meals after update:", updatedMeals.length)
+
+      // Save the updated array back to localStorage
+      const saveResult = saveMealsToStorage(updatedMeals)
+      if (!saveResult.success) {
+        return { success: false, error: saveResult.error }
+      }
+
+      return { success: true, data: newMeal }
     }
 
     // Add new meal to the array
@@ -117,6 +126,58 @@ export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: M
     // Save the updated array back to localStorage
     const saveResult = saveMealsToStorage(updatedMeals)
     if (!saveResult.success) {
+      // If we hit storage limits, try to reduce the size by compressing images further
+      if (
+        saveResult.error &&
+        typeof saveResult.error === "string" &&
+        (saveResult.error.includes("quota") || saveResult.error.includes("storage"))
+      ) {
+        console.warn("Storage limit reached, attempting to optimize storage...")
+
+        // Try to optimize by reducing image quality of the new meal
+        if (newMeal.photo_url && newMeal.photo_url.startsWith("data:image")) {
+          try {
+            const optimizedImage = await resizeImage(newMeal.photo_url, 600, 600) // Smaller size
+            newMeal.photo_url = optimizedImage
+
+            // Try saving again with the optimized image
+            const updatedMealsOptimized = [...existingMeals, newMeal]
+            const retryResult = saveMealsToStorage(updatedMealsOptimized)
+
+            if (retryResult.success) {
+              return { success: true, data: newMeal }
+            }
+          } catch (e) {
+            console.error("Error optimizing image:", e)
+          }
+        }
+
+        // If still failing, try removing the oldest meal to make space
+        if (existingMeals.length > 0) {
+          console.warn("Still hitting storage limits, removing oldest meal to make space")
+          const sortedMeals = [...existingMeals].sort((a, b) => {
+            const dateA = a.created_at ? new Date(a.created_at).getTime() : 0
+            const dateB = b.created_at ? new Date(b.created_at).getTime() : 0
+            return dateA - dateB // Oldest first
+          })
+
+          // Remove the oldest meal
+          const reducedMeals = sortedMeals.slice(1)
+
+          // Add the new meal
+          const updatedReducedMeals = [...reducedMeals, newMeal]
+          const lastChanceResult = saveMealsToStorage(updatedReducedMeals)
+
+          if (lastChanceResult.success) {
+            return {
+              success: true,
+              data: newMeal,
+              error: "Storage limit reached. The oldest meal was automatically removed to make space.",
+            }
+          }
+        }
+      }
+
       return { success: false, error: saveResult.error }
     }
 
@@ -135,6 +196,23 @@ export async function getUserMeals(): Promise<{ success: boolean; data?: Meal[];
     return { success: true, data: meals }
   } catch (error) {
     console.error("Error getting meals from localStorage:", error)
+    return { success: false, error }
+  }
+}
+
+// Helper function to get a single meal by ID
+export async function getMealById(mealId: string): Promise<{ success: boolean; data?: Meal; error?: any }> {
+  try {
+    const meals = getMealsFromStorage()
+    const meal = meals.find((m) => m.id === mealId)
+
+    if (!meal) {
+      return { success: false, error: "Meal not found" }
+    }
+
+    return { success: true, data: meal }
+  } catch (error) {
+    console.error("Error getting meal from localStorage:", error)
     return { success: false, error }
   }
 }
@@ -204,24 +282,29 @@ function saveMealsToStorage(meals: Meal[]): { success: boolean; error?: any } {
     const mealsJson = JSON.stringify(meals)
 
     // Check if the data is too large for localStorage
-    // localStorage typically has a 5MB limit
-    if (mealsJson.length > 4 * 1024 * 1024) {
+    // localStorage typically has a 5MB limit, but mobile browsers might have less
+    const estimatedSize = mealsJson.length * 2 // Rough estimate in bytes
+    console.log(`Estimated storage size: ${(estimatedSize / 1024 / 1024).toFixed(2)}MB`)
+
+    if (estimatedSize > 4 * 1024 * 1024) {
       // 4MB safety limit
       console.warn("Meals data is approaching localStorage size limit")
-
-      // If too large, we could implement a strategy like:
-      // 1. Remove oldest meals
-      // 2. Compress images further
-      // 3. Split into multiple localStorage keys
-
-      // For now, just warn and continue
     }
 
-    // Save to localStorage
-    localStorage.setItem(MEALS_STORAGE_KEY, mealsJson)
-    return { success: true }
+    // Try to save to localStorage
+    try {
+      localStorage.setItem(MEALS_STORAGE_KEY, mealsJson)
+      return { success: true }
+    } catch (e) {
+      // Handle quota exceeded error specifically
+      if (e instanceof Error) {
+        console.error("Error writing to localStorage:", e.message)
+        return { success: false, error: e.message }
+      }
+      return { success: false, error: "Unknown storage error" }
+    }
   } catch (error) {
-    console.error("Error writing to localStorage:", error)
+    console.error("Error preparing data for localStorage:", error)
     return { success: false, error }
   }
 }
@@ -238,4 +321,3 @@ export function clearAllMeals(): { success: boolean; error?: any } {
     return { success: false, error }
   }
 }
-

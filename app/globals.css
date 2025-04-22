@@ -75,3 +75,112 @@
   }
 }
 
+/* Enhanced safe area utilities */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .h-safe-area {
+    height: env(safe-area-inset-bottom);
+  }
+}
+
+/* Image container styles */
+.meal-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 50px;
+  max-height: none; /* Remove max-height constraint to allow dynamic sizing */
+  overflow: hidden;
+  background-color: #f9f9f9;
+}
+
+/* PDF export specific styles */
+.pdf-render-container {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 800px;
+  background-color: white;
+  z-index: -1;
+}
+
+.pdf-render-container [data-state="closed"] {
+  display: block !important;
+}
+
+.pdf-render-container .meal-thumbnails {
+  display: none !important;
+}
+
+.pdf-render-container button {
+  display: none !important;
+}
+
+.pdf-meal-card {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-meal-card .meal-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.pdf-meal-card .meal-image-container img {
+  max-width: 100%;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  aspect-ratio: auto !important;
+}
+
+/* Force all sections to be expanded in PDF mode */
+[data-pdf-section="true"] [data-state="closed"] {
+  display: block !important;
+}
+
+[data-pdf-section="true"] .meal-thumbnails {
+  display: none !important;
+}
+
+/* PDF image handling */
+.pdf-image {
+  max-width: 100%;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block;
+  margin: 0 auto;
+  aspect-ratio: auto !important;
+}
+
+.pdf-render-container .meal-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.pdf-render-container .meal-image-container img {
+  max-width: 100%;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  aspect-ratio: auto !important;
+}
+
+/* Ensure proper page breaks */
+@media print {
+  .day-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .meal-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
 
 type Theme = "dark" | "light" | "system"
@@ -21,20 +20,19 @@ const ThemeProviderContext = createContext<{
 })
 
 export function ThemeProvider({ children, defaultTheme = "light", attribute = "class", ...props }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
+  // Use state with no initial value to prevent hydration mismatch
+  const [theme, setTheme] = useState<Theme | null>(null)
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
     // Get stored theme or default to light
     const storedTheme = localStorage.getItem("theme") as Theme
-    if (storedTheme) {
-      setTheme(storedTheme)
-    }
-  }, [])
+    setTheme(storedTheme || defaultTheme)
+  }, [defaultTheme])
 
   useEffect(() => {
-    if (!isMounted) return
+    if (!isMounted || theme === null) return
 
     const root = window.document.documentElement
 
@@ -55,13 +53,20 @@ export function ThemeProvider({ children, defaultTheme = "light", attribute = "c
     localStorage.setItem("theme", theme)
   }, [theme, isMounted])
 
-  // Only render children after mounting to avoid hydration mismatch
+  const value = {
+    theme: theme || defaultTheme,
+    setTheme: (newTheme: Theme) => {
+      setTheme(newTheme)
+    },
+  }
+
+  // Only render context provider after mounting to avoid hydration mismatch
   if (!isMounted) {
     return <>{children}</>
   }
 
   return (
-    <ThemeProviderContext.Provider value={{ theme, setTheme }} {...props}>
+    <ThemeProviderContext.Provider value={value} {...props}>
       {children}
     </ThemeProviderContext.Provider>
   )
@@ -74,4 +79,3 @@ export const useTheme = () => {
   }
   return context
 }
-

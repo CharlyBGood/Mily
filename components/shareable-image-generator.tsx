@@ -19,10 +19,26 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageAttempted, setImageAttempted] = useState(false)
   const [proxyImageUrl, setProxyImageUrl] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const [formattedDate, setFormattedDate] = useState("")
+  const [formattedTime, setFormattedTime] = useState("")
 
-  // Fixed dimensions for consistent image size
-  const CARD_WIDTH = 600
-  const PHOTO_HEIGHT = 300
+  // Fixed width for card but dynamic height
+  const CARD_WIDTH = 400
+
+  useEffect(() => {
+    setMounted(true)
+    // Only format dates on the client side
+    if (meal.created_at) {
+      const date = parseISO(meal.created_at)
+      setFormattedDate(format(date, "EEEE, d 'de' MMMM", { locale: es }))
+      setFormattedTime(format(date, "HH:mm"))
+    } else {
+      const date = new Date()
+      setFormattedDate(format(date, "EEEE, d 'de' MMMM", { locale: es }))
+      setFormattedTime(format(date, "HH:mm"))
+    }
+  }, [meal.created_at])
 
   // Handle image loading for Safari compatibility
   useEffect(() => {
@@ -60,9 +76,9 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
           img.onload = () => {
             // Create a canvas to draw the image
             const canvas = document.createElement("canvas")
-            // Set fixed dimensions for consistent sizing
-            canvas.width = 1200 // Higher resolution for better quality
-            canvas.height = 900
+            // Set dimensions based on the original image
+            canvas.width = img.width
+            canvas.height = img.height
 
             const ctx = canvas.getContext("2d")
             if (!ctx) {
@@ -74,22 +90,8 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
             ctx.fillStyle = "#FFFFFF"
             ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-            // Calculate dimensions to maintain aspect ratio
-            const aspectRatio = img.width / img.height
-            let drawWidth = canvas.width
-            let drawHeight = drawWidth / aspectRatio
-
-            if (drawHeight > canvas.height) {
-              drawHeight = canvas.height
-              drawWidth = drawHeight * aspectRatio
-            }
-
-            // Center the image
-            const x = (canvas.width - drawWidth) / 2
-            const y = (canvas.height - drawHeight) / 2
-
-            // Draw the image
-            ctx.drawImage(img, x, y, drawWidth, drawHeight)
+            // Draw the image at original size
+            ctx.drawImage(img, 0, 0, img.width, img.height)
 
             // Get the new data URL
             const newDataUrl = canvas.toDataURL("image/jpeg", 0.95)
@@ -119,8 +121,8 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
         img.onload = () => {
           // Create a canvas to draw the image
           const canvas = document.createElement("canvas")
-          canvas.width = 1200
-          canvas.height = 900
+          canvas.width = img.width
+          canvas.height = img.height
 
           const ctx = canvas.getContext("2d")
           if (!ctx) {
@@ -132,22 +134,8 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
           ctx.fillStyle = "#FFFFFF"
           ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-          // Calculate dimensions to maintain aspect ratio
-          const aspectRatio = img.width / img.height
-          let drawWidth = canvas.width
-          let drawHeight = drawWidth / aspectRatio
-
-          if (drawHeight > canvas.height) {
-            drawHeight = canvas.height
-            drawWidth = drawHeight * aspectRatio
-          }
-
-          // Center the image
-          const x = (canvas.width - drawWidth) / 2
-          const y = (canvas.height - drawHeight) / 2
-
-          // Draw the image
-          ctx.drawImage(img, x, y, drawWidth, drawHeight)
+          // Draw the image at original size
+          ctx.drawImage(img, 0, 0, img.width, img.height)
 
           // Get the new data URL
           const newDataUrl = canvas.toDataURL("image/jpeg", 0.95)
@@ -194,7 +182,7 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
 
   // Generate image when component mounts and image is loaded
   useEffect(() => {
-    if (!cardRef.current || !imageLoaded || !imageAttempted) return
+    if (!cardRef.current || !imageLoaded || !imageAttempted || !mounted) return
 
     const generateImage = async () => {
       try {
@@ -209,13 +197,10 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
           quality: 1,
           pixelRatio: 2,
           cacheBust: true,
-          // Fixed dimensions for consistent sizing
+          // Fixed width but dynamic height
           width: CARD_WIDTH,
-          height: cardRef.current.offsetHeight,
           // Safari-specific options
           skipAutoScale: true,
-          canvasWidth: CARD_WIDTH * 2, // Higher resolution
-          canvasHeight: cardRef.current.offsetHeight * 2,
           style: {
             // Ensure proper rendering in Safari
             transform: "none",
@@ -224,6 +209,10 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
           // Fallback image if loading fails
           imagePlaceholder:
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+          filter: (node) => {
+            // Make sure we capture all content
+            return true
+          },
         }
 
         // For iOS/Safari, use a different approach
@@ -239,7 +228,6 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
               backgroundColor: "#FFFFFF",
               scale: 2,
               width: CARD_WIDTH,
-              height: cardRef.current.offsetHeight,
               logging: false,
               onclone: (clonedDoc) => {
                 // Find the image in the cloned document and ensure it's loaded
@@ -247,7 +235,8 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
                 if (imgElement && proxyImageUrl) {
                   imgElement.src = proxyImageUrl
                   imgElement.crossOrigin = "anonymous"
-                  imgElement.style.objectFit = "contain"
+                  imgElement.style.width = "auto"
+                  imgElement.style.maxWidth = "100%"
                   imgElement.style.backgroundColor = "#FFFFFF"
                 }
               },
@@ -274,11 +263,7 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
     }
 
     generateImage()
-  }, [meal, imageLoaded, imageAttempted, onImageGenerated, onError, proxyImageUrl])
-
-  const date = meal.created_at ? parseISO(meal.created_at) : new Date()
-  const formattedDate = format(date, "EEEE, d 'de' MMMM", { locale: es })
-  const formattedTime = format(date, "HH:mm")
+  }, [meal, imageLoaded, imageAttempted, onImageGenerated, onError, proxyImageUrl, mounted])
 
   // Use the proxy image URL if available
   const imageUrl = proxyImageUrl || meal.photo_url
@@ -287,47 +272,41 @@ export default function ShareableImageGenerator({ meal, onImageGenerated, onErro
     <div className="fixed left-[-9999px] top-0 z-[-1]">
       <div ref={cardRef} className="bg-white" style={{ width: `${CARD_WIDTH}px` }}>
         <Card className="overflow-hidden border shadow-md">
-          <CardHeader className="p-4 bg-teal-50 border-b">
+          <CardHeader className="p-3 bg-teal-50 border-b">
             <div className="flex justify-between items-center">
-              <h3 className="font-medium text-teal-800">NutriApp</h3>
-              <div className="text-sm text-teal-600">
-                {formattedDate} • {formattedTime}
-              </div>
+              <h3 className="font-medium text-teal-800 text-lg">Mily</h3>
+              {mounted && (
+                <div className="text-base text-teal-600 font-medium">
+                  {formattedDate} • {formattedTime}
+                </div>
+              )}
             </div>
           </CardHeader>
 
           {imageUrl && (
-            <div className="w-full bg-white" style={{ height: `${PHOTO_HEIGHT}px` }}>
+            <div className="w-full bg-white flex justify-center">
               <img
                 src={imageUrl || "/placeholder.svg"}
                 alt={meal.description}
-                className="w-full h-full"
+                className="w-auto max-w-full"
                 crossOrigin="anonymous"
-                style={{
-                  objectFit: "contain",
-                  display: "block",
-                  width: "100%",
-                  height: "100%",
-                  backgroundColor: "white",
-                }}
               />
             </div>
           )}
 
           <CardContent className="p-4">
-            <div className="mb-1 inline-block px-2 py-0.5 bg-teal-100 text-teal-800 text-sm rounded">
+            <div className="mb-1 inline-block px-2 py-0.5 bg-teal-100 text-teal-800 text-base rounded">
               {getMealTypeLabel(meal.meal_type)}
             </div>
-            <h3 className="text-lg font-medium mt-2">{meal.description}</h3>
-            {meal.notes && <p className="mt-2 text-neutral-600">{meal.notes}</p>}
+            <h3 className="text-xl font-medium mt-2">{meal.description}</h3>
+            {meal.notes && <p className="mt-2 text-neutral-600 text-base">{meal.notes}</p>}
           </CardContent>
 
           <CardFooter className="px-4 py-3 bg-neutral-50 border-t text-center text-sm text-neutral-500">
-            Registrado con NutriApp
+            Registrado con Mily
           </CardFooter>
         </Card>
       </div>
     </div>
   )
 }
-
