@@ -8,7 +8,7 @@ import { StorageProvider } from "@/lib/storage-provider"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "NutriApp",
+  title: "Mily",
   description: "Una aplicación para registrar tus comidas diarias",
   icons: {
     icon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",

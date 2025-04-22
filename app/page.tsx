@@ -61,7 +61,7 @@ export default function HomePage() {
           </div>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-          <h1 className="text-2xl font-bold mb-4">Bienvenido a NutriApp</h1>
+          <h1 className="text-2xl font-bold mb-4">Bienvenido a Mily</h1>
           <p className="text-neutral-600 mb-8 max-w-md">
             Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
           </p>

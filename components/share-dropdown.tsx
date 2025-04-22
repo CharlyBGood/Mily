@@ -213,7 +213,7 @@ export default function ShareDropdown({
 
       // Generate filename with current date
       const currentDate = format(new Date(), "yyyy-MM-dd", { locale: es })
-      const filename = `NutriApp_Historial_${currentDate}.pdf`
+      const filename = `Mily_Historial_${currentDate}.pdf`
 
       // Create a new PDF document (A4 size)
       const pdf = new jsPDF({
@@ -577,7 +577,7 @@ export default function ShareDropdown({
         })
 
         // Add footer
-        pdf.text("Generado con NutriApp", pageWidth / 2, pageHeight - marginTopBottom, { align: "center" })
+        pdf.text("Generado con Mily", pageWidth / 2, pageHeight - marginTopBottom, { align: "center" })
       }
 
       // Save the PDF
