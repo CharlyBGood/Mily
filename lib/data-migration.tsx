@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
-import { supabase } from "./supabase-client"
+import { getSupabaseClient } from "./supabase-client"
 import { getUserMeals as getLocalMeals } from "./local-storage"
 import { v4 as uuidv4 } from "uuid"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
@@ -37,6 +37,8 @@ export default function DataMigrationUtility() {
     })
 
     try {
+      const supabase = getSupabaseClient()
+
       // Check if user is authenticated
       const {
         data: { user },

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import type { Session, User } from "@supabase/supabase-js"
-import { supabase } from "./supabase-client"
+import { getSupabaseClient } from "./supabase-client"
 
 type AuthContextType = {
   user: User | null
@@ -19,8 +19,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isBrowser, setIsBrowser] = useState(false)
 
   useEffect(() => {
+    setIsBrowser(true)
+  }, [])
+
+  useEffect(() => {
+    // Only run on the client side
+    if (!isBrowser) return
+
+    const supabase = getSupabaseClient()
+
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -50,10 +60,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [isBrowser])
 
   const signIn = async (email: string, password: string) => {
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         return { success: false, error }
@@ -66,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
+      const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signUp({ email, password })
       if (error) {
         return { success: false, error }
@@ -77,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
+    const supabase = getSupabaseClient()
     await supabase.auth.signOut()
   }
 

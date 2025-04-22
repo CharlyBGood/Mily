@@ -24,10 +24,19 @@ const StorageContext = createContext<StorageContextType | undefined>(undefined)
 export function StorageProvider({ children }: { children: ReactNode }) {
   const [storageType, setStorageType] = useState<StorageType>("local")
   const [isLoading, setIsLoading] = useState(true)
+  const [isBrowser, setIsBrowser] = useState(false)
   const { user } = useAuth()
+
+  // Set isBrowser flag
+  useEffect(() => {
+    setIsBrowser(true)
+  }, [])
 
   // Determine storage type based on user authentication
   useEffect(() => {
+    // Skip on server-side
+    if (!isBrowser) return
+
     const checkStorageType = async () => {
       setIsLoading(true)
 
@@ -63,7 +72,7 @@ export function StorageProvider({ children }: { children: ReactNode }) {
     }
 
     checkStorageType()
-  }, [user])
+  }, [user, isBrowser])
 
   // Proxy functions that delegate to the appropriate storage service
   const saveMeal = async (meal: Meal) => {

@@ -1,10 +1,12 @@
 import { v4 as uuidv4 } from "uuid"
-import { supabase } from "./supabase-client"
+import { getSupabaseClient } from "./supabase-client"
 import type { Meal } from "./types"
 
 // Helper function to upload an image to Supabase Storage
 export async function uploadImage(file: File): Promise<string> {
   try {
+    const supabase = getSupabaseClient()
+
     // Generate a unique file name
     const fileName = `${uuidv4()}-${file.name.replace(/\s+/g, "_")}`
 
@@ -31,6 +33,8 @@ export async function uploadImage(file: File): Promise<string> {
 // Helper function to save a meal to Supabase
 export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: Meal; error?: any }> {
   try {
+    const supabase = getSupabaseClient()
+
     // Get the current user
     const {
       data: { user },
@@ -101,6 +105,8 @@ export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: M
 // Helper function to get all meals for the current user
 export async function getUserMeals(): Promise<{ success: boolean; data?: Meal[]; error?: any }> {
   try {
+    const supabase = getSupabaseClient()
+
     // Get the current user
     const {
       data: { user },
@@ -132,6 +138,8 @@ export async function getUserMeals(): Promise<{ success: boolean; data?: Meal[];
 // Helper function to get a single meal by ID
 export async function getMealById(mealId: string): Promise<{ success: boolean; data?: Meal; error?: any }> {
   try {
+    const supabase = getSupabaseClient()
+
     // Get the current user
     const {
       data: { user },
@@ -159,6 +167,8 @@ export async function getMealById(mealId: string): Promise<{ success: boolean; d
 // Helper function to delete a meal
 export async function deleteMeal(mealId: string): Promise<{ success: boolean; error?: any }> {
   try {
+    const supabase = getSupabaseClient()
+
     // Get the current user
     const {
       data: { user },
