@@ -9,9 +9,9 @@ export const getSupabaseClient = () => {
   // Check if we're in a browser environment
   const isBrowser = typeof window !== "undefined"
 
-  // Get environment variables
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  // Get environment variables - use the correct names with single underscore
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 
   // Only create the client if we have the required environment variables
   if (supabaseUrl && supabaseAnonKey) {
@@ -67,8 +67,12 @@ export const supabase = getSupabaseClient()
 // Create a server-side client for server components and API routes
 export const createServerClient = () => {
   // Check if we have the server-side environment variables
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+  const supabaseServiceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    ""
 
   // Only create the client if we have the required environment variables
   if (supabaseUrl && supabaseServiceKey) {
