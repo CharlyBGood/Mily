@@ -59,7 +59,6 @@ export function StorageProvider({ children }: { children: ReactNode }) {
             }
           }
         } catch (error) {
-          console.error("Error checking storage type:", error)
           // Default to localStorage on error
           setStorageType("local")
         }

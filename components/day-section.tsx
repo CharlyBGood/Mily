@@ -17,6 +17,8 @@ interface DaySectionProps {
   onExpand: (date: string) => void
   isExpanded: boolean
   isPdfMode?: boolean
+  showEditButton?: boolean
+  showDeleteButton?: boolean
 }
 
 export default function DaySection({
@@ -28,6 +30,8 @@ export default function DaySection({
   onExpand,
   isExpanded,
   isPdfMode = false,
+  showEditButton = true,
+  showDeleteButton = true,
 }: DaySectionProps) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -71,6 +75,8 @@ export default function DaySection({
                   onEdit={onEditMeal}
                   showTime={true}
                   isPdfMode={isPdfMode}
+                  showEditButton={showEditButton}
+                  showDeleteButton={showDeleteButton}
                 />
               </div>
             ))}
@@ -108,6 +114,8 @@ export default function DaySection({
                 onEditMeal(selectedMeal)
               }}
               showTime={true}
+              showEditButton={showEditButton}
+              showDeleteButton={showDeleteButton}
             />
           )}
         </DialogContent>

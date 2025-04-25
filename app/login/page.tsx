@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
+import Link from "next/link"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -36,11 +37,27 @@ export default function LoginPage() {
           })
           router.push("/")
         } else {
-          toast({
-            title: "Error",
-            description: error?.message || "Error al iniciar sesión",
-            variant: "destructive",
-          })
+          // More specific error messages based on error code
+          if (error?.message?.includes("Email not confirmed")) {
+            toast({
+              title: "Email no confirmado",
+              description:
+                "Por favor confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.",
+              variant: "destructive",
+            })
+          } else if (error?.message?.includes("Invalid login credentials")) {
+            toast({
+              title: "Credenciales inválidas",
+              description: "El correo o la contraseña son incorrectos",
+              variant: "destructive",
+            })
+          } else {
+            toast({
+              title: "Error",
+              description: error?.message || "Error al iniciar sesión",
+              variant: "destructive",
+            })
+          }
         }
       } else {
         const { success, error } = await signUp(email, password)
@@ -108,7 +125,12 @@ export default function LoginPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Contraseña</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="password">Contraseña</Label>
+                      <Link href="/forgot-password" className="text-xs text-teal-600 hover:text-teal-800">
+                        ¿Olvidaste tu contraseña?
+                      </Link>
+                    </div>
                     <Input
                       id="password"
                       type="password"

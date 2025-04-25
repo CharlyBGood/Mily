@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 // Create a singleton pattern for the Supabase client
 let supabaseInstance: ReturnType<typeof createClient> | null = null
 
+// Update the getSupabaseClient function to only use the correct environment variable names
 export const getSupabaseClient = () => {
   if (supabaseInstance) return supabaseInstance
 
@@ -19,9 +20,9 @@ export const getSupabaseClient = () => {
     return supabaseInstance
   }
 
-  // If we're in a browser and don't have the environment variables, show a warning
-  if (isBrowser) {
-    console.warn("Supabase environment variables are missing. Some features may not work correctly.")
+  // Environment variables should be set, but provide a fallback just in case
+  if (isBrowser && (!supabaseUrl || !supabaseAnonKey)) {
+    // Silent fallback
   }
 
   // Return a mock client for SSR that won't throw errors

@@ -60,10 +60,10 @@
     "zod": "^3.24.1",
     "html-to-image": "latest",
     "html2canvas": "latest",
-    "@supabase/supabase-js": "latest",
     "uuid": "latest",
     "jspdf": "latest",
-    "@react-pdf/renderer": "latest"
+    "@react-pdf/renderer": "latest",
+    "@supabase/supabase-js": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
