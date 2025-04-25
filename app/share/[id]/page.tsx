@@ -11,6 +11,7 @@ import { groupMealsByDay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { getSharedMeals, verifyAccessCode } from "@/lib/share-service"
 import AccessCodeForm from "@/components/share/access-code-form"
+import { getSupabaseClient } from "@/lib/supabase-client"
 
 export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -47,21 +48,31 @@ export default function SharePage() {
       }
 
       // Get the share link to check if it's password protected
-      const { success, data, error } = await getSharedMeals(shareId)
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
+        .from("share_links")
+        .select("is_password_protected, expires_at, is_active")
+        .eq("id", shareId)
+        .single()
 
-      if (!success) {
-        throw new Error(error?.message || "Error loading shared content")
+      if (error) {
+        throw new Error("Share link not found")
       }
 
-      // If we got here without error, the link is not password protected or is already verified
-      setIsVerified(true)
+      // Check if the link is active and not expired
+      if (!data.is_active) {
+        throw new Error("Share link is not active")
+      }
 
-      // Process the meals
-      if (data && data.length > 0) {
-        const grouped = groupMealsByDay(data)
-        setGroupedMeals(grouped)
+      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+        throw new Error("Share link has expired")
+      }
+
+      if (data.is_password_protected) {
+        setIsPasswordProtected(true)
       } else {
-        setGroupedMeals([])
+        setIsVerified(true)
+        await loadMeals()
       }
     } catch (error) {
       console.error("Error checking access:", error)
