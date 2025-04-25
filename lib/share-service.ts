@@ -179,31 +179,30 @@ export async function verifyAccessCode(
   }
 }
 
-// Get meals for a specific share link
+// Get shared meals for a specific share link
 export async function getSharedMeals(shareLinkId: string): Promise<{ success: boolean; data?: any; error?: any }> {
   try {
     const supabase = getSupabaseClient()
 
-    // First, get the share link to verify it exists and is active
-    const { data: shareLink, error: shareLinkError } = await supabase
+    // Get the share link
+    const { data: shareLink, error: linkError } = await supabase
       .from("share_links")
       .select("user_id, is_active, expires_at")
       .eq("id", shareLinkId)
       .single()
 
-    if (shareLinkError) {
-      console.error("Error getting share link:", shareLinkError)
+    if (linkError) {
+      console.error("Error getting share link:", linkError)
       return { success: false, error: { message: "Share link not found" } }
     }
 
-    // Check if the share link is active
+    // Check if the link is active and not expired
     if (!shareLink.is_active) {
-      return { success: false, error: { message: "This share link is no longer active" } }
+      return { success: false, error: { message: "Share link is not active" } }
     }
 
-    // Check if the share link has expired
     if (shareLink.expires_at && new Date(shareLink.expires_at) < new Date()) {
-      return { success: false, error: { message: "This share link has expired" } }
+      return { success: false, error: { message: "Share link has expired" } }
     }
 
     // Get the meals for the user who created the share link
@@ -214,7 +213,7 @@ export async function getSharedMeals(shareLinkId: string): Promise<{ success: bo
       .order("created_at", { ascending: false })
 
     if (mealsError) {
-      console.error("Error getting shared meals:", mealsError)
+      console.error("Error getting meals:", mealsError)
       return { success: false, error: mealsError }
     }
 

@@ -9,9 +9,8 @@ import MilyLogo from "@/components/mily-logo"
 import DaySection from "@/components/day-section"
 import { groupMealsByDay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { getSharedMeals } from "@/lib/share-service"
+import { getSharedMeals, verifyAccessCode } from "@/lib/share-service"
 import AccessCodeForm from "@/components/share/access-code-form"
-import { getSupabaseClient } from "@/lib/supabase-client"
 
 export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -34,76 +33,63 @@ export default function SharePage() {
   const checkAccessAndLoadMeals = async () => {
     setLoading(true)
     try {
-      // Check if we have a stored access code for this share link
+      // Check if we already have a verified access code in session storage
       const storedAccessCode = sessionStorage.getItem(`share_access_${shareId}`)
 
       if (storedAccessCode) {
-        setIsVerified(true)
-        await loadMeals()
-      } else {
-        // Check if the share link is password protected
-        const supabase = getSupabaseClient()
-        const { data, error } = await supabase
-          .from("share_links")
-          .select("is_password_protected")
-          .eq("id", shareId)
-          .single()
-
-        if (error) {
-          setError("Share link not found")
-          setLoading(false)
-          return
-        }
-
-        if (data.is_password_protected) {
-          setIsPasswordProtected(true)
-          setLoading(false)
-        } else {
+        // Verify the stored access code
+        const { success } = await verifyAccessCode(shareId, storedAccessCode)
+        if (success) {
           setIsVerified(true)
           await loadMeals()
+          return
         }
+      }
+
+      // Get the share link to check if it's password protected
+      const { success, data, error } = await getSharedMeals(shareId)
+
+      if (!success) {
+        throw new Error(error?.message || "Error loading shared content")
+      }
+
+      // If we got here without error, the link is not password protected or is already verified
+      setIsVerified(true)
+
+      // Process the meals
+      if (data && data.length > 0) {
+        const grouped = groupMealsByDay(data)
+        setGroupedMeals(grouped)
+      } else {
+        setGroupedMeals([])
       }
     } catch (error) {
       console.error("Error checking access:", error)
-      setError("Error checking access to shared content")
+      setError(error.message || "Error loading shared content")
+    } finally {
       setLoading(false)
     }
   }
 
   const loadMeals = async () => {
-  try {
-    const supabase = getSupabaseClient();
-    
-    // 1. Verificar el enlace compartido
-    const { data: shareLink, error: linkError } = await supabase
-      .from("share_links")
-      .select("id, expires_at")
-      .eq("id", shareId)
-      .eq("is_active", true)
-      .gt("expires_at", new Date().toISOString()) // Usar UTC
-      .single();
+    try {
+      const { success, data, error } = await getSharedMeals(shareId)
 
-    if (linkError || !shareLink) {
-      setError("Enlace no válido o expirado");
-      return;
+      if (!success) {
+        throw new Error(error?.message || "Error loading shared content")
+      }
+
+      if (data && data.length > 0) {
+        const grouped = groupMealsByDay(data)
+        setGroupedMeals(grouped)
+      } else {
+        setGroupedMeals([])
+      }
+    } catch (error) {
+      console.error("Error loading meals:", error)
+      setError(error.message || "Error loading shared content")
     }
-
-    // 2. Obtener comidas vinculadas al enlace
-    const { data: meals, error: mealsError } = await supabase
-      .from("meals")
-      .select("*")
-      .eq("share_link_id", shareId); // <-- Usar el nuevo campo
-
-    if (mealsError) throw mealsError;
-
-    const grouped = groupMealsByDay(meals || []);
-    setGroupedMeals(grouped);
-  } catch (error) {
-    setError("Error al cargar comidas");
-  } finally {
-    setLoading(false);
   }
-};
 
   const handleBack = () => {
     router.push("/")
@@ -120,7 +106,7 @@ export default function SharePage() {
 
   const handleAccessError = (errorMsg: string) => {
     toast({
-      title: "Access Denied",
+      title: "Access denied",
       description: errorMsg,
       variant: "destructive",
     })
@@ -134,7 +120,7 @@ export default function SharePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando comidas...</p>
+        <p className="text-neutral-500">Loading...</p>
       </div>
     )
   }
@@ -143,7 +129,7 @@ export default function SharePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando comidas compartidas...</p>
+        <p className="text-neutral-500">Loading shared content...</p>
       </div>
     )
   }
@@ -166,7 +152,7 @@ export default function SharePage() {
             <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
             <p className="text-red-600">{error}</p>
             <Button variant="outline" className="mt-4" onClick={handleBack}>
-              Return to Home
+              Back to home
             </Button>
           </div>
         </div>
@@ -188,9 +174,7 @@ export default function SharePage() {
         </header>
 
         <div className="flex flex-col items-center justify-center h-full p-4">
-          <div className="max-w-md w-full">
-            <AccessCodeForm shareId={shareId} onSuccess={handleAccessSuccess} onError={handleAccessError} />
-          </div>
+          <AccessCodeForm shareId={shareId} onSuccess={handleAccessSuccess} onError={handleAccessError} />
         </div>
       </div>
     )
@@ -205,7 +189,7 @@ export default function SharePage() {
         <div className="flex-1 flex justify-center">
           <MilyLogo />
         </div>
-        <div className="w-10"></div> {/* Spacer for centering */}
+        <div className="w-10"></div>
       </header>
 
       <ScrollArea className="flex-1">
