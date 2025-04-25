@@ -74,13 +74,13 @@ export default function SharePage() {
   try {
     const supabase = getSupabaseClient();
     
-    // Primero verificar el enlace compartido
+    // 1. Verificar el enlace compartido
     const { data: shareLink, error: linkError } = await supabase
       .from("share_links")
-      .select("id, is_active, expires_at")
+      .select("id, expires_at")
       .eq("id", shareId)
       .eq("is_active", true)
-      .gt("expires_at", new Date().toISOString())
+      .gt("expires_at", new Date().toISOString()) // Usar UTC
       .single();
 
     if (linkError || !shareLink) {
@@ -88,11 +88,11 @@ export default function SharePage() {
       return;
     }
 
-    // Obtener comidas relacionadas al enlace
+    // 2. Obtener comidas vinculadas al enlace
     const { data: meals, error: mealsError } = await supabase
       .from("meals")
       .select("*")
-      .eq("share_link_id", shareId); // Necesitas este campo en tu tabla meals
+      .eq("share_link_id", shareId); // <-- Usar el nuevo campo
 
     if (mealsError) throw mealsError;
 
