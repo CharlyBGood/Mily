@@ -71,39 +71,28 @@ export default function SharePage() {
   }
 
   const loadMeals = async () => {
-  try {
-    const supabase = getSupabaseClient();
-    
-    // Primero verificar el enlace compartido
-    const { data: shareLink, error: linkError } = await supabase
-      .from("share_links")
-      .select("id, is_active, expires_at")
-      .eq("id", shareId)
-      .eq("is_active", true)
-      .gt("expires_at", new Date().toISOString())
-      .single();
+    try {
+      const { success, data, error: apiError } = await getSharedMeals(shareId)
 
-    if (linkError || !shareLink) {
-      setError("Enlace no válido o expirado");
-      return;
+      if (!success || !data) {
+        setError(apiError?.message || "Error loading shared meals")
+        return
+      }
+
+      if (data.length === 0) {
+        // No error, but no meals found
+        setGroupedMeals([])
+      } else {
+        const grouped = groupMealsByDay(data)
+        setGroupedMeals(grouped)
+      }
+    } catch (error) {
+      console.error("Error loading meals:", error)
+      setError("An error occurred while loading the shared meals")
+    } finally {
+      setLoading(false)
     }
-
-    // Obtener comidas relacionadas al enlace
-    const { data: meals, error: mealsError } = await supabase
-      .from("meals")
-      .select("*")
-      .eq("share_link_id", shareId); // Necesitas este campo en tu tabla meals
-
-    if (mealsError) throw mealsError;
-
-    const grouped = groupMealsByDay(meals || []);
-    setGroupedMeals(grouped);
-  } catch (error) {
-    setError("Error al cargar comidas");
-  } finally {
-    setLoading(false);
   }
-};
 
   const handleBack = () => {
     router.push("/")
