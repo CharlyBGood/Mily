@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { extractUserIdFromSharePath } from "./lib/share-service"
 
 export function middleware(request: NextRequest) {
   // Get the pathname of the request
   const path = request.nextUrl.pathname
 
-  // Check if the path is a direct share link
-  if (path.startsWith("/share/historialdemilydeuserconId=")) {
-    // Extract the user ID from the URL
-    const userId = extractUserIdFromSharePath(path)
+  // Check if the path is a share link
+  if (path.startsWith("/share/") && path.length > 7) {
+    // Extract the short ID from the URL
+    const shortId = path.substring(7).replace("/", "")
 
-    if (!userId) {
-      // Invalid share link format
+    // Validate the short ID format (alphanumeric, 6-12 chars)
+    if (!/^[a-zA-Z0-9]{6,12}$/.test(shortId)) {
+      // Invalid short ID format, redirect to home
       return NextResponse.redirect(new URL("/", request.url))
     }
 

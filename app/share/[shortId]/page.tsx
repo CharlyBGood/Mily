@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getSharedMeals } from "@/lib/share-service"
 import type { Meal } from "@/lib/types"
 
-export default function DirectSharePage() {
+export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -21,21 +21,21 @@ export default function DirectSharePage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
-  const userId = params.userId as string
+  const shortId = params.shortId as string
 
   useEffect(() => {
     setMounted(true)
     loadMeals()
-  }, [userId])
+  }, [shortId])
 
   const loadMeals = async () => {
     setLoading(true)
     try {
       // Use the optimized function to get shared meals
-      const { success, data, error } = await getSharedMeals(userId)
+      const { success, data, error } = await getSharedMeals(shortId)
 
       if (!success || error) {
-        throw new Error(error || "Error loading shared content")
+        throw new Error(error?.message || "Error loading shared content")
       }
 
       if (data && data.length > 0) {

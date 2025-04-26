@@ -7,17 +7,18 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Share2, Copy, ExternalLink } from "lucide-react"
-import { generateShareableLink } from "@/lib/share-service"
+import { createShareLink, generateShareableLink } from "@/lib/share-service"
 import { shareContent } from "@/lib/utils"
 
 export default function DirectShareButton() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const handleOpenShareDialog = () => {
+  const handleOpenShareDialog = async () => {
     if (!user) {
       toast({
         title: "Inicia sesión",
@@ -27,10 +28,30 @@ export default function DirectShareButton() {
       return
     }
 
-    // Generate the direct share URL
-    const url = generateShareableLink(user.id)
-    setShareUrl(url)
-    setDialogOpen(true)
+    setIsLoading(true)
+
+    try {
+      // Create a new share link
+      const { success, shortId, error } = await createShareLink()
+
+      if (!success || !shortId) {
+        throw new Error(error?.message || "Error creating share link")
+      }
+
+      // Generate the shareable URL
+      const url = generateShareableLink(shortId)
+      setShareUrl(url)
+      setDialogOpen(true)
+    } catch (error) {
+      console.error("Error creating share link:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo crear el enlace compartido",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCopyLink = async () => {
@@ -89,9 +110,15 @@ export default function DirectShareButton() {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={handleOpenShareDialog} className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleOpenShareDialog}
+        className="flex items-center gap-2"
+        disabled={isLoading}
+      >
         <Share2 className="h-4 w-4" />
-        Compartir historial
+        {isLoading ? "Generando..." : "Compartir historial"}
       </Button>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
