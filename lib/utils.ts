@@ -22,114 +22,85 @@ export function getMealTypeLabel(type: string) {
   return types[type] || type
 }
 
-/**
- * Shares content using the Web Share API if available
- * Falls back to clipboard copy if not available
- */
-export async function shareContent(
-  title: string,
-  text: string,
-  url: string,
-): Promise<{ success: boolean; method: string }> {
-  // Check if the Web Share API is available
+// Function to share content using the Web Share API if available
+export async function shareContent(title: string, text: string, url?: string, files?: File[]) {
+  // Check if Web Share API is available
   if (navigator.share) {
     try {
-      await navigator.share({
+      const shareData: ShareData = {
         title,
         text,
         url,
-      })
-      return { success: true, method: "webshare" }
+      }
+
+      // Check if file sharing is supported
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+      if (files && files.length > 0) {
+        if (navigator.canShare && navigator.canShare({ files })) {
+          // Standard Web Share API with files
+          shareData.files = files
+          await navigator.share(shareData)
+          return { success: true }
+        } else if (isIOS && isSafari) {
+          // For iOS Safari, try sharing without files first
+          try {
+            await navigator.share({
+              title,
+              text,
+              url,
+            })
+
+            // Then download the image separately
+            if (files[0] instanceof File) {
+              downloadImage(files[0])
+            }
+            return { success: true, fallback: true }
+          } catch (error) {
+            console.error("Error sharing on iOS:", error)
+            // Fallback to download
+            if (files[0] instanceof File) {
+              downloadImage(files[0])
+            }
+            return { success: true, fallback: true }
+          }
+        } else {
+          // For other browsers that don't support file sharing
+          if (files[0] instanceof File) {
+            downloadImage(files[0])
+          }
+          return { success: true, fallback: true }
+        }
+      } else {
+        // Sharing without files
+        await navigator.share(shareData)
+        return { success: true }
+      }
     } catch (error) {
-      // User cancelled or share failed
       console.error("Error sharing:", error)
-      return { success: false, method: "webshare" }
+
+      // Special handling for Safari
+      if (files && files.length > 0) {
+        if (files[0] instanceof File) {
+          downloadImage(files[0])
+        }
+        return { success: true, fallback: true }
+      }
+
+      return { success: false, error }
     }
   } else {
-    // Web Share API not available
-    return { success: false, method: "clipboard" }
+    // Fallback for browsers that don't support Web Share API
+    if (files && files.length > 0) {
+      if (files[0] instanceof File) {
+        downloadImage(files[0])
+      }
+      return { success: true, fallback: true }
+    }
+    return { success: false, error: "Web Share API not supported" }
   }
 }
-
-// Function to share content using the Web Share API if available
-// export async function shareContent(title: string, text: string, url?: string, files?: File[]) {
-//   // Check if Web Share API is available
-//   if (navigator.share) {
-//     try {
-//       const shareData: ShareData = {
-//         title,
-//         text,
-//         url,
-//       }
-
-//       // Check if file sharing is supported
-//       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-//       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-
-//       if (files && files.length > 0) {
-//         if (navigator.canShare && navigator.canShare({ files })) {
-//           // Standard Web Share API with files
-//           shareData.files = files
-//           await navigator.share(shareData)
-//           return { success: true }
-//         } else if (isIOS && isSafari) {
-//           // For iOS Safari, try sharing without files first
-//           try {
-//             await navigator.share({
-//               title,
-//               text,
-//               url,
-//             })
-
-//             // Then download the image separately
-//             if (files[0] instanceof File) {
-//               downloadImage(files[0])
-//             }
-//             return { success: true, fallback: true }
-//           } catch (error) {
-//             console.error("Error sharing on iOS:", error)
-//             // Fallback to download
-//             if (files[0] instanceof File) {
-//               downloadImage(files[0])
-//             }
-//             return { success: true, fallback: true }
-//           }
-//         } else {
-//           // For other browsers that don't support file sharing
-//           if (files[0] instanceof File) {
-//             downloadImage(files[0])
-//           }
-//           return { success: true, fallback: true }
-//         }
-//       } else {
-//         // Sharing without files
-//         await navigator.share(shareData)
-//         return { success: true }
-//       }
-//     } catch (error) {
-//       console.error("Error sharing:", error)
-
-//       // Special handling for Safari
-//       if (files && files.length > 0) {
-//         if (files[0] instanceof File) {
-//           downloadImage(files[0])
-//         }
-//         return { success: true, fallback: true }
-//       }
-
-//       return { success: false, error }
-//     }
-//   } else {
-//     // Fallback for browsers that don't support Web Share API
-//     if (files && files.length > 0) {
-//       if (files[0] instanceof File) {
-//         downloadImage(files[0])
-//       }
-//       return { success: true, fallback: true }
-//     }
-//     return { success: false, error: "Web Share API not supported" }
-//   }
-// }
 
 // Function to download an image from a File object or URL
 export function downloadImage(fileOrUrl: File | string, filename?: string) {

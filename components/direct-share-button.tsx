@@ -2,55 +2,44 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { Link2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
-import { Share2, Copy, ExternalLink } from "lucide-react"
-import { createShareLink, generateShareableLink } from "@/lib/share-service"
-import { shareContent } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 
 export default function DirectShareButton() {
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [shareUrl, setShareUrl] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [isSharing, setIsSharing] = useState(false)
-  const { user } = useAuth()
   const { toast } = useToast()
+  const { user } = useAuth()
 
-  const handleOpenShareDialog = async () => {
+  const handleCreateShareLink = async () => {
     if (!user) {
       toast({
-        title: "Inicia sesión",
+        title: "Error",
         description: "Debes iniciar sesión para compartir tu historial",
         variant: "destructive",
       })
       return
     }
 
-    setIsLoading(true)
-
+    setIsSharing(true)
     try {
-      // Create a new share link
-      const { success, shortId, error } = await createShareLink()
-
-      if (!success || !shortId) {
-        throw new Error(error?.message || "Error creating share link")
-      }
-
-      // Generate the shareable URL
-      const url = generateShareableLink(shortId)
+      // Create a direct share URL using the user's ID
+      const url = `${window.location.origin}/share/historialdemilydeuserconId=${user.id}`
       setShareUrl(url)
-      setDialogOpen(true)
+      setShareDialogOpen(true)
     } catch (error) {
       console.error("Error creating share link:", error)
       toast({
         title: "Error",
-        description: "No se pudo crear el enlace compartido",
+        description: "Ocurrió un error al crear el enlace para compartir",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsSharing(false)
     }
   }
 
@@ -70,63 +59,25 @@ export default function DirectShareButton() {
     }
   }
 
-  const handleShareLink = async () => {
-    setIsSharing(true)
-    try {
-      const result = await shareContent(
-        "Mi historial de comidas en Mily",
-        "Mira mi historial de comidas en Mily",
-        shareUrl,
-      )
-
-      if (result.success) {
-        toast({
-          title: "Enlace compartido",
-          description: "El enlace ha sido compartido exitosamente",
-        })
-      } else {
-        // Fallback for browsers that don't support Web Share API
-        await navigator.clipboard.writeText(shareUrl)
-        toast({
-          title: "Enlace copiado",
-          description: "El enlace ha sido copiado al portapapeles",
-        })
-      }
-    } catch (error) {
-      console.error("Error sharing link:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo compartir el enlace",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSharing(false)
-    }
-  }
-
-  const handleOpenLink = () => {
-    window.open(shareUrl, "_blank")
-  }
-
   return (
     <>
       <Button
-        variant="outline"
-        size="sm"
-        onClick={handleOpenShareDialog}
-        className="flex items-center gap-2"
-        disabled={isLoading}
+        variant="ghost"
+        className="w-full justify-start"
+        onClick={handleCreateShareLink}
+        disabled={isSharing || !user}
       >
-        <Share2 className="h-4 w-4" />
-        {isLoading ? "Generando..." : "Compartir historial"}
+        <Link2 className="h-4 w-4 mr-2" />
+        <span>Crear enlace público</span>
       </Button>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Share Link Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Compartir historial</DialogTitle>
             <DialogDescription>
-              Comparte tu historial de comidas con cualquier persona usando este enlace
+              Comparte tu historial de comidas con cualquier persona usando este enlace público
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 mt-4">
@@ -136,18 +87,15 @@ export default function DirectShareButton() {
               className="flex-1"
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
-            <Button variant="outline" size="icon" onClick={handleCopyLink} title="Copiar enlace">
-              <Copy className="h-4 w-4" />
-            </Button>
+            <Button onClick={handleCopyLink}>Copiar</Button>
           </div>
-          <div className="flex justify-between mt-4">
-            <Button variant="outline" onClick={handleOpenLink}>
-              <ExternalLink className="h-4 w-4 mr-2" />
+          <div className="flex justify-end mt-4">
+            <Button
+              onClick={() => {
+                window.open(shareUrl, "_blank")
+              }}
+            >
               Abrir enlace
-            </Button>
-            <Button onClick={handleShareLink} disabled={isSharing}>
-              <Share2 className="h-4 w-4 mr-2" />
-              {isSharing ? "Compartiendo..." : "Compartir"}
             </Button>
           </div>
         </DialogContent>

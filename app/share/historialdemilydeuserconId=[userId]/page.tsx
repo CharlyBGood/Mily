@@ -9,10 +9,10 @@ import MilyLogo from "@/components/mily-logo"
 import DaySection from "@/components/day-section"
 import { groupMealsByDay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { getSharedMeals } from "@/lib/share-service"
+import { getSupabaseClient } from "@/lib/supabase-client"
 import type { Meal } from "@/lib/types"
 
-export default function SharePage() {
+export default function DirectSharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -21,21 +21,27 @@ export default function SharePage() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
-  const shortId = params.shortId as string
+  const userId = params.userId as string
 
   useEffect(() => {
     setMounted(true)
     loadMeals()
-  }, [shortId])
+  }, [userId])
 
   const loadMeals = async () => {
     setLoading(true)
     try {
-      // Use the optimized function to get shared meals
-      const { success, data, error } = await getSharedMeals(shortId)
+      const supabase = getSupabaseClient()
 
-      if (!success || error) {
-        throw new Error(error?.message || "Error loading shared content")
+      // Directly fetch meals for the specified user
+      const { data, error } = await supabase
+        .from("meals")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        throw new Error("Error loading shared content")
       }
 
       if (data && data.length > 0) {
