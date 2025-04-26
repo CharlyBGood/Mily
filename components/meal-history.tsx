@@ -9,7 +9,7 @@ import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
 import DaySection from "./day-section"
 import MealEditor from "./meal-editor"
-import ShareDropdown from "./share-dropdown"
+import DirectShareButton from "./direct-share-button"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
 import { useRouter } from "next/navigation"
@@ -337,7 +337,7 @@ export default function MealHistory() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualizar
           </Button>
-          <ShareDropdown meals={meals} disabled={true} />
+          <DirectShareButton />
         </div>
       </div>
     )
@@ -365,12 +365,7 @@ export default function MealHistory() {
                   Migrar a la nube
                 </Button>
               )}
-              <ShareDropdown
-                meals={meals}
-                disabled={loading}
-                onBeforePdfExport={prepareForPdfExport}
-                onAfterPdfExport={cleanupAfterPdfExport}
-              />
+              <DirectShareButton />
             </div>
           </div>
 
