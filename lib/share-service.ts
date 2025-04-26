@@ -16,32 +16,25 @@ export interface ShareLink {
  * @param expiresInDays Optional number of days until the link expires
  * @returns Object containing success status and the short ID if successful
  */
-export async function createShareLink(
-  expiresInDays?: number,
-): Promise<{ success: boolean; shortId?: string; error?: any }> {
+export async function createShareLink(expiresInDays?: number): Promise<{ success: boolean; shortId?: string; error?: any }> {
   try {
     const supabase = getSupabaseClient()
-
-    // Get the current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
+    const { data: { user } } = await supabase.auth.getUser()
+    
     if (!user) {
       return { success: false, error: { message: "User not authenticated" } }
     }
-
-    // Call the Supabase function to create a share link
-    const { data, error } = await supabase.rpc("create_share_link", {
+    
+    const { data, error } = await supabase.rpc("create_meal_share_link", {
       p_user_id: user.id,
       p_expires_in_days: expiresInDays || null,
     })
-
+    
     if (error) {
       console.error("Error creating share link:", error)
       return { success: false, error }
     }
-
+    
     return { success: true, shortId: data }
   } catch (error) {
     console.error("Error in createShareLink:", error)
@@ -153,27 +146,17 @@ export async function getUserIdFromShareLink(
  */
 export async function getSharedMeals(shortId: string): Promise<{ success: boolean; data?: Meal[]; error?: any }> {
   try {
-    // First, get the user ID associated with this share link
-    const { success, userId, error: userIdError } = await getUserIdFromShareLink(shortId)
-
-    if (!success || !userId) {
-      return { success: false, error: userIdError || { message: "Invalid share link" } }
-    }
-
     const supabase = getSupabaseClient()
-
-    // Get the meals for the user
-    const { data, error } = await supabase
-      .from("meals")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-
+    
+    const { data, error } = await supabase.rpc("get_shared_meals", {
+      p_short_id: shortId,
+    })
+    
     if (error) {
       console.error("Error getting shared meals:", error)
       return { success: false, error }
     }
-
+    
     return { success: true, data: data as Meal[] }
   } catch (error) {
     console.error("Error in getSharedMeals:", error)
