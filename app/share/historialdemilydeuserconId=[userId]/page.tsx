@@ -9,7 +9,7 @@ import MilyLogo from "@/components/mily-logo"
 import DaySection from "@/components/day-section"
 import { groupMealsByDay } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { getSupabaseClient } from "@/lib/supabase-client"
+import { getSharedMeals } from "@/lib/share-service"
 import type { Meal } from "@/lib/types"
 
 export default function DirectSharePage() {
@@ -31,17 +31,11 @@ export default function DirectSharePage() {
   const loadMeals = async () => {
     setLoading(true)
     try {
-      const supabase = getSupabaseClient()
+      // Use the optimized function to get shared meals
+      const { success, data, error } = await getSharedMeals(userId)
 
-      // Directly fetch meals for the specified user
-      const { data, error } = await supabase
-        .from("meals")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        throw new Error("Error loading shared content")
+      if (!success || error) {
+        throw new Error(error || "Error loading shared content")
       }
 
       if (data && data.length > 0) {

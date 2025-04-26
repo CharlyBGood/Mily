@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { extractUserIdFromSharePath } from "./lib/share-service"
 
 export function middleware(request: NextRequest) {
   // Get the pathname of the request
@@ -8,12 +9,14 @@ export function middleware(request: NextRequest) {
   // Check if the path is a direct share link
   if (path.startsWith("/share/historialdemilydeuserconId=")) {
     // Extract the user ID from the URL
-    const userId = path.split("historialdemilydeuserconId=")[1].replace("/", "")
+    const userId = extractUserIdFromSharePath(path)
 
-    // Here you could add additional security checks if needed
-    // For example, checking if the user has enabled sharing
+    if (!userId) {
+      // Invalid share link format
+      return NextResponse.redirect(new URL("/", request.url))
+    }
 
-    // For now, we'll just allow the request to proceed
+    // Allow the request to proceed - the page component will handle access control
     return NextResponse.next()
   }
 

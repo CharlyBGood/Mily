@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid"
 import { getSupabaseClient } from "./supabase-client"
+import type { Meal } from "./types"
 
 // Interface for share links
 export interface ShareLink {
@@ -179,47 +180,55 @@ export async function verifyAccessCode(
   }
 }
 
-// Get shared meals for a specific share link
-export async function getSharedMeals(shareLinkId: string): Promise<{ success: boolean; data?: any; error?: any }> {
+/**
+ * Retrieves meals for a specific user for sharing purposes
+ * Uses the optimized Supabase function for efficient data retrieval
+ */
+export async function getSharedMeals(userId: string): Promise<{ success: boolean; data?: Meal[]; error?: any }> {
   try {
     const supabase = getSupabaseClient()
 
-    // Get the share link
-    const { data: shareLink, error: linkError } = await supabase
-      .from("share_links")
-      .select("user_id, is_active, expires_at")
-      .eq("id", shareLinkId)
-      .single()
+    // Check if sharing is enabled for this user
+    const { data: sharingEnabled, error: sharingError } = await supabase.rpc("is_sharing_enabled", {
+      p_user_id: userId,
+    })
 
-    if (linkError) {
-      console.error("Error getting share link:", linkError)
-      return { success: false, error: { message: "Share link not found" } }
+    if (sharingError || !sharingEnabled) {
+      return { success: false, error: "Sharing is not enabled for this user" }
     }
 
-    // Check if the link is active and not expired
-    if (!shareLink.is_active) {
-      return { success: false, error: { message: "Share link is not active" } }
+    // Use the optimized function to get meals
+    const { data, error } = await supabase.rpc("get_user_meals_for_sharing", {
+      p_user_id: userId,
+    })
+
+    if (error) {
+      console.error("Error getting shared meals:", error)
+      return { success: false, error }
     }
 
-    if (shareLink.expires_at && new Date(shareLink.expires_at) < new Date()) {
-      return { success: false, error: { message: "Share link has expired" } }
-    }
-
-    // Get the meals for the user who created the share link
-    const { data: meals, error: mealsError } = await supabase
-      .from("meals")
-      .select("*")
-      .eq("user_id", shareLink.user_id)
-      .order("created_at", { ascending: false })
-
-    if (mealsError) {
-      console.error("Error getting meals:", mealsError)
-      return { success: false, error: mealsError }
-    }
-
-    return { success: true, data: meals }
+    return { success: true, data: data as Meal[] }
   } catch (error) {
     console.error("Error in getSharedMeals:", error)
     return { success: false, error }
   }
+}
+
+/**
+ * Generates a shareable link for a user's meal history
+ */
+export function generateShareableLink(userId: string): string {
+  // Generate the URL for direct sharing
+  return `${typeof window !== "undefined" ? window.location.origin : ""}/share/historialdemilydeuserconId=${userId}`
+}
+
+/**
+ * Extracts user ID from a shareable link path
+ */
+export function extractUserIdFromSharePath(path: string): string | null {
+  if (!path.startsWith("/share/historialdemilydeuserconId=")) {
+    return null
+  }
+
+  return path.split("historialdemilydeuserconId=")[1].replace("/", "")
 }

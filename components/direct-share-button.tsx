@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Share2, Copy, ExternalLink } from "lucide-react"
+import { generateShareableLink } from "@/lib/share-service"
 import { shareContent } from "@/lib/utils"
 
 export default function DirectShareButton() {
@@ -27,7 +28,7 @@ export default function DirectShareButton() {
     }
 
     // Generate the direct share URL
-    const url = `${window.location.origin}/share/historialdemilydeuserconId=${user.id}/`
+    const url = generateShareableLink(user.id)
     setShareUrl(url)
     setDialogOpen(true)
   }
