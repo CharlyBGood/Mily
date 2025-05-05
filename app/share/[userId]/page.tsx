@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import type { Meal } from "@/lib/types"
 
-export default function DirectSharePage() {
+export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
@@ -74,7 +74,7 @@ export default function DirectSharePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Loading...</p>
+        <p className="text-neutral-500">Cargando...</p>
       </div>
     )
   }
@@ -83,7 +83,7 @@ export default function DirectSharePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Loading shared content...</p>
+        <p className="text-neutral-500">Cargando contenido compartido...</p>
       </div>
     )
   }
@@ -106,7 +106,7 @@ export default function DirectSharePage() {
             <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
             <p className="text-red-600">{error}</p>
             <Button variant="outline" className="mt-4" onClick={handleBack}>
-              Back to home
+              Volver al inicio
             </Button>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function DirectSharePage() {
             <>
               <div className="bg-white p-4 rounded-lg shadow-sm mb-6 text-center">
                 <h1 className="text-xl font-bold mb-2">Historial de comidas compartido</h1>
-                <p className="text-neutral-500">Este es un historial de comidas compartido desde Mily</p>
+                <p className="text-neutral-500">Este es un historial de comidas compartido desde NutriApp</p>
               </div>
 
               {groupedMeals.map((group) => (

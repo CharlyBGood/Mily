@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Link2 } from "lucide-react"
+import { Copy, Share2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -26,8 +26,8 @@ export default function DirectShareButton() {
       return
     }
 
-    // Generate the direct share URL using the user's ID
-    const url = `${window.location.origin}/share/historialdemilydeuserconId=${user.id}`
+    // Generate the direct share URL using the user's ID with a cleaner format
+    const url = `${window.location.origin}/share/${user.id}`
     setShareUrl(url)
     setShareDialogOpen(true)
   }
@@ -54,8 +54,8 @@ export default function DirectShareButton() {
     setIsSharing(true)
     try {
       const result = await shareContent(
-        "Mi historial de comidas en Mily",
-        "Mira mi historial de comidas en Mily",
+        "Mi historial de comidas en NutriApp",
+        "Mira mi historial de comidas en NutriApp",
         shareUrl,
       )
 
@@ -86,10 +86,10 @@ export default function DirectShareButton() {
 
   return (
     <>
-      <div className="flex items-center w-full cursor-pointer" onClick={handleCreateShareLink}>
-        <Link2 className="h-4 w-4 mr-2" />
-        <span>Crear enlace público</span>
-      </div>
+      <Button variant="outline" size="sm" onClick={handleCreateShareLink} className="flex items-center gap-2">
+        <Share2 className="h-4 w-4" />
+        Compartir historial
+      </Button>
 
       {/* Share Link Dialog */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
@@ -97,7 +97,7 @@ export default function DirectShareButton() {
           <DialogHeader>
             <DialogTitle>Compartir historial</DialogTitle>
             <DialogDescription>
-              Comparte tu historial de comidas con cualquier persona usando este enlace público
+              Comparte tu historial de comidas con cualquier persona usando este enlace
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 mt-4">
@@ -107,7 +107,9 @@ export default function DirectShareButton() {
               className="flex-1"
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
-            <Button onClick={handleCopyLink}>Copiar</Button>
+            <Button onClick={handleCopyLink} variant="outline" size="icon">
+              <Copy className="h-4 w-4" />
+            </Button>
           </div>
           <div className="flex justify-end mt-4">
             <Button onClick={handleShareLink} disabled={isSharing}>
