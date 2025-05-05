@@ -136,7 +136,7 @@ export default function SharePage() {
             <>
               <div className="bg-white p-4 rounded-lg shadow-sm mb-6 text-center">
                 <h1 className="text-xl font-bold mb-2">Historial de comidas compartido</h1>
-                <p className="text-neutral-500">Este es un historial de comidas compartido desde NutriApp</p>
+                <p className="text-neutral-500">Este es un historial de las ingestas de Mily</p>
               </div>
 
               {groupedMeals.map((group) => (
