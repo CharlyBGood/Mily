@@ -13,43 +13,6 @@ export async function getUserSettings(userId: string): Promise<UserCycleSettings
   try {
     const supabase = getSupabaseClient()
 
-    // First, check if the user_settings table exists
-    const { data: tableExists, error: tableCheckError } = await supabase
-      .rpc("check_table_exists", { table_name: "user_settings" })
-      .single()
-
-    if (tableCheckError || !tableExists) {
-      console.warn("user_settings table does not exist, returning default settings")
-      return { ...DEFAULT_SETTINGS }
-    }
-
-    // Check if cycle_start_day column exists
-    const { data: columnExists, error: columnCheckError } = await supabase
-      .rpc("check_column_exists", { table_name: "user_settings", column_name: "cycle_start_day" })
-      .single()
-
-    if (columnCheckError || !columnExists) {
-      console.warn("cycle_start_day column does not exist, returning default settings")
-      // Try to get other settings without cycle_start_day
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("cycle_duration, sweet_dessert_limit")
-        .eq("user_id", userId)
-        .single()
-
-      if (error) {
-        console.error("Error fetching user settings:", error)
-        return { ...DEFAULT_SETTINGS }
-      }
-
-      return {
-        cycleDuration: data.cycle_duration || DEFAULT_SETTINGS.cycleDuration,
-        cycleStartDay: DEFAULT_SETTINGS.cycleStartDay, // Use default since column doesn't exist
-        sweetDessertLimit: data.sweet_dessert_limit || DEFAULT_SETTINGS.sweetDessertLimit,
-      }
-    }
-
-    // If table and column exist, get all settings
     const { data, error } = await supabase
       .from("user_settings")
       .select("cycle_duration, cycle_start_day, sweet_dessert_limit")
@@ -70,7 +33,7 @@ export async function getUserSettings(userId: string): Promise<UserCycleSettings
 
     return {
       cycleDuration: data.cycle_duration || DEFAULT_SETTINGS.cycleDuration,
-      cycleStartDay: data.cycle_start_day !== undefined ? data.cycle_start_day : DEFAULT_SETTINGS.cycleStartDay,
+      cycleStartDay: data.cycle_start_day || DEFAULT_SETTINGS.cycleStartDay,
       sweetDessertLimit: data.sweet_dessert_limit || DEFAULT_SETTINGS.sweetDessertLimit,
     }
   } catch (error) {
@@ -84,34 +47,15 @@ async function createDefaultUserSettings(userId: string): Promise<UserCycleSetti
   try {
     const supabase = getSupabaseClient()
 
-    // Check if cycle_start_day column exists before inserting
-    const { data: columnExists, error: columnCheckError } = await supabase
-      .rpc("check_column_exists", { table_name: "user_settings", column_name: "cycle_start_day" })
-      .single()
+    const { error } = await supabase.from("user_settings").insert({
+      user_id: userId,
+      cycle_duration: DEFAULT_SETTINGS.cycleDuration,
+      cycle_start_day: DEFAULT_SETTINGS.cycleStartDay,
+      sweet_dessert_limit: DEFAULT_SETTINGS.sweetDessertLimit,
+    })
 
-    if (columnCheckError || !columnExists) {
-      console.warn("cycle_start_day column does not exist, creating settings without it")
-
-      const { error } = await supabase.from("user_settings").insert({
-        user_id: userId,
-        cycle_duration: DEFAULT_SETTINGS.cycleDuration,
-        sweet_dessert_limit: DEFAULT_SETTINGS.sweetDessertLimit,
-      })
-
-      if (error) {
-        console.error("Error creating default user settings:", error)
-      }
-    } else {
-      const { error } = await supabase.from("user_settings").insert({
-        user_id: userId,
-        cycle_duration: DEFAULT_SETTINGS.cycleDuration,
-        cycle_start_day: DEFAULT_SETTINGS.cycleStartDay,
-        sweet_dessert_limit: DEFAULT_SETTINGS.sweetDessertLimit,
-      })
-
-      if (error) {
-        console.error("Error creating default user settings:", error)
-      }
+    if (error) {
+      console.error("Error creating default user settings:", error)
     }
 
     return { ...DEFAULT_SETTINGS }
@@ -129,53 +73,21 @@ export async function saveUserSettings(
   try {
     const supabase = getSupabaseClient()
 
-    // Check if cycle_start_day column exists before updating
-    const { data: columnExists, error: columnCheckError } = await supabase
-      .rpc("check_column_exists", { table_name: "user_settings", column_name: "cycle_start_day" })
-      .single()
-
-    if (columnCheckError) {
-      console.error("Error checking if column exists:", columnCheckError)
-      return { success: false, error: columnCheckError }
-    }
-
     // Validate settings before saving
-    const validatedSettings: Record<string, any> = {
+    const validatedSettings = {
       cycle_duration: Math.max(1, Math.min(30, settings.cycleDuration || DEFAULT_SETTINGS.cycleDuration)),
+      cycle_start_day: Math.max(0, Math.min(6, settings.cycleStartDay || DEFAULT_SETTINGS.cycleStartDay)),
       sweet_dessert_limit: Math.max(0, Math.min(10, settings.sweetDessertLimit || DEFAULT_SETTINGS.sweetDessertLimit)),
     }
 
-    // Only include cycle_start_day if the column exists
-    if (columnExists) {
-      validatedSettings.cycle_start_day = Math.max(
-        0,
-        Math.min(6, settings.cycleStartDay || DEFAULT_SETTINGS.cycleStartDay),
-      )
-    }
+    const { error } = await supabase.from("user_settings").upsert({
+      user_id: userId,
+      ...validatedSettings,
+    })
 
-    // Check if user already has settings
-    const { data, error: checkError } = await supabase.from("user_settings").select("id").eq("user_id", userId).single()
-
-    if (checkError && checkError.code !== "PGRST116") {
-      console.error("Error checking if user has settings:", checkError)
-      return { success: false, error: checkError }
-    }
-
-    let result
-    if (data) {
-      // Update existing settings
-      result = await supabase.from("user_settings").update(validatedSettings).eq("user_id", userId)
-    } else {
-      // Insert new settings
-      result = await supabase.from("user_settings").insert({
-        user_id: userId,
-        ...validatedSettings,
-      })
-    }
-
-    if (result.error) {
-      console.error("Error saving user settings:", result.error)
-      return { success: false, error: result.error }
+    if (error) {
+      console.error("Error saving user settings:", error)
+      return { success: false, error }
     }
 
     return { success: true }
