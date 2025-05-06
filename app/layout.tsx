@@ -4,31 +4,29 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { StorageProvider } from "@/lib/storage-provider"
+import { SettingsProvider } from "@/lib/settings-context"
+import { Toaster } from "@/components/ui/toaster"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Mily",
-  description: "Una aplicación para registrar tus comidas diarias",
-  icons: {
-    icon: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",
-    apple: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",
-    shortcut: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/MilyFavicon-DpxuvajmQ2lF6aXQSNHUEzsGUVJn0O.png",
-  },
+  title: "Mily - Seguimiento Nutricional",
+  description: "Aplicación para seguimiento de comidas y ciclos nutricionales",
     generator: 'v0.dev'
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <ThemeProvider attribute="class" defaultTheme="light">
+    <html lang="es">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <AuthProvider>
-            <StorageProvider>{children}</StorageProvider>
+            <StorageProvider>
+              <SettingsProvider>
+                {children}
+                <Toaster />
+              </SettingsProvider>
+            </StorageProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
