@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, ChevronDown } from "lucide-react"
@@ -37,14 +37,22 @@ export default function SharePage() {
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const userId = params.userId as string
+  const cycleParam = searchParams.get("cycle")
 
   useEffect(() => {
     setMounted(true)
+
+    // Set the selected cycle from URL parameter
+    if (cycleParam) {
+      setSelectedCycle(cycleParam)
+    }
+
     loadUserInfo()
     loadMeals()
-  }, [userId])
+  }, [userId, cycleParam])
 
   const loadUserInfo = async () => {
     try {
@@ -91,9 +99,10 @@ export default function SharePage() {
         const cycles = groupMealsByCycle(data as Meal[], cycleDuration)
         setCycleGroups(cycles)
 
-        // Auto-expand the most recent cycle
-        if (cycles.length > 0) {
-          setExpandedCycle(cycles[0].cycleNumber)
+        // If a specific cycle is selected in the URL, filter the data
+        if (cycleParam && cycleParam !== "all") {
+          const cycleNumber = Number.parseInt(cycleParam, 10)
+          // No need to auto-expand any section initially
         }
       } else {
         setGroupedMeals([])
@@ -179,7 +188,7 @@ export default function SharePage() {
     if (selectedCycle !== "all") {
       const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
       if (selectedCycleGroup) {
-        titleDateRange = selectedCycleGroup.displayDateRange
+        titleDateRange = `Historial del ${selectedCycleGroup.displayDateRange}`
       }
     } else {
       // Get overall date range
@@ -207,7 +216,7 @@ export default function SharePage() {
       </header>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 pb-40">
+        <div className="p-4 pb-40 max-w-full overflow-x-hidden">
           {groupedMeals.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <p className="text-neutral-500">No hay comidas compartidas</p>
@@ -221,33 +230,22 @@ export default function SharePage() {
                 </p>
               </div>
 
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex space-x-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        Ver por {viewMode === "cycles" ? "Ciclos" : "Días"}
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel>Modo de visualización</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuRadioGroup
-                        value={viewMode}
-                        onValueChange={(value) => setViewMode(value as "days" | "cycles")}
-                      >
-                        <DropdownMenuRadioItem value="cycles">Por Ciclos</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="days">Por Días</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewMode(viewMode === "cycles" ? "days" : "cycles")}
+                    className="flex items-center"
+                  >
+                    {viewMode === "cycles" ? "Ver por Días" : "Ver por Ciclos"}
+                  </Button>
                 </div>
 
                 {viewMode === "cycles" && cycleGroups.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" className="flex-shrink-0">
                         {selectedCycle === "all" ? "Todos los ciclos" : `Ciclo ${selectedCycle}`}
                         <ChevronDown className="ml-2 h-4 w-4" />
                       </Button>

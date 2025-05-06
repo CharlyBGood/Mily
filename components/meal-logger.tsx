@@ -40,7 +40,6 @@ export default function MealLogger() {
   const [sweetDessertsCount, setSweetDessertsCount] = useState(0)
   const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
-  const [isFruitDessert, setIsFruitDessert] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -58,32 +57,22 @@ export default function MealLogger() {
     loadUserSettings()
   }, [])
 
-  // Check if the meal is a dessert and update the fruit dessert flag
-  useEffect(() => {
-    const isDessert = mealType === "postre1" || mealType === "postre2"
-    const hasFruitKeyword = notes.toLowerCase().includes("fruta")
-
-    setIsFruitDessert(isDessert && hasFruitKeyword)
-  }, [mealType, notes])
-
   // Update dessert limit warning
   useEffect(() => {
-    const isDessert = mealType === "postre1" || mealType === "postre2"
-
-    if (isDessert && !isFruitDessert && sweetDessertsCount >= sweetDessertLimit) {
+    if (sweetDessertsCount >= sweetDessertLimit) {
       setIsDessertLimitReached(true)
     } else {
       setIsDessertLimitReached(false)
     }
-  }, [mealType, isFruitDessert, sweetDessertsCount, sweetDessertLimit])
+  }, [sweetDessertsCount, sweetDessertLimit])
 
   const loadUserSettings = async () => {
-    if (!user) return
+    if (!user && storageType !== "local") return
 
     try {
       // Load cycle duration and sweet dessert limit
-      const duration = await getUserCycleDuration(user.id)
-      const limit = await getUserSweetDessertLimit(user.id)
+      const duration = await getUserCycleDuration(user?.id)
+      const limit = await getUserSweetDessertLimit(user?.id)
 
       setCycleDuration(duration)
       setSweetDessertLimit(limit)
@@ -174,11 +163,10 @@ export default function MealLogger() {
       return
     }
 
-    // Check dessert limit
-    const isDessert = mealType === "postre1" || mealType === "postre2"
-    const isFruit = notes.toLowerCase().includes("fruta")
+    // Check dessert limit for sweet desserts
+    const isSweetDessert = mealType === "postre_dulce"
 
-    if (isDessert && !isFruit && sweetDessertsCount >= sweetDessertLimit) {
+    if (isSweetDessert && sweetDessertsCount >= sweetDessertLimit) {
       toast({
         title: "Límite de postres alcanzado",
         description: `Has alcanzado el límite de ${sweetDessertLimit} postres dulces para este ciclo. Nuevo ciclo en ${daysLeftInCycle} días.`,
@@ -199,12 +187,19 @@ export default function MealLogger() {
         console.log("Photo uploaded")
       }
 
+      // Map the new dessert types to the original ones for backward compatibility
+      let finalMealType = mealType
+      if (mealType === "postre_dulce") finalMealType = "postre1"
+      if (mealType === "postre_fruta") finalMealType = "postre2"
+
       // Save meal
       const meal: Meal = {
         description,
-        meal_type: mealType as MealType,
+        meal_type: finalMealType as MealType,
         photo_url: photoUrl,
         notes: notes || undefined,
+        // Add metadata for dessert type
+        metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
       }
 
       const { success, data, error } = await saveMeal(meal)
@@ -224,7 +219,7 @@ export default function MealLogger() {
       resetForm()
 
       // Update sweet desserts count if this was a sweet dessert
-      if ((mealType === "postre1" || mealType === "postre2") && !isFruitDessert) {
+      if (mealType === "postre_dulce") {
         setSweetDessertsCount((prev) => prev + 1)
       }
 
@@ -312,35 +307,30 @@ export default function MealLogger() {
               <SelectItem value="desayuno">Desayuno</SelectItem>
               <SelectItem value="colacion1">Colación</SelectItem>
               <SelectItem value="almuerzo">Almuerzo</SelectItem>
-              <SelectItem value="postre1" disabled={isDessertLimitReached && !isFruitDessert}>
-                Postre
+              <SelectItem value="postre_dulce" disabled={isDessertLimitReached}>
+                Postre (dulce)
               </SelectItem>
+              <SelectItem value="postre_fruta">Postre (fruta)</SelectItem>
               <SelectItem value="merienda">Merienda</SelectItem>
               <SelectItem value="colacion2">Colación</SelectItem>
               <SelectItem value="cena">Cena</SelectItem>
-              <SelectItem value="postre2" disabled={isDessertLimitReached && !isFruitDessert}>
-                Postre
-              </SelectItem>
             </SelectContent>
           </Select>
 
-          {(mealType === "postre1" || mealType === "postre2") && (
+          {mealType === "postre_dulce" && (
             <div className="flex items-center justify-between text-sm mt-1">
               <span>
                 Postres dulces: {sweetDessertsCount}/{sweetDessertLimit} en este ciclo
               </span>
-              {isFruitDessert && <span className="text-green-600 font-medium">Postre de fruta ✓</span>}
             </div>
           )}
 
-          {isDessertLimitReached && (mealType === "postre1" || mealType === "postre2") && !isFruitDessert && (
+          {isDessertLimitReached && mealType === "postre_dulce" && (
             <Alert variant="warning" className="mt-2">
               <Info className="h-4 w-4" />
               <AlertDescription>
                 Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
-                <span className="block mt-1 font-medium">
-                  Puedes agregar "fruta" en las notas para registrar un postre de fruta (sin límite).
-                </span>
+                <span className="block mt-1 font-medium">Puedes seleccionar "Postre (fruta)" que no tiene límite.</span>
               </AlertDescription>
             </Alert>
           )}
@@ -362,8 +352,7 @@ export default function MealLogger() {
 
         <div className="space-y-2">
           <Label htmlFor="notes" className="text-base">
-            Notas adicionales{" "}
-            {(mealType === "postre1" || mealType === "postre2") && "(incluye 'fruta' para postres de fruta)"}
+            Notas adicionales (opcional)
           </Label>
           <Textarea
             id="notes"
@@ -378,12 +367,7 @@ export default function MealLogger() {
         <Button
           type="submit"
           className="w-full bg-teal-600 hover:bg-teal-700 text-base py-6"
-          disabled={
-            !description ||
-            !mealType ||
-            isSubmitting ||
-            (isDessertLimitReached && (mealType === "postre1" || mealType === "postre2") && !isFruitDessert)
-          }
+          disabled={!description || !mealType || isSubmitting || (isDessertLimitReached && mealType === "postre_dulce")}
         >
           {isSubmitting ? "Guardando..." : "Guardar comida"}
         </Button>

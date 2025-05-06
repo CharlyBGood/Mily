@@ -57,21 +57,28 @@ export default function CycleSection({
   }
 
   // Format dates for display
-  const startDateFormatted = format(cycle.startDate, "d 'de' MMMM", { locale: es })
-  const endDateFormatted = format(cycle.endDate, "d 'de' MMMM", { locale: es })
+  const startDateFormatted = format(cycle.startDate, "d 'de' MMM", { locale: es })
+  const endDateFormatted = format(cycle.endDate, "d 'de' MMM", { locale: es })
 
   return (
-    <div className="mb-6 cycle-section" data-pdf-section={isPdfMode ? "true" : "false"}>
+    <div className="mb-4 cycle-section" data-pdf-section={isPdfMode ? "true" : "false"}>
       <Collapsible open={open || isPdfMode} onOpenChange={handleToggle} className="w-full">
-        <CollapsibleTrigger className="flex items-center justify-between w-full text-lg font-semibold mb-3 bg-white p-2 rounded-md text-neutral-800 hover:bg-neutral-50 transition-colors cycle-header border-t-4 border-t-orange-500">
-          <span>
-            Ciclo {cycle.cycleNumber}: {startDateFormatted} - {endDateFormatted}
-          </span>
-          {open ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+        <CollapsibleTrigger className="flex items-center justify-between w-full text-base sm:text-lg font-semibold mb-2 bg-white p-2 rounded-md text-neutral-800 hover:bg-neutral-50 transition-colors cycle-header border-t-4 border-t-orange-500 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center">
+            <span className="mr-2">Ciclo {cycle.cycleNumber}</span>
+            <span className="text-sm sm:text-base text-neutral-500">
+              {startDateFormatted} - {endDateFormatted}
+            </span>
+          </div>
+          {open ? (
+            <ChevronDown className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <ChevronRight className="h-5 w-5 flex-shrink-0" />
+          )}
         </CollapsibleTrigger>
 
         <CollapsibleContent forceMount={isPdfMode} className={isPdfMode ? "!block pdf-section-content" : ""}>
-          <div className="space-y-4">
+          <div className="space-y-3 mt-2">
             {cycle.meals.map((meal) => (
               <div key={meal.id} className="meal-card">
                 <MealCard
@@ -89,7 +96,7 @@ export default function CycleSection({
         </CollapsibleContent>
 
         {!open && !isPdfMode && (
-          <div className="grid grid-cols-2 gap-2 mt-2 meal-thumbnails">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 meal-thumbnails">
             {cycle.meals.slice(0, 4).map((meal) => (
               <MealThumbnail key={meal.id} meal={meal} onClick={() => handleMealClick(meal)} />
             ))}

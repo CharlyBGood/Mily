@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, ChevronDown } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
@@ -25,15 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 export default function MealHistory() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -389,34 +380,35 @@ export default function MealHistory() {
   return (
     <>
       <ScrollArea className="h-full">
-        <div className="p-4 pb-40">
-          <div className="flex justify-between mb-4">
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={handleRefresh}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Actualizar
-              </Button>
+        <div className="p-4 pb-40 max-w-full overflow-x-hidden">
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Actualizar</span>
+            </Button>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    Ver por {viewMode === "cycles" ? "Ciclos" : "Días"}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuLabel>Modo de visualización</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuRadioGroup
-                    value={viewMode}
-                    onValueChange={(value) => setViewMode(value as "days" | "cycles")}
-                  >
-                    <DropdownMenuRadioItem value="cycles">Por Ciclos</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="days">Por Días</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <div className="flex-shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode(viewMode === "cycles" ? "days" : "cycles")}
+                className="flex items-center"
+              >
+                {viewMode === "cycles" ? (
+                  <>
+                    <LayoutGrid className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Ciclos</span>
+                  </>
+                ) : (
+                  <>
+                    <List className="h-4 w-4 mr-2" />
+                    <span className="hidden sm:inline">Días</span>
+                  </>
+                )}
+              </Button>
             </div>
+
+            <div className="flex-grow"></div>
 
             <div className="flex space-x-2">
               {storageType === "local" && user && (
@@ -424,13 +416,13 @@ export default function MealHistory() {
                   variant="outline"
                   size="sm"
                   onClick={() => router.push("/migrate")}
-                  className="text-teal-600 border-teal-600"
+                  className="text-teal-600 border-teal-600 flex-shrink-0"
                 >
                   <Database className="h-4 w-4 mr-2" />
-                  Migrar a la nube
+                  <span className="hidden sm:inline">Migrar</span>
                 </Button>
               )}
-              <DirectShareButton />
+              <DirectShareButton compact={true} />
             </div>
           </div>
 

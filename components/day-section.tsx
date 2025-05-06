@@ -24,6 +24,7 @@ interface DaySectionProps {
 export default function DaySection({
   date,
   displayDate,
+  te,
   meals,
   onDeleteMeal,
   onEditMeal,
@@ -58,15 +59,19 @@ export default function DaySection({
   }
 
   return (
-    <div className="mb-6 day-section" data-pdf-section={isPdfMode ? "true" : "false"}>
+    <div className="mb-4 day-section" data-pdf-section={isPdfMode ? "true" : "false"}>
       <Collapsible open={open || isPdfMode} onOpenChange={handleToggle} className="w-full">
-        <CollapsibleTrigger className="flex items-center justify-between w-full text-lg font-semibold mb-3 bg-teal-50 p-2 rounded-md text-teal-800 hover:bg-teal-100 transition-colors day-header">
+        <CollapsibleTrigger className="flex items-center justify-between w-full text-base sm:text-lg font-semibold mb-2 bg-teal-50 p-2 rounded-md text-teal-800 hover:bg-teal-100 transition-colors day-header">
           <span>{displayDate}</span>
-          {open ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+          {open ? (
+            <ChevronDown className="h-5 w-5 flex-shrink-0" />
+          ) : (
+            <ChevronRight className="h-5 w-5 flex-shrink-0" />
+          )}
         </CollapsibleTrigger>
 
         <CollapsibleContent forceMount={isPdfMode} className={isPdfMode ? "!block pdf-section-content" : ""}>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {meals.map((meal) => (
               <div key={meal.id} className="meal-card">
                 <MealCard
@@ -84,7 +89,7 @@ export default function DaySection({
         </CollapsibleContent>
 
         {!open && !isPdfMode && (
-          <div className="grid grid-cols-2 gap-2 mt-2 meal-thumbnails">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 meal-thumbnails">
             {meals.map((meal) => (
               <MealThumbnail key={meal.id} meal={meal} onClick={() => handleMealClick(meal)} />
             ))}
