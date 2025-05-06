@@ -6,19 +6,20 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { ArrowLeft, Loader2, Save, Check, AlertCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
-import { getDayOfWeekName, calculateNextCycleStartDate, formatNextCycleStartDate } from "@/lib/cycle-utils"
+import { getSupabaseClient } from "@/lib/supabase-client"
+import { getDayOfWeekName } from "@/lib/cycle-utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import * as settingsService from "@/lib/settings-service"
-import type { UserCycleSettings } from "@/lib/types"
 
-interface UserSettings extends UserCycleSettings {
+interface UserSettings {
   username: string
+  cycleDuration: number
+  cycleStartDay: number
+  sweetDessertLimit: number
 }
 
 export default function UserProfileSettings() {
@@ -42,7 +43,6 @@ export default function UserProfileSettings() {
   const [hasChanges, setHasChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [nextCycleStart, setNextCycleStart] = useState<string>("")
-  const [loadError, setLoadError] = useState<string | null>(null)
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -68,58 +68,70 @@ export default function UserProfileSettings() {
     setHasChanges(changed)
 
     // Calculate next cycle start date
-    updateNextCycleStart()
+    calculateNextCycleStart()
   }, [settings, originalSettings])
 
-  const updateNextCycleStart = () => {
-    try {
-      const nextStartDate = calculateNextCycleStartDate(settings.cycleStartDay)
-      const formattedDate = formatNextCycleStartDate(nextStartDate)
-      setNextCycleStart(formattedDate)
-    } catch (error) {
-      console.error("Error calculating next cycle start:", error)
-      setNextCycleStart("")
+  const calculateNextCycleStart = () => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const targetDayOfWeek = settings.cycleStartDay
+
+    // Calculate days until next cycle start
+    let daysUntilNext = (targetDayOfWeek - dayOfWeek + 7) % 7
+    if (daysUntilNext === 0) {
+      daysUntilNext = 7 // If today is the start day, next cycle starts in 7 days
     }
+
+    // Calculate next cycle start date
+    const nextStart = new Date(today)
+    nextStart.setDate(today.getDate() + daysUntilNext)
+
+    // Format the date
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }
+    setNextCycleStart(nextStart.toLocaleDateString("es-ES", options))
   }
 
   const loadUserSettings = async () => {
     setIsLoading(true)
-    setLoadError(null)
-
     try {
-      if (!user?.id) {
-        throw new Error("User ID is missing")
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user?.id).single()
+
+      if (error && error.code !== "PGRST116") {
+        // PGRST116 is "no rows returned" error
+        throw error
       }
 
-      // Get user settings from the settings service
-      const cycleSettings = await settingsService.getUserSettings(user.id)
+      if (data) {
+        const loadedSettings = {
+          username: data.username || "",
+          cycleDuration: data.cycle_duration || 7,
+          cycleStartDay: data.cycle_start_day || 1,
+          sweetDessertLimit: data.sweet_dessert_limit || 3,
+        }
+        setSettings(loadedSettings)
+        setOriginalSettings(loadedSettings)
 
-      // Get username separately (if needed)
-      const username = (await settingsService.getUsernameById(user.id)) || ""
-
-      const loadedSettings = {
-        username,
-        ...cycleSettings,
-      }
-
-      setSettings(loadedSettings)
-      setOriginalSettings(loadedSettings)
-
-      if (username) {
-        setUsernameAvailable(true)
+        if (data.username) {
+          setUsernameAvailable(true)
+        }
+      } else {
+        // No settings found, use defaults
+        const defaultSettings = {
+          username: "",
+          cycleDuration: 7,
+          cycleStartDay: 1,
+          sweetDessertLimit: 3,
+        }
+        setSettings(defaultSettings)
+        setOriginalSettings(defaultSettings)
       }
     } catch (error) {
       console.error("Error loading user settings:", error)
-      setLoadError("No se pudieron cargar tus configuraciones. Por favor, intenta de nuevo más tarde.")
-
-      // Set default settings
-      const defaultSettings = {
-        username: "",
-        ...settingsService.DEFAULT_SETTINGS,
-      }
-      setSettings(defaultSettings)
-      setOriginalSettings(defaultSettings)
-
       toast({
         title: "Error",
         description: "No se pudieron cargar tus configuraciones",
@@ -131,20 +143,46 @@ export default function UserProfileSettings() {
   }
 
   const checkUsernameAvailability = async (username: string) => {
-    if (!username) {
+    if (!username || username.length < 3) {
+      setUsernameError("El nombre de usuario debe tener al menos 3 caracteres")
+      setUsernameAvailable(false)
+      return
+    }
+
+    if (username.length > 20) {
+      setUsernameError("El nombre de usuario no puede tener más de 20 caracteres")
+      setUsernameAvailable(false)
+      return
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameError("El nombre de usuario solo puede contener letras, números y guiones bajos")
+      setUsernameAvailable(false)
+      return
+    }
+
+    // If username is the same as original, it's available
+    if (username === originalSettings.username) {
       setUsernameError(null)
       setUsernameAvailable(true)
       return
     }
 
     try {
-      const result = await settingsService.isUsernameAvailable(username, user?.id)
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("username")
+        .eq("username", username)
+        .not("user_id", "eq", user?.id)
+        .single()
 
-      if (result.available) {
+      if (error && error.code === "PGRST116") {
+        // No rows returned
         setUsernameError(null)
         setUsernameAvailable(true)
-      } else {
-        setUsernameError(result.error || "Este nombre de usuario no está disponible")
+      } else if (data) {
+        setUsernameError("Este nombre de usuario ya está en uso")
         setUsernameAvailable(false)
       }
     } catch (error) {
@@ -179,7 +217,7 @@ export default function UserProfileSettings() {
   }
 
   const saveSettings = async () => {
-    if (!user?.id) return
+    if (!user) return
 
     if (settings.username && !usernameAvailable) {
       toast({
@@ -194,22 +232,17 @@ export default function UserProfileSettings() {
     setSaveSuccess(false)
 
     try {
-      // Save cycle settings
-      const cycleSettingsResult = await settingsService.saveUserSettings(user.id, {
-        cycleDuration: settings.cycleDuration,
-        cycleStartDay: settings.cycleStartDay,
-        sweetDessertLimit: settings.sweetDessertLimit,
+      const supabase = getSupabaseClient()
+
+      const { error } = await supabase.from("user_settings").upsert({
+        user_id: user.id,
+        username: settings.username,
+        cycle_duration: settings.cycleDuration,
+        cycle_start_day: settings.cycleStartDay,
+        sweet_dessert_limit: settings.sweetDessertLimit,
       })
 
-      if (!cycleSettingsResult.success) {
-        throw new Error("Failed to save cycle settings")
-      }
-
-      // If we have a username, save it separately
-      if (settings.username) {
-        // This would be part of the user_settings table in our implementation
-        // but we're showing how it could be handled separately
-      }
+      if (error) throw error
 
       setOriginalSettings({ ...settings })
       setSaveSuccess(true)
@@ -233,10 +266,6 @@ export default function UserProfileSettings() {
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const retryLoading = () => {
-    loadUserSettings()
   }
 
   if (isLoading) {
@@ -271,18 +300,6 @@ export default function UserProfileSettings() {
       </header>
 
       <main className="flex-1 p-4">
-        {loadError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {loadError}
-              <Button variant="outline" size="sm" className="ml-2" onClick={retryLoading}>
-                Reintentar
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
         <Card className="max-w-md mx-auto">
           <CardHeader>
             <CardTitle>Configuración de perfil</CardTitle>

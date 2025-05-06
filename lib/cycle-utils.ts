@@ -1,6 +1,5 @@
 import { format, differenceInDays, addDays, startOfDay, getDay, subDays, nextDay, addWeeks } from "date-fns"
 import type { Meal, UserCycleSettings } from "./types"
-import * as settingsService from "./settings-service"
 
 export interface CycleInfo {
   cycleNumber: number
@@ -24,10 +23,36 @@ export interface CycleGroup {
 // Get user's cycle settings from database
 export async function getUserCycleSettings(userId: string): Promise<UserCycleSettings> {
   try {
-    return await settingsService.getUserSettings(userId)
+    const { getSupabaseClient } = await import("@/lib/supabase-client")
+    const supabase = getSupabaseClient()
+
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("cycle_duration, cycle_start_day, sweet_dessert_limit")
+      .eq("user_id", userId)
+      .single()
+
+    if (error) {
+      console.error("Error fetching cycle settings:", error)
+      return {
+        cycleDuration: 7,
+        cycleStartDay: 1, // Default to Monday
+        sweetDessertLimit: 3,
+      }
+    }
+
+    return {
+      cycleDuration: data?.cycle_duration || 7,
+      cycleStartDay: data?.cycle_start_day || 1, // Default to Monday
+      sweetDessertLimit: data?.sweet_dessert_limit || 3,
+    }
   } catch (error) {
     console.error("Error in getUserCycleSettings:", error)
-    return { ...settingsService.DEFAULT_SETTINGS }
+    return {
+      cycleDuration: 7,
+      cycleStartDay: 1, // Default to Monday
+      sweetDessertLimit: 3,
+    }
   }
 }
 
@@ -38,18 +63,7 @@ export async function getUserCycleDuration(userId: string): Promise<number> {
     return settings.cycleDuration
   } catch (error) {
     console.error("Error in getUserCycleDuration:", error)
-    return settingsService.DEFAULT_SETTINGS.cycleDuration
-  }
-}
-
-// Get user's cycle start day from settings or use default
-export async function getUserCycleStartDay(userId: string): Promise<number> {
-  try {
-    const settings = await getUserCycleSettings(userId)
-    return settings.cycleStartDay
-  } catch (error) {
-    console.error("Error in getUserCycleStartDay:", error)
-    return settingsService.DEFAULT_SETTINGS.cycleStartDay
+    return 7 // Default cycle duration
   }
 }
 
@@ -60,7 +74,7 @@ export async function getUserSweetDessertLimit(userId: string): Promise<number> 
     return settings.sweetDessertLimit
   } catch (error) {
     console.error("Error in getUserSweetDessertLimit:", error)
-    return settingsService.DEFAULT_SETTINGS.sweetDessertLimit
+    return 3 // Default sweet dessert limit
   }
 }
 
@@ -235,29 +249,4 @@ export function getDayOfWeekName(dayIndex: number): string {
   // Ensure index is valid
   const safeIndex = ((dayIndex % 7) + 7) % 7
   return days[safeIndex]
-}
-
-// Calculate the next cycle start date based on today
-export function calculateNextCycleStartDate(cycleStartDay: number): Date {
-  const today = startOfDay(new Date())
-  const todayDayOfWeek = getDay(today)
-
-  // Calculate days until next cycle start
-  let daysUntilNext = (cycleStartDay - todayDayOfWeek + 7) % 7
-  if (daysUntilNext === 0) {
-    daysUntilNext = 7 // If today is the start day, next cycle starts in 7 days
-  }
-
-  // Calculate next cycle start date
-  return addDays(today, daysUntilNext)
-}
-
-// Format next cycle start date
-export function formatNextCycleStartDate(date: Date, locale = "es-ES"): string {
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }
-  return date.toLocaleDateString(locale, options)
 }
