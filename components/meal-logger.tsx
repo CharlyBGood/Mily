@@ -250,12 +250,12 @@ export default function MealLogger() {
       <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
         <CardContent className="p-0">
           {photoPreview ? (
-            <div className="bg-white flex justify-center w-full">
+            <div className="bg-white relative flex justify-center w-full">
               <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
               <Button
                 variant="outline"
                 size="sm"
-                className="absolute bottom-2 right-2 bg-white/80 hover:bg-white"
+                className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200"
                 onClick={triggerFileInput}
               >
                 Cambiar

@@ -114,7 +114,7 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
         variant="outline"
         size="sm"
         onClick={handleOpenDialog}
-        className="text-teal-600 border-teal-600"
+        className="text-teal-600 border-neutral-200 hover:border-teal-600 hover:bg-teal-50"
         disabled={isLoading}
       >
         <Share2 className="h-4 w-4 mr-2" />
@@ -122,25 +122,25 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Compartir historial</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-md mx-auto max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-xl">Compartir historial</DialogTitle>
+            <DialogDescription className="text-sm text-neutral-500">
               Comparte tu historial de comidas con quien quieras mediante este enlace.
             </DialogDescription>
           </DialogHeader>
 
           {cycleGroups.length > 0 && (
-            <div className="mb-4">
-              <label className="text-sm font-medium mb-1 block">¿Qué quieres compartir?</label>
+            <div className="mb-4 mt-2">
+              <label className="text-sm font-medium mb-2 block text-neutral-700">¿Qué quieres compartir?</label>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
+                  <Button variant="outline" className="w-full justify-between border-neutral-200">
                     {selectedCycle === "all" ? "Todo el historial" : `Ciclo ${selectedCycle}`}
-                    <ChevronDown className="h-4 w-4 ml-2" />
+                    <ChevronDown className="h-4 w-4 ml-2 opacity-70" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
+                <DropdownMenuContent className="w-56">
                   <DropdownMenuLabel>Seleccionar contenido</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuRadioGroup value={selectedCycle} onValueChange={handleCycleChange}>
@@ -156,28 +156,38 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
             </div>
           )}
 
-          <div className="flex items-center space-x-2">
-            <div className="grid flex-1 gap-2">
-              <label className="text-sm font-medium">Enlace para compartir</label>
+          <div className="flex flex-col space-y-2 mt-2">
+            <label className="text-sm font-medium text-neutral-700">Enlace para compartir</label>
+            <div className="flex items-center space-x-2">
               <input
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-md border border-neutral-200 bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={shareUrl}
                 readOnly
+                onClick={(e) => (e.target as HTMLInputElement).select()}
               />
+              <Button
+                type="button"
+                size="sm"
+                className="px-3 h-10 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-200"
+                onClick={handleCopyLink}
+                disabled={isCopied}
+              >
+                {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <span className="sr-only">Copiar</span>
+              </Button>
             </div>
-            <Button type="button" size="sm" className="px-3 h-10" onClick={handleCopyLink} disabled={isCopied}>
-              {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span className="sr-only">Copiar</span>
-            </Button>
           </div>
 
-          <DialogFooter className="sm:justify-start">
+          <DialogFooter className="mt-6 flex justify-between sm:justify-between gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} className="border-neutral-200">
+              Cancelar
+            </Button>
             <Button
               type="button"
-              variant="secondary"
               onClick={() => {
                 window.open(shareUrl, "_blank")
               }}
+              className="bg-teal-600 hover:bg-teal-700"
             >
               Abrir enlace
             </Button>

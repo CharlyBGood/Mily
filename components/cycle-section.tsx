@@ -34,7 +34,7 @@ export default function CycleSection({
 }: CycleSectionProps) {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [open, setOpen] = useState(isExpanded)
+  const [open, setOpen] = useState(false)
 
   // Sync internal state with prop
   useEffect(() => {

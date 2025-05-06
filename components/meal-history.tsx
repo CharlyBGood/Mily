@@ -93,9 +93,9 @@ export default function MealHistory() {
       setCycleGroups(cycles)
 
       // Auto-expand the most recent cycle
-      if (cycles.length > 0) {
-        setExpandedCycle(cycles[0].cycleNumber)
-      }
+      // if (cycles.length > 0) {
+      //   setExpandedCycle(cycles[0].cycleNumber)
+      // }
 
       console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycles.length} cycles`)
     } catch (error) {
