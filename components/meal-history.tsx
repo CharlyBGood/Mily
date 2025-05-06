@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, LayoutGrid, List, Calendar } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
-import { groupMealsByCycle, getUserCycleSettings, type CycleGroup } from "@/lib/cycle-utils"
+import { groupMealsByCycle, getUserCycleDuration, type CycleGroup } from "@/lib/cycle-utils"
 import DaySection from "./day-section"
 import CycleSection from "./cycle-section"
 import MealEditor from "./meal-editor"
@@ -39,7 +39,6 @@ export default function MealHistory() {
   const [expandAllForPdf, setExpandAllForPdf] = useState(false)
   const [isPdfMode, setIsPdfMode] = useState(false)
   const [cycleDuration, setCycleDuration] = useState(7)
-  const [cycleStartDay, setCycleStartDay] = useState(1)
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
@@ -64,11 +63,10 @@ export default function MealHistory() {
 
     setLoading(true)
     try {
-      // Load user's cycle settings
+      // Load user's cycle duration
       if (user) {
-        const settings = await getUserCycleSettings(user.id)
-        setCycleDuration(settings.cycleDuration)
-        setCycleStartDay(settings.cycleStartDay)
+        const duration = await getUserCycleDuration(user.id)
+        setCycleDuration(duration)
       }
 
       const { success, data, error } = await getUserMeals()
@@ -91,11 +89,13 @@ export default function MealHistory() {
       setGroupedMeals(grouped)
 
       // Group meals by cycle
-      const cycles = groupMealsByCycle(data, cycleDuration, cycleStartDay)
+      const cycles = groupMealsByCycle(data, cycleDuration)
       setCycleGroups(cycles)
 
-      // All sections start collapsed by default
-      setExpandedCycle(null)
+      // Auto-expand the most recent cycle
+      if (cycles.length > 0) {
+        setExpandedCycle(cycles[0].cycleNumber)
+      }
 
       console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycles.length} cycles`)
     } catch (error) {
@@ -405,18 +405,6 @@ export default function MealHistory() {
                     <span className="hidden sm:inline">Días</span>
                   </>
                 )}
-              </Button>
-            </div>
-
-            <div className="flex-shrink-0">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push("/profile/settings")}
-                className="flex items-center"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Configurar ciclos</span>
               </Button>
             </div>
 

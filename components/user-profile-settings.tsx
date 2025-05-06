@@ -12,13 +12,10 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import { getDayOfWeekName } from "@/lib/cycle-utils"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface UserSettings {
   username: string
   cycleDuration: number
-  cycleStartDay: number
   sweetDessertLimit: number
 }
 
@@ -26,13 +23,11 @@ export default function UserProfileSettings() {
   const [settings, setSettings] = useState<UserSettings>({
     username: "",
     cycleDuration: 7,
-    cycleStartDay: 1, // Default to Monday
     sweetDessertLimit: 3,
   })
   const [originalSettings, setOriginalSettings] = useState<UserSettings>({
     username: "",
     cycleDuration: 7,
-    cycleStartDay: 1, // Default to Monday
     sweetDessertLimit: 3,
   })
   const [isLoading, setIsLoading] = useState(true)
@@ -42,7 +37,6 @@ export default function UserProfileSettings() {
   const [usernameCheckTimeout, setUsernameCheckTimeout] = useState<NodeJS.Timeout | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
-  const [nextCycleStart, setNextCycleStart] = useState<string>("")
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -62,38 +56,10 @@ export default function UserProfileSettings() {
     const changed =
       settings.username !== originalSettings.username ||
       settings.cycleDuration !== originalSettings.cycleDuration ||
-      settings.cycleStartDay !== originalSettings.cycleStartDay ||
       settings.sweetDessertLimit !== originalSettings.sweetDessertLimit
 
     setHasChanges(changed)
-
-    // Calculate next cycle start date
-    calculateNextCycleStart()
   }, [settings, originalSettings])
-
-  const calculateNextCycleStart = () => {
-    const today = new Date()
-    const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
-    const targetDayOfWeek = settings.cycleStartDay
-
-    // Calculate days until next cycle start
-    let daysUntilNext = (targetDayOfWeek - dayOfWeek + 7) % 7
-    if (daysUntilNext === 0) {
-      daysUntilNext = 7 // If today is the start day, next cycle starts in 7 days
-    }
-
-    // Calculate next cycle start date
-    const nextStart = new Date(today)
-    nextStart.setDate(today.getDate() + daysUntilNext)
-
-    // Format the date
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    }
-    setNextCycleStart(nextStart.toLocaleDateString("es-ES", options))
-  }
 
   const loadUserSettings = async () => {
     setIsLoading(true)
@@ -110,7 +76,6 @@ export default function UserProfileSettings() {
         const loadedSettings = {
           username: data.username || "",
           cycleDuration: data.cycle_duration || 7,
-          cycleStartDay: data.cycle_start_day || 1,
           sweetDessertLimit: data.sweet_dessert_limit || 3,
         }
         setSettings(loadedSettings)
@@ -124,7 +89,6 @@ export default function UserProfileSettings() {
         const defaultSettings = {
           username: "",
           cycleDuration: 7,
-          cycleStartDay: 1,
           sweetDessertLimit: 3,
         }
         setSettings(defaultSettings)
@@ -212,10 +176,6 @@ export default function UserProfileSettings() {
     setSettings({ ...settings, cycleDuration: value[0] })
   }
 
-  const handleCycleStartDayChange = (value: string) => {
-    setSettings({ ...settings, cycleStartDay: Number.parseInt(value) })
-  }
-
   const saveSettings = async () => {
     if (!user) return
 
@@ -238,7 +198,6 @@ export default function UserProfileSettings() {
         user_id: user.id,
         username: settings.username,
         cycle_duration: settings.cycleDuration,
-        cycle_start_day: settings.cycleStartDay,
         sweet_dessert_limit: settings.sweetDessertLimit,
       })
 
@@ -327,25 +286,6 @@ export default function UserProfileSettings() {
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="cycle-start-day">Día de inicio del ciclo</Label>
-                <Select value={settings.cycleStartDay.toString()} onValueChange={handleCycleStartDayChange}>
-                  <SelectTrigger id="cycle-start-day" className="w-full">
-                    <SelectValue placeholder="Selecciona el día de inicio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">{getDayOfWeekName(1)}</SelectItem>
-                    <SelectItem value="2">{getDayOfWeekName(2)}</SelectItem>
-                    <SelectItem value="3">{getDayOfWeekName(3)}</SelectItem>
-                    <SelectItem value="4">{getDayOfWeekName(4)}</SelectItem>
-                    <SelectItem value="5">{getDayOfWeekName(5)}</SelectItem>
-                    <SelectItem value="6">{getDayOfWeekName(6)}</SelectItem>
-                    <SelectItem value="0">{getDayOfWeekName(0)}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-neutral-500">Define qué día de la semana comienza cada ciclo nutricional</p>
-              </div>
-
               <div>
                 <Label htmlFor="cycle-duration">Duración del ciclo: {settings.cycleDuration} días</Label>
                 <Slider
@@ -361,14 +301,6 @@ export default function UserProfileSettings() {
                   Define cuántos días dura cada ciclo nutricional (7-30 días)
                 </p>
               </div>
-
-              {nextCycleStart && (
-                <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
-                  <p className="text-sm text-blue-700">
-                    <span className="font-medium">Próximo inicio de ciclo:</span> {nextCycleStart}
-                  </p>
-                </div>
-              )}
 
               <div>
                 <Label>Límite de postres dulces por ciclo: {settings.sweetDessertLimit}</Label>

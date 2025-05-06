@@ -12,7 +12,7 @@ import { groupMealsByDay } from "@/lib/utils"
 import { groupMealsByCycle, type CycleGroup } from "@/lib/cycle-utils"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import type { Meal, UserCycleSettings } from "@/lib/types"
+import type { Meal } from "@/lib/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,11 +32,7 @@ export default function SharePage() {
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
-  const [cycleSettings, setCycleSettings] = useState<UserCycleSettings>({
-    cycleDuration: 7,
-    cycleStartDay: 1,
-    sweetDessertLimit: 3,
-  })
+  const [cycleDuration, setCycleDuration] = useState(7)
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
   const router = useRouter()
@@ -62,20 +58,16 @@ export default function SharePage() {
     try {
       const supabase = getSupabaseClient()
 
-      // Get user's username and cycle settings
+      // Get user's username and cycle duration
       const { data, error } = await supabase
         .from("user_settings")
-        .select("username, cycle_duration, cycle_start_day, sweet_dessert_limit")
+        .select("username, cycle_duration")
         .eq("user_id", userId)
         .single()
 
       if (!error && data) {
         setUsername(data.username || null)
-        setCycleSettings({
-          cycleDuration: data.cycle_duration || 7,
-          cycleStartDay: data.cycle_start_day || 1,
-          sweetDessertLimit: data.sweet_dessert_limit || 3,
-        })
+        setCycleDuration(data.cycle_duration || 7)
       }
     } catch (error) {
       console.error("Error loading user info:", error)
@@ -103,12 +95,13 @@ export default function SharePage() {
         const grouped = groupMealsByDay(data as Meal[])
         setGroupedMeals(grouped)
 
-        // Group meals by cycle using user's cycle settings
-        const cycles = groupMealsByCycle(data as Meal[], cycleSettings.cycleDuration, cycleSettings.cycleStartDay)
+        // Group meals by cycle
+        const cycles = groupMealsByCycle(data as Meal[], cycleDuration)
         setCycleGroups(cycles)
 
         // If a specific cycle is selected in the URL, filter the data
         if (cycleParam && cycleParam !== "all") {
+          const cycleNumber = Number.parseInt(cycleParam, 10)
           // No need to auto-expand any section initially
         }
       } else {
@@ -143,11 +136,7 @@ export default function SharePage() {
   const filteredCycleGroups =
     selectedCycle === "all"
       ? cycleGroups
-      : selectedCycle === "current"
-        ? cycleGroups.length > 0
-          ? [cycleGroups[0]] // First cycle is the current one
-          : []
-        : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
+      : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
 
   if (!mounted) {
     return (
@@ -197,13 +186,9 @@ export default function SharePage() {
   let titleDateRange = "Historial de comidas compartido"
   if (cycleGroups.length > 0) {
     if (selectedCycle !== "all") {
-      if (selectedCycle === "current" && cycleGroups.length > 0) {
-        titleDateRange = `Ciclo actual: ${cycleGroups[0].displayDateRange.split(": ")[1]}`
-      } else {
-        const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
-        if (selectedCycleGroup) {
-          titleDateRange = `${selectedCycleGroup.displayDateRange}`
-        }
+      const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
+      if (selectedCycleGroup) {
+        titleDateRange = `Historial del ${selectedCycleGroup.displayDateRange}`
       }
     } else {
       // Get overall date range
@@ -261,11 +246,7 @@ export default function SharePage() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="flex-shrink-0">
-                        {selectedCycle === "all"
-                          ? "Todos los ciclos"
-                          : selectedCycle === "current"
-                            ? "Ciclo actual"
-                            : `Ciclo ${selectedCycle}`}
+                        {selectedCycle === "all" ? "Todos los ciclos" : `Ciclo ${selectedCycle}`}
                         <ChevronDown className="ml-2 h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -274,7 +255,6 @@ export default function SharePage() {
                       <DropdownMenuSeparator />
                       <DropdownMenuRadioGroup value={selectedCycle} onValueChange={setSelectedCycle}>
                         <DropdownMenuRadioItem value="all">Todos los ciclos</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="current">Ciclo actual</DropdownMenuRadioItem>
                         {cycleGroups.map((cycle) => (
                           <DropdownMenuRadioItem key={cycle.cycleNumber} value={cycle.cycleNumber.toString()}>
                             Ciclo {cycle.cycleNumber}
