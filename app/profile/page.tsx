@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
-import { ArrowLeft, LogOut } from "lucide-react"
+import { ArrowLeft, LogOut, Settings } from "lucide-react"
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -77,6 +77,11 @@ export default function ProfilePage() {
               <p className="text-sm font-medium text-neutral-500">ID de usuario</p>
               <p className="text-xs text-neutral-400 break-all">{user.id}</p>
             </div>
+
+            <Button variant="outline" onClick={() => router.push("/profile/settings")} className="w-full">
+              <Settings className="h-4 w-4 mr-2" />
+              Configuración de perfil
+            </Button>
           </CardContent>
           <CardFooter>
             <Button variant="destructive" onClick={handleSignOut} disabled={isLoading} className="w-full">

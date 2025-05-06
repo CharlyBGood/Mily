@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Camera, AlertTriangle } from "lucide-react"
+import { Camera, AlertTriangle, Info } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -17,6 +17,12 @@ import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
+import {
+  countSweetDessertsInCurrentCycle,
+  getUserCycleDuration,
+  getUserSweetDessertLimit,
+  calculateCycleInfo,
+} from "@/lib/cycle-utils"
 
 export default function MealLogger() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -29,18 +35,83 @@ export default function MealLogger() {
   const [currentDate, setCurrentDate] = useState("")
   const [currentTime, setCurrentTime] = useState("")
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
+  const [cycleDuration, setCycleDuration] = useState(7)
+  const [sweetDessertLimit, setSweetDessertLimit] = useState(3)
+  const [sweetDessertsCount, setSweetDessertsCount] = useState(0)
+  const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
+  const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
+  const [isFruitDessert, setIsFruitDessert] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
   const { user } = useAuth()
-  const { saveMeal, uploadImage, storageType } = useStorage()
+  const { saveMeal, uploadImage, storageType, getUserMeals } = useStorage()
 
   useEffect(() => {
     setMounted(true)
     // Only format dates on the client side
     setCurrentDate(format(new Date(), "EEEE, d 'de' MMMM", { locale: es }))
     setCurrentTime(format(new Date(), "HH:mm"))
+
+    // Load user settings and dessert count
+    loadUserSettings()
   }, [])
+
+  // Check if the meal is a dessert and update the fruit dessert flag
+  useEffect(() => {
+    const isDessert = mealType === "postre1" || mealType === "postre2"
+    const hasFruitKeyword = notes.toLowerCase().includes("fruta")
+
+    setIsFruitDessert(isDessert && hasFruitKeyword)
+  }, [mealType, notes])
+
+  // Update dessert limit warning
+  useEffect(() => {
+    const isDessert = mealType === "postre1" || mealType === "postre2"
+
+    if (isDessert && !isFruitDessert && sweetDessertsCount >= sweetDessertLimit) {
+      setIsDessertLimitReached(true)
+    } else {
+      setIsDessertLimitReached(false)
+    }
+  }, [mealType, isFruitDessert, sweetDessertsCount, sweetDessertLimit])
+
+  const loadUserSettings = async () => {
+    if (!user) return
+
+    try {
+      // Load cycle duration and sweet dessert limit
+      const duration = await getUserCycleDuration(user.id)
+      const limit = await getUserSweetDessertLimit(user.id)
+
+      setCycleDuration(duration)
+      setSweetDessertLimit(limit)
+
+      // Load meals to count sweet desserts in current cycle
+      const { success, data } = await getUserMeals()
+
+      if (success && data && data.length > 0) {
+        // Sort meals by date (oldest first)
+        const sortedMeals = [...data].sort((a, b) => {
+          return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
+        })
+
+        const firstMealDate = new Date(sortedMeals[0].created_at || "")
+        const today = new Date()
+
+        // Calculate current cycle info
+        const cycleInfo = calculateCycleInfo(today, firstMealDate, duration)
+        setDaysLeftInCycle(cycleInfo.daysLeft)
+
+        // Count sweet desserts in current cycle
+        const count = countSweetDessertsInCurrentCycle(data, duration)
+        setSweetDessertsCount(count)
+      }
+    } catch (error) {
+      console.error("Error loading user settings:", error)
+    }
+  }
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -103,6 +174,19 @@ export default function MealLogger() {
       return
     }
 
+    // Check dessert limit
+    const isDessert = mealType === "postre1" || mealType === "postre2"
+    const isFruit = notes.toLowerCase().includes("fruta")
+
+    if (isDessert && !isFruit && sweetDessertsCount >= sweetDessertLimit) {
+      toast({
+        title: "Límite de postres alcanzado",
+        description: `Has alcanzado el límite de ${sweetDessertLimit} postres dulces para este ciclo. Nuevo ciclo en ${daysLeftInCycle} días.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -138,6 +222,11 @@ export default function MealLogger() {
 
       // Reset form
       resetForm()
+
+      // Update sweet desserts count if this was a sweet dessert
+      if ((mealType === "postre1" || mealType === "postre2") && !isFruitDessert) {
+        setSweetDessertsCount((prev) => prev + 1)
+      }
 
       toast({
         title: "Comida guardada",
@@ -223,13 +312,38 @@ export default function MealLogger() {
               <SelectItem value="desayuno">Desayuno</SelectItem>
               <SelectItem value="colacion1">Colación</SelectItem>
               <SelectItem value="almuerzo">Almuerzo</SelectItem>
-              <SelectItem value="postre1">Postre</SelectItem>
+              <SelectItem value="postre1" disabled={isDessertLimitReached && !isFruitDessert}>
+                Postre
+              </SelectItem>
               <SelectItem value="merienda">Merienda</SelectItem>
               <SelectItem value="colacion2">Colación</SelectItem>
               <SelectItem value="cena">Cena</SelectItem>
-              <SelectItem value="postre2">Postre</SelectItem>
+              <SelectItem value="postre2" disabled={isDessertLimitReached && !isFruitDessert}>
+                Postre
+              </SelectItem>
             </SelectContent>
           </Select>
+
+          {(mealType === "postre1" || mealType === "postre2") && (
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span>
+                Postres dulces: {sweetDessertsCount}/{sweetDessertLimit} en este ciclo
+              </span>
+              {isFruitDessert && <span className="text-green-600 font-medium">Postre de fruta ✓</span>}
+            </div>
+          )}
+
+          {isDessertLimitReached && (mealType === "postre1" || mealType === "postre2") && !isFruitDessert && (
+            <Alert variant="warning" className="mt-2">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
+                <span className="block mt-1 font-medium">
+                  Puedes agregar "fruta" en las notas para registrar un postre de fruta (sin límite).
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -248,7 +362,8 @@ export default function MealLogger() {
 
         <div className="space-y-2">
           <Label htmlFor="notes" className="text-base">
-            Notas adicionales (opcional)
+            Notas adicionales{" "}
+            {(mealType === "postre1" || mealType === "postre2") && "(incluye 'fruta' para postres de fruta)"}
           </Label>
           <Textarea
             id="notes"
@@ -263,7 +378,12 @@ export default function MealLogger() {
         <Button
           type="submit"
           className="w-full bg-teal-600 hover:bg-teal-700 text-base py-6"
-          disabled={!description || !mealType || isSubmitting}
+          disabled={
+            !description ||
+            !mealType ||
+            isSubmitting ||
+            (isDessertLimitReached && (mealType === "postre1" || mealType === "postre2") && !isFruitDessert)
+          }
         >
           {isSubmitting ? "Guardando..." : "Guardar comida"}
         </Button>

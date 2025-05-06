@@ -4,20 +4,37 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ChevronDown } from "lucide-react"
 import MilyLogo from "@/components/mily-logo"
 import DaySection from "@/components/day-section"
+import CycleSection from "@/components/cycle-section"
 import { groupMealsByDay } from "@/lib/utils"
+import { groupMealsByCycle, type CycleGroup } from "@/lib/cycle-utils"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import type { Meal } from "@/lib/types"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
+  const [cycleGroups, setCycleGroups] = useState<CycleGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
+  const [cycleDuration, setCycleDuration] = useState(7)
+  const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
+  const [selectedCycle, setSelectedCycle] = useState<string>("all")
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
@@ -25,8 +42,29 @@ export default function SharePage() {
 
   useEffect(() => {
     setMounted(true)
+    loadUserInfo()
     loadMeals()
   }, [userId])
+
+  const loadUserInfo = async () => {
+    try {
+      const supabase = getSupabaseClient()
+
+      // Get user's username and cycle duration
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("username, cycle_duration")
+        .eq("user_id", userId)
+        .single()
+
+      if (!error && data) {
+        setUsername(data.username || null)
+        setCycleDuration(data.cycle_duration || 7)
+      }
+    } catch (error) {
+      console.error("Error loading user info:", error)
+    }
+  }
 
   const loadMeals = async () => {
     setLoading(true)
@@ -45,10 +83,21 @@ export default function SharePage() {
       }
 
       if (data && data.length > 0) {
+        // Group meals by day
         const grouped = groupMealsByDay(data as Meal[])
         setGroupedMeals(grouped)
+
+        // Group meals by cycle
+        const cycles = groupMealsByCycle(data as Meal[], cycleDuration)
+        setCycleGroups(cycles)
+
+        // Auto-expand the most recent cycle
+        if (cycles.length > 0) {
+          setExpandedCycle(cycles[0].cycleNumber)
+        }
       } else {
         setGroupedMeals([])
+        setCycleGroups([])
       }
     } catch (error) {
       console.error("Error loading meals:", error)
@@ -66,9 +115,19 @@ export default function SharePage() {
     setExpandedSection(date === expandedSection ? null : date)
   }
 
+  const handleCycleExpand = (cycleNumber: number) => {
+    setExpandedCycle(cycleNumber === expandedCycle ? null : cycleNumber)
+  }
+
   // Empty functions since we don't need these functionalities in share view
   const handleDeleteClick = () => {}
   const handleEditClick = () => {}
+
+  // Filter cycles based on selection
+  const filteredCycleGroups =
+    selectedCycle === "all"
+      ? cycleGroups
+      : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
 
   if (!mounted) {
     return (
@@ -114,6 +173,27 @@ export default function SharePage() {
     )
   }
 
+  // Get date range for title
+  let titleDateRange = "Historial de comidas compartido"
+  if (cycleGroups.length > 0) {
+    if (selectedCycle !== "all") {
+      const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
+      if (selectedCycleGroup) {
+        titleDateRange = selectedCycleGroup.displayDateRange
+      }
+    } else {
+      // Get overall date range
+      const firstCycle = [...cycleGroups].sort((a, b) => a.cycleNumber - b.cycleNumber)[0]
+      const lastCycle = [...cycleGroups].sort((a, b) => b.cycleNumber - a.cycleNumber)[0]
+
+      if (firstCycle && lastCycle) {
+        const startDate = new Date(firstCycle.startDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })
+        const endDate = new Date(lastCycle.endDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })
+        titleDateRange = `Historial del ${startDate} al ${endDate}`
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-screen bg-neutral-50">
       <header className="p-4 border-b bg-white flex items-center">
@@ -135,24 +215,88 @@ export default function SharePage() {
           ) : (
             <>
               <div className="bg-white p-4 rounded-lg shadow-sm mb-6 text-center">
-                <h1 className="text-xl font-bold mb-2">Historial de comidas compartido</h1>
-                <p className="text-neutral-500">Este es un historial de las ingestas de Mily</p>
+                <h1 className="text-xl font-bold mb-2">{titleDateRange}</h1>
+                <p className="text-neutral-500">
+                  {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
+                </p>
               </div>
 
-              {groupedMeals.map((group) => (
-                <DaySection
-                  key={group.date}
-                  date={group.date}
-                  displayDate={group.displayDate}
-                  meals={group.meals}
-                  onDeleteMeal={handleDeleteClick}
-                  onEditMeal={handleEditClick}
-                  onExpand={handleSectionExpand}
-                  isExpanded={expandedSection === group.date}
-                  showEditButton={false}
-                  showDeleteButton={false}
-                />
-              ))}
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex space-x-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        Ver por {viewMode === "cycles" ? "Ciclos" : "Días"}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuLabel>Modo de visualización</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup
+                        value={viewMode}
+                        onValueChange={(value) => setViewMode(value as "days" | "cycles")}
+                      >
+                        <DropdownMenuRadioItem value="cycles">Por Ciclos</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="days">Por Días</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {viewMode === "cycles" && cycleGroups.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        {selectedCycle === "all" ? "Todos los ciclos" : `Ciclo ${selectedCycle}`}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuLabel>Seleccionar ciclo</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuRadioGroup value={selectedCycle} onValueChange={setSelectedCycle}>
+                        <DropdownMenuRadioItem value="all">Todos los ciclos</DropdownMenuRadioItem>
+                        {cycleGroups.map((cycle) => (
+                          <DropdownMenuRadioItem key={cycle.cycleNumber} value={cycle.cycleNumber.toString()}>
+                            Ciclo {cycle.cycleNumber}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+
+              {viewMode === "days"
+                ? // Display by days
+                  groupedMeals.map((group) => (
+                    <DaySection
+                      key={group.date}
+                      date={group.date}
+                      displayDate={group.displayDate}
+                      meals={group.meals}
+                      onDeleteMeal={handleDeleteClick}
+                      onEditMeal={handleEditClick}
+                      onExpand={handleSectionExpand}
+                      isExpanded={expandedSection === group.date}
+                      showEditButton={false}
+                      showDeleteButton={false}
+                    />
+                  ))
+                : // Display by cycles
+                  filteredCycleGroups.map((cycle) => (
+                    <CycleSection
+                      key={cycle.cycleNumber}
+                      cycle={cycle}
+                      onDeleteMeal={handleDeleteClick}
+                      onEditMeal={handleEditClick}
+                      onExpand={handleCycleExpand}
+                      isExpanded={expandedCycle === cycle.cycleNumber}
+                      showEditButton={false}
+                      showDeleteButton={false}
+                    />
+                  ))}
             </>
           )}
         </div>

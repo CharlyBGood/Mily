@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database } from "lucide-react"
+import { RefreshCw, Database, ChevronDown } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
+import { groupMealsByCycle, getUserCycleDuration, type CycleGroup } from "@/lib/cycle-utils"
 import DaySection from "./day-section"
+import CycleSection from "./cycle-section"
 import MealEditor from "./meal-editor"
 import DirectShareButton from "./direct-share-button"
 import { useAuth } from "@/lib/auth-context"
@@ -23,17 +25,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function MealHistory() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
+  const [cycleGroups, setCycleGroups] = useState<CycleGroup[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
   const [expandAllForPdf, setExpandAllForPdf] = useState(false)
   const [isPdfMode, setIsPdfMode] = useState(false)
+  const [cycleDuration, setCycleDuration] = useState(7)
+  const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
@@ -57,6 +72,12 @@ export default function MealHistory() {
 
     setLoading(true)
     try {
+      // Load user's cycle duration
+      if (user) {
+        const duration = await getUserCycleDuration(user.id)
+        setCycleDuration(duration)
+      }
+
       const { success, data, error } = await getUserMeals()
 
       if (!success || !data) {
@@ -75,7 +96,17 @@ export default function MealHistory() {
       // Group meals by day for display
       const grouped = groupMealsByDay(data)
       setGroupedMeals(grouped)
-      console.log(`Loaded ${data.length} meals in ${grouped.length} days`)
+
+      // Group meals by cycle
+      const cycles = groupMealsByCycle(data, cycleDuration)
+      setCycleGroups(cycles)
+
+      // Auto-expand the most recent cycle
+      if (cycles.length > 0) {
+        setExpandedCycle(cycles[0].cycleNumber)
+      }
+
+      console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycles.length} cycles`)
     } catch (error) {
       console.error("Error loading meals:", error)
       toast({
@@ -156,6 +187,18 @@ export default function MealHistory() {
     }
   }
 
+  const handleCycleExpand = (cycleNumber: number) => {
+    // If we're in PDF export mode, don't change expanded cycles
+    if (expandAllForPdf) return
+
+    // If cycle matches current expanded cycle, collapse it
+    if (cycleNumber === expandedCycle) {
+      setExpandedCycle(null)
+    } else {
+      setExpandedCycle(cycleNumber)
+    }
+  }
+
   // Prepare content for PDF export
   const prepareForPdfExport = async (): Promise<HTMLElement | null> => {
     console.log("Preparing content for PDF export")
@@ -191,8 +234,8 @@ export default function MealHistory() {
       pdfContentRef.current.appendChild(clone)
 
       // Process the clone to ensure all sections are expanded and buttons are hidden
-      const sections = pdfContentRef.current.querySelectorAll(".day-section")
-      console.log(`Found ${sections.length} day sections`)
+      const sections = pdfContentRef.current.querySelectorAll(".day-section, .cycle-section")
+      console.log(`Found ${sections.length} sections`)
 
       sections.forEach((section) => {
         // Ensure all sections are expanded
@@ -310,7 +353,7 @@ export default function MealHistory() {
     )
   }
 
-  if (groupedMeals.length === 0) {
+  if (meals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <div className="mb-4 text-neutral-400">
@@ -348,10 +391,32 @@ export default function MealHistory() {
       <ScrollArea className="h-full">
         <div className="p-4 pb-40">
           <div className="flex justify-between mb-4">
-            <Button variant="outline" size="sm" onClick={handleRefresh}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualizar
-            </Button>
+            <div className="flex space-x-2">
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Actualizar
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    Ver por {viewMode === "cycles" ? "Ciclos" : "Días"}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuLabel>Modo de visualización</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup
+                    value={viewMode}
+                    onValueChange={(value) => setViewMode(value as "days" | "cycles")}
+                  >
+                    <DropdownMenuRadioItem value="cycles">Por Ciclos</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="days">Por Días</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             <div className="flex space-x-2">
               {storageType === "local" && user && (
@@ -370,19 +435,33 @@ export default function MealHistory() {
           </div>
 
           <div id="pdf-content" ref={contentRef} className="pdf-content">
-            {groupedMeals.map((group) => (
-              <DaySection
-                key={group.date}
-                date={group.date}
-                displayDate={group.displayDate}
-                meals={group.meals}
-                onDeleteMeal={handleDeleteClick}
-                onEditMeal={handleEditClick}
-                onExpand={handleSectionExpand}
-                isExpanded={expandAllForPdf || expandedSection === group.date}
-                isPdfMode={isPdfMode}
-              />
-            ))}
+            {viewMode === "days"
+              ? // Display by days
+                groupedMeals.map((group) => (
+                  <DaySection
+                    key={group.date}
+                    date={group.date}
+                    displayDate={group.displayDate}
+                    meals={group.meals}
+                    onDeleteMeal={handleDeleteClick}
+                    onEditMeal={handleEditClick}
+                    onExpand={handleSectionExpand}
+                    isExpanded={expandAllForPdf || expandedSection === group.date}
+                    isPdfMode={isPdfMode}
+                  />
+                ))
+              : // Display by cycles
+                cycleGroups.map((cycle) => (
+                  <CycleSection
+                    key={cycle.cycleNumber}
+                    cycle={cycle}
+                    onDeleteMeal={handleDeleteClick}
+                    onEditMeal={handleEditClick}
+                    onExpand={handleCycleExpand}
+                    isExpanded={expandAllForPdf || expandedCycle === cycle.cycleNumber}
+                    isPdfMode={isPdfMode}
+                  />
+                ))}
           </div>
         </div>
       </ScrollArea>
