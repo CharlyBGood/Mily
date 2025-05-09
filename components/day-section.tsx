@@ -17,6 +17,8 @@ interface DaySectionProps {
   onExpand: (date: string) => void
   isExpanded: boolean
   isPdfMode?: boolean
+  showEditButton?: boolean
+  showDeleteButton?: boolean
 }
 
 export default function DaySection({
@@ -28,11 +30,24 @@ export default function DaySection({
   onExpand,
   isExpanded,
   isPdfMode = false,
+  showEditButton = true,
+  showDeleteButton = true,
 }: DaySectionProps) {
   const [open, setOpen] = useState(isExpanded)
 
   // Ensure meals is defined
   const safeMeals = meals || []
+
+  // Get thumbnails for preview (up to 4)
+  const thumbnails: string[] = []
+  if (!open) {
+    for (const meal of safeMeals) {
+      if (meal.photo_url && thumbnails.length < 4) {
+        thumbnails.push(meal.photo_url)
+      }
+      if (thumbnails.length >= 4) break
+    }
+  }
 
   // Handle open state change
   const handleOpenChange = (isOpen: boolean) => {
@@ -68,6 +83,24 @@ export default function DaySection({
           </CollapsibleTrigger>
         </CardHeader>
 
+        {!open && thumbnails.length > 0 && (
+          <div className="px-3 pb-3 meal-thumbnails">
+            <div className="flex space-x-2 mt-2 overflow-x-auto pb-1">
+              {thumbnails.map((url, index) => (
+                <div key={index} className="w-16 h-16 rounded-md bg-neutral-100 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt="Thumbnail"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <CollapsibleContent>
           <CardContent className="p-3">
             <div className="grid grid-cols-1 gap-3">
@@ -78,6 +111,8 @@ export default function DaySection({
                   onDelete={() => onDeleteMeal(meal)}
                   onEdit={() => onEditMeal(meal)}
                   isPdfMode={isPdfMode}
+                  showEditButton={showEditButton}
+                  showDeleteButton={showDeleteButton}
                 />
               ))}
             </div>

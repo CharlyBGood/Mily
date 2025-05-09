@@ -2,13 +2,12 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Share2, FileDown } from "lucide-react"
+import { Share2, FileDown, Link } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import type { Meal } from "@/lib/types"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import DirectShareButton from "./direct-share-button"
 
 interface ShareDropdownProps {
   meals: Meal[]
@@ -73,20 +72,35 @@ export default function ShareDropdown({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" disabled={buttonDisabled} className={isGeneratingPdf ? "opacity-70" : ""}>
           <Share2 className="h-4 w-4 mr-2" />
-          <span>Compartir</span>
+          <span className="hidden sm:inline">Compartir</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem>
-          <DirectShareButton />
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => {
+              const directShareButton = document.querySelector("[data-direct-share-trigger]") as HTMLButtonElement
+              if (directShareButton) {
+                directShareButton.click()
+              }
+            }}
+          >
+            <Link className="h-4 w-4 mr-2" />
+            <span>Compartir enlace</span>
+          </Button>
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={handleExportPDF}
-          disabled={meals.length === 0 || isGeneratingPdf}
-          className="cursor-pointer"
-        >
-          <FileDown className="h-4 w-4 mr-2" />
-          <span>Exportar como PDF</span>
+        <DropdownMenuItem asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={handleExportPDF}
+            disabled={meals.length === 0 || isGeneratingPdf}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            <span>Exportar como PDF</span>
+          </Button>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

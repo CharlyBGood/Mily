@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Alert } from "@/components/ui/alert"
+import ShareDropdown from "./share-dropdown"
 
 export default function MealHistory() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -385,6 +386,7 @@ export default function MealHistory() {
 
   // Show loading state if not mounted yet
   if (!mounted) {
+    // Return a placeholder with the same structure to prevent hydration mismatch
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
@@ -393,7 +395,6 @@ export default function MealHistory() {
     )
   }
 
-  // Show login prompt if using Supabase but not logged in
   if (storageType === "supabase" && !user) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
@@ -409,7 +410,6 @@ export default function MealHistory() {
     )
   }
 
-  // Show loading state
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
@@ -419,7 +419,6 @@ export default function MealHistory() {
     )
   }
 
-  // Show error state
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
@@ -436,7 +435,6 @@ export default function MealHistory() {
     )
   }
 
-  // Show empty state
   if (!meals || meals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
@@ -505,22 +503,25 @@ export default function MealHistory() {
 
             <div className="flex-shrink-0">
               <Button
-                variant="outline"
+                variant={viewMode === "cycles" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setViewMode(viewMode === "cycles" ? "days" : "cycles")}
+                onClick={() => setViewMode("cycles")}
                 className="flex items-center"
               >
-                {viewMode === "cycles" ? (
-                  <>
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Ciclos</span>
-                  </>
-                ) : (
-                  <>
-                    <List className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Días</span>
-                  </>
-                )}
+                <LayoutGrid className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Ciclos</span>
+              </Button>
+            </div>
+
+            <div className="flex-shrink-0">
+              <Button
+                variant={viewMode === "days" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("days")}
+                className="flex items-center"
+              >
+                <List className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Días</span>
               </Button>
             </div>
 
@@ -550,7 +551,11 @@ export default function MealHistory() {
                   <span className="hidden sm:inline">Migrar</span>
                 </Button>
               )}
-              <DirectShareButton compact={true} />
+              <ShareDropdown
+                meals={meals}
+                onBeforePdfExport={prepareForPdfExport}
+                onAfterPdfExport={cleanupAfterPdfExport}
+              />
             </div>
           </div>
 

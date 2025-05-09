@@ -6,7 +6,7 @@ import { Trash2, Edit } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { getMealTypeLabel } from "@/lib/utils"
-import type { Meal } from "@/lib/local-storage"
+import type { Meal } from "@/lib/types"
 import { useEffect, useState, useRef } from "react"
 
 interface MealCardProps {
@@ -40,9 +40,15 @@ export default function MealCard({
   const containerRef = useRef<HTMLDivElement>(null)
 
   if (showTime && meal.created_at) {
-    const date = parseISO(meal.created_at)
-    formattedDate = format(date, "EEEE, d 'de' MMMM", { locale: es })
-    formattedTime = format(date, "HH:mm")
+    try {
+      const date = parseISO(meal.created_at)
+      formattedDate = format(date, "EEEE, d 'de' MMMM", { locale: es })
+      formattedTime = format(date, "HH:mm")
+    } catch (error) {
+      console.error("Error formatting date:", error)
+      formattedDate = "Fecha desconocida"
+      formattedTime = ""
+    }
   }
 
   const handleDelete = () => {

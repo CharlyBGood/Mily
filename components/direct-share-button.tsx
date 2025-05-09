@@ -90,9 +90,10 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
             setIsOpen(true)
             handleShare()
           }}
+          className="flex items-center"
         >
           <Share className="h-4 w-4 mr-2" />
-          {!compact && "Compartir"}
+          {!compact && <span>Compartir</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -100,7 +101,7 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
           <DialogTitle>Compartir historial</DialogTitle>
           <DialogDescription>Comparte tu historial de comidas con quien quieras mediante este enlace</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">¿Qué quieres compartir?</label>
             <Select
@@ -126,14 +127,14 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
             </Select>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <div className="grid flex-1 gap-2">
-              <label className="text-sm font-medium">Enlace para compartir</label>
-              <Input value={shareUrl} readOnly className="font-mono text-sm" />
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Enlace para compartir</label>
+            <div className="flex items-center space-x-2">
+              <Input value={shareUrl} readOnly className="font-mono text-sm flex-1" />
+              <Button size="icon" className="h-10 w-10" onClick={copyToClipboard}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
             </div>
-            <Button size="sm" className="px-3" onClick={copyToClipboard}>
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            </Button>
           </div>
         </div>
         <DialogFooter className="sm:justify-between">

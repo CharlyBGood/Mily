@@ -16,6 +16,8 @@ interface CycleSectionProps {
   onExpand: (cycleNumber: number) => void
   isExpanded: boolean
   isPdfMode?: boolean
+  showEditButton?: boolean
+  showDeleteButton?: boolean
 }
 
 export default function CycleSection({
@@ -25,6 +27,8 @@ export default function CycleSection({
   onExpand,
   isExpanded,
   isPdfMode = false,
+  showEditButton = true,
+  showDeleteButton = true,
 }: CycleSectionProps) {
   const [open, setOpen] = useState(isExpanded)
 
@@ -34,6 +38,21 @@ export default function CycleSection({
 
   // Count total meals in this cycle
   const totalMeals = safeDays.reduce((total, day) => total + (day.meals?.length || 0), 0)
+
+  // Get thumbnails for preview (up to 4)
+  const thumbnails: string[] = []
+  if (!open) {
+    for (const day of safeDays) {
+      if (!day.meals) continue
+      for (const meal of day.meals) {
+        if (meal.photo_url && thumbnails.length < 4) {
+          thumbnails.push(meal.photo_url)
+        }
+        if (thumbnails.length >= 4) break
+      }
+      if (thumbnails.length >= 4) break
+    }
+  }
 
   // Handle open state change
   const handleOpenChange = (isOpen: boolean) => {
@@ -71,6 +90,24 @@ export default function CycleSection({
           </CollapsibleTrigger>
         </CardHeader>
 
+        {!open && thumbnails.length > 0 && (
+          <div className="px-3 pb-3 meal-thumbnails">
+            <div className="flex space-x-2 mt-2 overflow-x-auto pb-1">
+              {thumbnails.map((url, index) => (
+                <div key={index} className="w-16 h-16 rounded-md bg-neutral-100 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt="Thumbnail"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <CollapsibleContent>
           <CardContent className="p-3">
             {safeDays.map((day) => {
@@ -88,6 +125,8 @@ export default function CycleSection({
                         onDelete={() => onDeleteMeal(meal)}
                         onEdit={() => onEditMeal(meal)}
                         isPdfMode={isPdfMode}
+                        showEditButton={showEditButton}
+                        showDeleteButton={showDeleteButton}
                       />
                     ))}
                   </div>
