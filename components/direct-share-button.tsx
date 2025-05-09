@@ -2,10 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Share2, Copy, Check, ChevronDown } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
+import { Input } from "@/components/ui/input"
+import { Share, Copy, Check, ExternalLink } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,177 +11,141 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { groupMealsByCycle, getUserCycleDuration } from "@/lib/cycle-utils"
-import { useStorage } from "@/lib/storage-provider"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 
 interface DirectShareButtonProps {
   compact?: boolean
 }
 
 export default function DirectShareButton({ compact = false }: DirectShareButtonProps) {
+  const [shareUrl, setShareUrl] = useState<string>("")
+  const [copied, setCopied] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-  const [isCopied, setIsCopied] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [shareUrl, setShareUrl] = useState("")
-  const [cycleGroups, setCycleGroups] = useState<any[]>([])
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
   const { toast } = useToast()
   const { user } = useAuth()
-  const router = useRouter()
-  const { getUserMeals } = useStorage()
 
-  const handleOpenDialog = async () => {
+  const handleShare = async () => {
     if (!user) {
       toast({
-        title: "No autenticado",
+        title: "Error",
         description: "Debes iniciar sesión para compartir tu historial",
         variant: "destructive",
       })
-      router.push("/login")
       return
     }
 
-    setIsLoading(true)
-    setIsOpen(true)
-
     try {
-      // Generate the share URL
+      // Create share URL with the user ID
       const baseUrl = window.location.origin
-      const shareUrl = `${baseUrl}/share/${user.id}${selectedCycle !== "all" ? `?cycle=${selectedCycle}` : ""}`
-      setShareUrl(shareUrl)
+      let shareUrl = `${baseUrl}/share/${user.id}`
 
-      // Load cycle data for the dropdown
-      const { success, data } = await getUserMeals()
-      if (success && data && data.length > 0) {
-        const duration = await getUserCycleDuration(user.id)
-        const cycles = groupMealsByCycle(data, duration)
-        setCycleGroups(cycles)
+      // Add cycle parameter if a specific cycle is selected
+      if (selectedCycle !== "all") {
+        shareUrl += `?cycle=${selectedCycle}`
       }
+
+      setShareUrl(shareUrl)
+      setCopied(false)
     } catch (error) {
       console.error("Error generating share URL:", error)
       toast({
         title: "Error",
-        description: "Ocurrió un error al generar el enlace para compartir",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setIsCopied(true)
-      setTimeout(() => setIsCopied(false), 2000)
-      toast({
-        title: "Enlace copiado",
-        description: "El enlace ha sido copiado al portapapeles",
-      })
-    } catch (error) {
-      console.error("Error copying to clipboard:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo copiar el enlace al portapapeles",
+        description: "No se pudo generar el enlace para compartir",
         variant: "destructive",
       })
     }
   }
 
-  const handleCycleChange = (value: string) => {
-    setSelectedCycle(value)
-    // Update the share URL with the selected cycle
-    const baseUrl = window.location.origin
-    const newShareUrl = `${baseUrl}/share/${user?.id}${value !== "all" ? `?cycle=${value}` : ""}`
-    setShareUrl(newShareUrl)
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    toast({
+      title: "Enlace copiado",
+      description: "El enlace ha sido copiado al portapapeles",
+    })
+
+    // Reset copied state after 3 seconds
+    setTimeout(() => {
+      setCopied(false)
+    }, 3000)
+  }
+
+  const openShareLink = () => {
+    window.open(shareUrl, "_blank")
+    setIsOpen(false)
   }
 
   return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleOpenDialog}
-        className="text-teal-600 border-teal-600"
-        disabled={isLoading}
-      >
-        <Share2 className="h-4 w-4 mr-2" />
-        {!compact && "Compartir"}
-      </Button>
-
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Compartir historial</DialogTitle>
-            <DialogDescription>
-              Comparte tu historial de comidas con quien quieras mediante este enlace.
-            </DialogDescription>
-          </DialogHeader>
-
-          {cycleGroups.length > 0 && (
-            <div className="mb-4">
-              <label className="text-sm font-medium mb-1 block">¿Qué quieres compartir?</label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between">
-                    {selectedCycle === "all" ? "Todo el historial" : `Ciclo ${selectedCycle}`}
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
-                  <DropdownMenuLabel>Seleccionar contenido</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuRadioGroup value={selectedCycle} onValueChange={handleCycleChange}>
-                    <DropdownMenuRadioItem value="all">Todo el historial</DropdownMenuRadioItem>
-                    {cycleGroups.map((cycle) => (
-                      <DropdownMenuRadioItem key={cycle.cycleNumber} value={cycle.cycleNumber.toString()}>
-                        Ciclo {cycle.cycleNumber}: {cycle.displayDateRange}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="default"
+          size={compact ? "sm" : "default"}
+          onClick={() => {
+            setIsOpen(true)
+            handleShare()
+          }}
+        >
+          <Share className="h-4 w-4 mr-2" />
+          {!compact && "Compartir"}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Compartir historial</DialogTitle>
+          <DialogDescription>Comparte tu historial de comidas con quien quieras mediante este enlace</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">¿Qué quieres compartir?</label>
+            <Select
+              value={selectedCycle}
+              onValueChange={(value) => {
+                setSelectedCycle(value)
+                // Regenerate share URL when selection changes
+                setTimeout(handleShare, 0)
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona qué compartir" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo el historial</SelectItem>
+                <SelectItem value="current">Ciclo actual</SelectItem>
+                <SelectItem value="1">Ciclo 1</SelectItem>
+                <SelectItem value="2">Ciclo 2</SelectItem>
+                <SelectItem value="3">Ciclo 3</SelectItem>
+                <SelectItem value="4">Ciclo 4</SelectItem>
+                <SelectItem value="5">Ciclo 5</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex items-center space-x-2">
             <div className="grid flex-1 gap-2">
               <label className="text-sm font-medium">Enlace para compartir</label>
-              <input
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={shareUrl}
-                readOnly
-              />
+              <Input value={shareUrl} readOnly className="font-mono text-sm" />
             </div>
-            <Button type="button" size="sm" className="px-3 h-10" onClick={handleCopyLink} disabled={isCopied}>
-              {isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              <span className="sr-only">Copiar</span>
+            <Button size="sm" className="px-3" onClick={copyToClipboard}>
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
-
-          <DialogFooter className="sm:justify-start">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                window.open(shareUrl, "_blank")
-              }}
-            >
-              Abrir enlace
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+        <DialogFooter className="sm:justify-between">
+          <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>
+            Cerrar
+          </Button>
+          <Button type="button" onClick={openShareLink} className="flex items-center">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Abrir enlace
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

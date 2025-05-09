@@ -1,304 +1,89 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, ChevronDown } from "lucide-react"
-import MilyLogo from "@/components/mily-logo"
-import DaySection from "@/components/day-section"
-import CycleSection from "@/components/cycle-section"
-import { groupMealsByDay } from "@/lib/utils"
-import { groupMealsByCycle, type CycleGroup } from "@/lib/cycle-utils"
-import { useToast } from "@/hooks/use-toast"
+import { notFound } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import type { Meal } from "@/lib/types"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { groupMealsByCycle } from "@/lib/cycle-utils"
+import MealShareCard from "@/components/meal-share-card"
+import * as settingsService from "@/lib/settings-service"
 
-export default function SharePage() {
-  const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
-  const [cycleGroups, setCycleGroups] = useState<CycleGroup[]>([])
-  const [loading, setLoading] = useState(true)
-  const [mounted, setMounted] = useState(false)
-  const [expandedSection, setExpandedSection] = useState<string | null>(null)
-  const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [username, setUsername] = useState<string | null>(null)
-  const [cycleDuration, setCycleDuration] = useState(7)
-  const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
-  const [selectedCycle, setSelectedCycle] = useState<string>("all")
-  const router = useRouter()
-  const params = useParams()
-  const searchParams = useSearchParams()
-  const { toast } = useToast()
-  const userId = params.userId as string
-  const cycleParam = searchParams.get("cycle")
+export const dynamic = "force-dynamic"
 
-  useEffect(() => {
-    setMounted(true)
+async function getUserMeals(userId: string) {
+  const supabase = getSupabaseClient()
 
-    // Set the selected cycle from URL parameter
-    if (cycleParam) {
-      setSelectedCycle(cycleParam)
-    }
-
-    loadUserInfo()
-    loadMeals()
-  }, [userId, cycleParam])
-
-  const loadUserInfo = async () => {
-    try {
-      const supabase = getSupabaseClient()
-
-      // Get user's username and cycle duration
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("username, cycle_duration")
-        .eq("user_id", userId)
-        .single()
-
-      if (!error && data) {
-        setUsername(data.username || null)
-        setCycleDuration(data.cycle_duration || 7)
-      }
-    } catch (error) {
-      console.error("Error loading user info:", error)
-    }
-  }
-
-  const loadMeals = async () => {
-    setLoading(true)
-    try {
-      const supabase = getSupabaseClient()
-
-      // Directly fetch meals for the specified user
-      const { data, error } = await supabase
-        .from("meals")
-        .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        throw new Error("Error loading shared content")
-      }
-
-      if (data && data.length > 0) {
-        // Group meals by day
-        const grouped = groupMealsByDay(data as Meal[])
-        setGroupedMeals(grouped)
-
-        // Group meals by cycle
-        const cycles = groupMealsByCycle(data as Meal[], cycleDuration)
-        setCycleGroups(cycles)
-
-        // If a specific cycle is selected in the URL, filter the data
-        if (cycleParam && cycleParam !== "all") {
-          const cycleNumber = Number.parseInt(cycleParam, 10)
-          // No need to auto-expand any section initially
-        }
-      } else {
-        setGroupedMeals([])
-        setCycleGroups([])
-      }
-    } catch (error) {
-      console.error("Error loading meals:", error)
-      setError(error instanceof Error ? error.message : "Error loading shared content")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleBack = () => {
-    router.push("/")
-  }
-
-  const handleSectionExpand = (date: string) => {
-    setExpandedSection(date === expandedSection ? null : date)
-  }
-
-  const handleCycleExpand = (cycleNumber: number) => {
-    setExpandedCycle(cycleNumber === expandedCycle ? null : cycleNumber)
-  }
-
-  // Empty functions since we don't need these functionalities in share view
-  const handleDeleteClick = () => {}
-  const handleEditClick = () => {}
-
-  // Filter cycles based on selection
-  const filteredCycleGroups =
-    selectedCycle === "all"
-      ? cycleGroups
-      : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
-
-  if (!mounted) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando...</p>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando contenido compartido...</p>
-      </div>
-    )
-  }
+  const { data, error } = await supabase
+    .from("meals")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_public", true)
+    .order("created_at", { ascending: false })
 
   if (error) {
-    return (
-      <div className="flex flex-col h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo />
-          </div>
-          <div className="w-10"></div>
-        </header>
-
-        <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-            <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
-            <p className="text-red-600">{error}</p>
-            <Button variant="outline" className="mt-4" onClick={handleBack}>
-              Volver al inicio
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
+    console.error("Error fetching shared meals:", error)
+    return []
   }
 
-  // Get date range for title
-  let titleDateRange = "Historial de comidas compartido"
-  if (cycleGroups.length > 0) {
-    if (selectedCycle !== "all") {
-      const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
-      if (selectedCycleGroup) {
-        titleDateRange = `Historial del ${selectedCycleGroup.displayDateRange}`
-      }
-    } else {
-      // Get overall date range
-      const firstCycle = [...cycleGroups].sort((a, b) => a.cycleNumber - b.cycleNumber)[0]
-      const lastCycle = [...cycleGroups].sort((a, b) => b.cycleNumber - a.cycleNumber)[0]
+  return data || []
+}
 
-      if (firstCycle && lastCycle) {
-        const startDate = new Date(firstCycle.startDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })
-        const endDate = new Date(lastCycle.endDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })
-        titleDateRange = `Historial del ${startDate} al ${endDate}`
-      }
-    }
+export default async function SharedMealsPage({ params }: { params: { userId: string } }) {
+  const userId = params.userId
+
+  // Get user settings for cycle configuration
+  const settings = await settingsService.getUserSettings(userId)
+  const cycleDuration = settings.cycleDuration
+  const cycleStartDay = settings.cycleStartDay
+
+  // Get user's public meals
+  const meals = await getUserMeals(userId)
+
+  if (!meals || meals.length === 0) {
+    return notFound()
   }
+
+  // Get username if available
+  const username = await settingsService.getUsernameById(userId)
+
+  // Group meals by cycle
+  const cycleGroups = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1 flex justify-center">
-          <MilyLogo />
-        </div>
-        <div className="w-10"></div>
-      </header>
+    <div className="container max-w-4xl mx-auto py-8 px-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {username ? `Comidas compartidas por ${username}` : "Comidas compartidas"}
+            {cycleGroups.length > 0 && ` - Ciclo actual: ${cycleGroups[0].cycleNumber}`}
+          </CardTitle>
+          <CardDescription>
+            Visualiza las comidas compartidas organizadas por ciclos de {cycleDuration} días
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue={cycleGroups[0]?.cycleNumber.toString() || "1"} className="w-full">
+            <TabsList className="mb-4 flex flex-wrap">
+              {cycleGroups.map((group) => (
+                <TabsTrigger key={group.cycleNumber} value={group.cycleNumber.toString()} className="mb-1">
+                  {group.cycleNumber === cycleGroups[0].cycleNumber ? "Ciclo actual" : `Ciclo ${group.cycleNumber}`}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-      <ScrollArea className="flex-1">
-        <div className="p-4 pb-40 max-w-full overflow-x-hidden">
-          {groupedMeals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <p className="text-neutral-500">No hay comidas compartidas</p>
-            </div>
-          ) : (
-            <>
-              <div className="bg-white p-4 rounded-lg shadow-sm mb-6 text-center">
-                <h1 className="text-xl font-bold mb-2">{titleDateRange}</h1>
-                <p className="text-neutral-500">
-                  {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                <div className="flex-shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode(viewMode === "cycles" ? "days" : "cycles")}
-                    className="flex items-center"
-                  >
-                    {viewMode === "cycles" ? "Ver por Días" : "Ver por Ciclos"}
-                  </Button>
+            {cycleGroups.map((group) => (
+              <TabsContent key={group.cycleNumber} value={group.cycleNumber.toString()}>
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-muted-foreground">{group.displayDateRange}</h3>
                 </div>
-
-                {viewMode === "cycles" && cycleGroups.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-shrink-0">
-                        {selectedCycle === "all" ? "Todos los ciclos" : `Ciclo ${selectedCycle}`}
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel>Seleccionar ciclo</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuRadioGroup value={selectedCycle} onValueChange={setSelectedCycle}>
-                        <DropdownMenuRadioItem value="all">Todos los ciclos</DropdownMenuRadioItem>
-                        {cycleGroups.map((cycle) => (
-                          <DropdownMenuRadioItem key={cycle.cycleNumber} value={cycle.cycleNumber.toString()}>
-                            Ciclo {cycle.cycleNumber}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-
-              {viewMode === "days"
-                ? // Display by days
-                  groupedMeals.map((group) => (
-                    <DaySection
-                      key={group.date}
-                      date={group.date}
-                      displayDate={group.displayDate}
-                      meals={group.meals}
-                      onDeleteMeal={handleDeleteClick}
-                      onEditMeal={handleEditClick}
-                      onExpand={handleSectionExpand}
-                      isExpanded={expandedSection === group.date}
-                      showEditButton={false}
-                      showDeleteButton={false}
-                    />
-                  ))
-                : // Display by cycles
-                  filteredCycleGroups.map((cycle) => (
-                    <CycleSection
-                      key={cycle.cycleNumber}
-                      cycle={cycle}
-                      onDeleteMeal={handleDeleteClick}
-                      onEditMeal={handleEditClick}
-                      onExpand={handleCycleExpand}
-                      isExpanded={expandedCycle === cycle.cycleNumber}
-                      showEditButton={false}
-                      showDeleteButton={false}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {group.meals.map((meal) => (
+                    <MealShareCard key={meal.id} meal={meal} />
                   ))}
-            </>
-          )}
-        </div>
-      </ScrollArea>
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   )
 }

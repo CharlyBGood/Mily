@@ -9,3 +9,9 @@ export interface Meal {
   notes?: string
   created_at?: string
 }
+
+export interface UserCycleSettings {
+  cycleDuration: number
+  cycleStartDay: number
+  sweetDessertLimit: number
+}

@@ -1,145 +1,115 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2 } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { useStorage } from "@/lib/storage-provider"
+import { groupMealsByCycle } from "@/lib/cycle-utils"
 import type { Meal } from "@/lib/types"
-import type { CycleGroup } from "@/lib/cycle-utils"
 import MealCard from "./meal-card"
-import MealThumbnail from "./meal-thumbnail"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import * as settingsService from "@/lib/settings-service"
 
-interface CycleSectionProps {
-  cycle: CycleGroup
-  onDeleteMeal: (meal: Meal) => void
-  onEditMeal: (meal: Meal) => void
-  onExpand: (cycleNumber: number) => void
-  isExpanded: boolean
-  isPdfMode?: boolean
-  showEditButton?: boolean
-  showDeleteButton?: boolean
-}
+export default function CycleSection() {
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [cycleDuration, setCycleDuration] = useState(7)
+  const [cycleStartDay, setCycleStartDay] = useState(1) // Default to Monday
+  const { user } = useAuth()
+  const { getUserMeals } = useStorage()
 
-export default function CycleSection({
-  cycle,
-  onDeleteMeal,
-  onEditMeal,
-  onExpand,
-  isExpanded,
-  isPdfMode = false,
-  showEditButton = true,
-  showDeleteButton = true,
-}: CycleSectionProps) {
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [open, setOpen] = useState(isExpanded)
-
-  // Sync internal state with prop
   useEffect(() => {
-    setOpen(isExpanded)
-  }, [isExpanded])
-
-  const handleMealClick = (meal: Meal) => {
-    setSelectedMeal(meal)
-    setDialogOpen(true)
-  }
-
-  const handleToggle = (openState: boolean) => {
-    setOpen(openState)
-    if (openState) {
-      onExpand(cycle.cycleNumber)
-    } else {
-      // When collapsing, notify parent by passing 0 or null
-      onExpand(0)
+    const loadSettings = async () => {
+      if (user?.id) {
+        try {
+          const settings = await settingsService.getUserSettings(user.id)
+          setCycleDuration(settings.cycleDuration)
+          setCycleStartDay(settings.cycleStartDay)
+        } catch (error) {
+          console.error("Error loading cycle settings:", error)
+          // Use defaults if settings can't be loaded
+          setCycleDuration(7)
+          setCycleStartDay(1)
+        }
+      }
     }
+
+    loadSettings()
+  }, [user])
+
+  useEffect(() => {
+    const loadMeals = async () => {
+      setIsLoading(true)
+      try {
+        const { success, data } = await getUserMeals()
+        if (success && data) {
+          setMeals(data)
+        }
+      } catch (error) {
+        console.error("Error loading meals:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadMeals()
+  }, [getUserMeals])
+
+  // Group meals by cycle
+  const cycleGroups = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
-  // Format dates for display
-  const startDateFormatted = format(cycle.startDate, "d 'de' MMM", { locale: es })
-  const endDateFormatted = format(cycle.endDate, "d 'de' MMM", { locale: es })
+  if (meals.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Ciclos Nutricionales</CardTitle>
+          <CardDescription>
+            Aún no tienes comidas registradas. Comienza a registrar tus comidas para ver tus ciclos nutricionales.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
 
   return (
-    <div className="mb-4 cycle-section" data-pdf-section={isPdfMode ? "true" : "false"}>
-      <Collapsible open={open || isPdfMode} onOpenChange={handleToggle} className="w-full">
-        <CollapsibleTrigger className="flex items-center justify-between w-full text-base sm:text-lg font-semibold mb-2 bg-white p-2 rounded-md text-neutral-800 hover:bg-neutral-50 transition-colors cycle-header border-t-4 border-t-orange-500 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center">
-            <span className="mr-2">Ciclo {cycle.cycleNumber}</span>
-            <span className="text-sm sm:text-base text-neutral-500">
-              {startDateFormatted} - {endDateFormatted}
-            </span>
-          </div>
-          {open ? (
-            <ChevronDown className="h-5 w-5 flex-shrink-0" />
-          ) : (
-            <ChevronRight className="h-5 w-5 flex-shrink-0" />
-          )}
-        </CollapsibleTrigger>
-
-        <CollapsibleContent forceMount={isPdfMode} className={isPdfMode ? "!block pdf-section-content" : ""}>
-          <div className="space-y-3 mt-2">
-            {cycle.meals.map((meal) => (
-              <div key={meal.id} className="meal-card">
-                <MealCard
-                  meal={meal}
-                  onDelete={onDeleteMeal}
-                  onEdit={onEditMeal}
-                  showTime={true}
-                  isPdfMode={isPdfMode}
-                  showEditButton={showEditButton}
-                  showDeleteButton={showDeleteButton}
-                />
-              </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Ciclos Nutricionales</CardTitle>
+        <CardDescription>Visualiza tus comidas organizadas por ciclos de {cycleDuration} días</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue={cycleGroups[0]?.cycleNumber.toString() || "1"} className="w-full">
+          <TabsList className="mb-4 flex flex-wrap">
+            {cycleGroups.map((group) => (
+              <TabsTrigger key={group.cycleNumber} value={group.cycleNumber.toString()} className="mb-1">
+                Ciclo {group.cycleNumber}
+              </TabsTrigger>
             ))}
-          </div>
-        </CollapsibleContent>
+          </TabsList>
 
-        {!open && !isPdfMode && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 meal-thumbnails">
-            {cycle.meals.slice(0, 4).map((meal) => (
-              <MealThumbnail key={meal.id} meal={meal} onClick={() => handleMealClick(meal)} />
-            ))}
-            {cycle.meals.length > 4 && (
-              <div
-                className="flex items-center justify-center p-2 border rounded-md bg-white shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => setOpen(true)}
-              >
-                <span className="text-sm text-gray-500">+{cycle.meals.length - 4} más</span>
+          {cycleGroups.map((group) => (
+            <TabsContent key={group.cycleNumber} value={group.cycleNumber.toString()}>
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-muted-foreground">{group.displayDateRange}</h3>
               </div>
-            )}
-          </div>
-        )}
-      </Collapsible>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 left-0 z-10 p-2">
-            <DialogClose className="rounded-full opacity-60 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1 bg-white/80 p-1.5 shadow-sm">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Volver</span>
-            </DialogClose>
-          </div>
-          {selectedMeal && (
-            <MealCard
-              meal={selectedMeal}
-              onDelete={() => {
-                setDialogOpen(false)
-                if (selectedMeal.id) {
-                  onDeleteMeal(selectedMeal)
-                }
-              }}
-              onEdit={() => {
-                setDialogOpen(false)
-                onEditMeal(selectedMeal)
-              }}
-              showTime={true}
-              showEditButton={showEditButton}
-              showDeleteButton={showDeleteButton}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {group.meals.map((meal) => (
+                  <MealCard key={meal.id} meal={meal} />
+                ))}
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </CardContent>
+    </Card>
   )
 }
