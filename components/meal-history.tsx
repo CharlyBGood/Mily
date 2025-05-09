@@ -48,32 +48,59 @@ export default function MealHistory() {
   const { user } = useAuth()
   const router = useRouter()
   const { getUserMeals, deleteMeal, storageType } = useStorage()
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
+    console.log("MealHistory component mounted")
     setMounted(true)
-    if (user || storageType === "local") {
-      loadMeals()
-    }
+
+    // Add a small delay to ensure auth context is fully initialized
+    const timer = setTimeout(() => {
+      console.log("Attempting to load meals, user:", user?.id, "storageType:", storageType)
+      if (user || storageType === "local") {
+        loadMeals()
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
   }, [user, storageType])
 
   const loadMeals = async () => {
+    console.log("loadMeals called, storageType:", storageType, "user:", user?.id)
+
     if (storageType === "supabase" && !user) {
+      console.log("No user found for Supabase storage, skipping meal load")
       setLoading(false)
       return
     }
 
     setLoading(true)
+    setLoadError(null)
+
     try {
+      console.log("Loading meals...")
+
       // Load user's cycle settings
       if (user) {
-        const settings = await getUserCycleSettings(user.id)
-        setCycleDuration(settings.cycleDuration)
-        setCycleStartDay(settings.cycleStartDay)
+        console.log("Loading cycle settings for user:", user.id)
+        try {
+          const settings = await getUserCycleSettings(user.id)
+          console.log("Cycle settings loaded:", settings)
+          setCycleDuration(settings.cycleDuration)
+          setCycleStartDay(settings.cycleStartDay)
+        } catch (error) {
+          console.error("Error loading cycle settings:", error)
+          // Continue with defaults if settings can't be loaded
+        }
       }
 
+      console.log("Calling getUserMeals...")
       const { success, data, error } = await getUserMeals()
+      console.log("getUserMeals result:", { success, dataLength: data?.length, error })
 
       if (!success || !data) {
+        console.error("Error loading meals:", error)
+        setLoadError(error?.message || "Error al cargar el historial de comidas")
         toast({
           title: "Error",
           description: "Error al cargar el historial de comidas",
@@ -99,7 +126,8 @@ export default function MealHistory() {
 
       console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycles.length} cycles`)
     } catch (error) {
-      console.error("Error loading meals:", error)
+      console.error("Error in loadMeals:", error)
+      setLoadError(error instanceof Error ? error.message : "Ocurrió un error al cargar el historial")
       toast({
         title: "Error",
         description: "Ocurrió un error al cargar el historial",
@@ -340,6 +368,36 @@ export default function MealHistory() {
       <div className="flex flex-col items-center justify-center h-full p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
         <p className="text-neutral-500">Cargando historial...</p>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+        <div className="mb-4 text-red-400">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium mb-1">Error al cargar el historial</h3>
+        <p className="text-neutral-500 mb-4">{loadError}</p>
+        <Button variant="default" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Intentar nuevamente
+        </Button>
       </div>
     )
   }
