@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { ChevronDown, ChevronRight, ChevronLeft } from "lucide-react"
-import type { Meal } from "@/lib/local-storage"
-import MealCard from "./meal-card"
-import MealThumbnail from "./meal-thumbnail"
+import { useState } from "react"
+import { ChevronDown, ChevronUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import MealCard from "./meal-card"
+import type { Meal } from "@/lib/types"
 
 interface DaySectionProps {
   date: string
@@ -17,114 +17,73 @@ interface DaySectionProps {
   onExpand: (date: string) => void
   isExpanded: boolean
   isPdfMode?: boolean
-  showEditButton?: boolean
-  showDeleteButton?: boolean
 }
 
 export default function DaySection({
   date,
   displayDate,
-  te,
   meals,
   onDeleteMeal,
   onEditMeal,
   onExpand,
   isExpanded,
   isPdfMode = false,
-  showEditButton = true,
-  showDeleteButton = true,
 }: DaySectionProps) {
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [open, setOpen] = useState(isExpanded)
 
-  // Sync internal state with prop
-  useEffect(() => {
-    setOpen(isExpanded)
-  }, [isExpanded])
+  // Ensure meals is defined
+  const safeMeals = meals || []
 
-  const handleMealClick = (meal: Meal) => {
-    setSelectedMeal(meal)
-    setDialogOpen(true)
-  }
-
-  const handleToggle = (openState: boolean) => {
-    setOpen(openState)
-    if (openState) {
+  // Handle open state change
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (isOpen !== open) {
       onExpand(date)
-    } else {
-      // When collapsing, notify parent by passing null or empty string
-      onExpand("")
     }
   }
 
+  // Update open state when isExpanded prop changes
+  if (open !== isExpanded) {
+    setOpen(isExpanded)
+  }
+
   return (
-    <div className="mb-4 day-section" data-pdf-section={isPdfMode ? "true" : "false"}>
-      <Collapsible open={open || isPdfMode} onOpenChange={handleToggle} className="w-full">
-        <CollapsibleTrigger className="flex items-center justify-between w-full text-base sm:text-lg font-semibold mb-2 bg-teal-50 p-2 rounded-md text-teal-800 hover:bg-teal-100 transition-colors day-header">
-          <span>{displayDate}</span>
-          {open ? (
-            <ChevronDown className="h-5 w-5 flex-shrink-0" />
-          ) : (
-            <ChevronRight className="h-5 w-5 flex-shrink-0" />
-          )}
-        </CollapsibleTrigger>
-
-        <CollapsibleContent forceMount={isPdfMode} className={isPdfMode ? "!block pdf-section-content" : ""}>
-          <div className="space-y-3">
-            {meals.map((meal) => (
-              <div key={meal.id} className="meal-card">
-                <MealCard
-                  meal={meal}
-                  onDelete={onDeleteMeal}
-                  onEdit={onEditMeal}
-                  showTime={true}
-                  isPdfMode={isPdfMode}
-                  showEditButton={showEditButton}
-                  showDeleteButton={showDeleteButton}
-                />
+    <Card className="mb-4 day-section">
+      <Collapsible open={open} onOpenChange={handleOpenChange}>
+        <CardHeader className="p-3 pb-0">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full flex justify-between items-center p-2 h-auto">
+              <div className="flex flex-col items-start text-left">
+                <span className="text-sm font-medium">{displayDate}</span>
+                <span className="text-xs text-neutral-500">
+                  {safeMeals.length} {safeMeals.length === 1 ? "comida" : "comidas"}
+                </span>
               </div>
-            ))}
-          </div>
+              {open ? (
+                <ChevronUp className="h-4 w-4 text-neutral-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-neutral-500" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </CardHeader>
+
+        <CollapsibleContent>
+          <CardContent className="p-3">
+            <div className="grid grid-cols-1 gap-3">
+              {safeMeals.map((meal) => (
+                <MealCard
+                  key={meal.id}
+                  meal={meal}
+                  onDelete={() => onDeleteMeal(meal)}
+                  onEdit={() => onEditMeal(meal)}
+                  isPdfMode={isPdfMode}
+                />
+              ))}
+            </div>
+          </CardContent>
         </CollapsibleContent>
-
-        {!open && !isPdfMode && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2 meal-thumbnails">
-            {meals.map((meal) => (
-              <MealThumbnail key={meal.id} meal={meal} onClick={() => handleMealClick(meal)} />
-            ))}
-          </div>
-        )}
       </Collapsible>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 left-0 z-10 p-2">
-            <DialogClose className="rounded-full opacity-60 hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1 bg-white/80 p-1.5 shadow-sm">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="sr-only">Volver</span>
-            </DialogClose>
-          </div>
-          {selectedMeal && (
-            <MealCard
-              meal={selectedMeal}
-              onDelete={() => {
-                setDialogOpen(false)
-                if (selectedMeal.id) {
-                  onDeleteMeal(selectedMeal)
-                }
-              }}
-              onEdit={() => {
-                setDialogOpen(false)
-                onEditMeal(selectedMeal)
-              }}
-              showTime={true}
-              showEditButton={showEditButton}
-              showDeleteButton={showDeleteButton}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+    </Card>
   )
 }

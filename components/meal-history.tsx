@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
-import { groupMealsByCycle, getUserCycleSettings, type CycleGroup } from "@/lib/cycle-utils"
+import { groupMealsByCycle, getUserCycleSettings, type CycleGroup, getDayOfWeekName } from "@/lib/cycle-utils"
 import DaySection from "./day-section"
 import CycleSection from "./cycle-section"
 import MealEditor from "./meal-editor"
@@ -51,10 +51,17 @@ export default function MealHistory() {
   const { getUserMeals, deleteMeal, storageType } = useStorage()
   const [loadError, setLoadError] = useState<string | null>(null)
   const [cycleSettingsLoaded, setCycleSettingsLoaded] = useState(false)
+  const [dataInitialized, setDataInitialized] = useState(false)
 
+  // Set mounted state when component mounts
   useEffect(() => {
     console.log("MealHistory component mounted")
     setMounted(true)
+  }, [])
+
+  // Load meals when user or storage type changes
+  useEffect(() => {
+    if (!mounted) return
 
     // Add a small delay to ensure auth context is fully initialized
     const timer = setTimeout(() => {
@@ -65,11 +72,11 @@ export default function MealHistory() {
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [user, storageType])
+  }, [user, storageType, mounted])
 
   // Effect to reload cycle groups when cycle settings change
   useEffect(() => {
-    if (cycleSettingsLoaded && meals.length > 0) {
+    if (cycleSettingsLoaded && meals && meals.length > 0) {
       console.log("Reloading cycle groups with new settings:", { cycleDuration, cycleStartDay })
       try {
         const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
@@ -87,6 +94,7 @@ export default function MealHistory() {
     if (storageType === "supabase" && !user) {
       console.log("No user found for Supabase storage, skipping meal load")
       setLoading(false)
+      setDataInitialized(true)
       return
     }
 
@@ -128,29 +136,39 @@ export default function MealHistory() {
           variant: "destructive",
         })
         setLoading(false)
+        setDataInitialized(true)
         return
       }
 
+      // Ensure data is an array
+      const mealsArray = Array.isArray(data) ? data : []
+
       // Store raw meals for PDF export
-      setMeals(data)
+      setMeals(mealsArray)
 
       // Group meals by day for display
-      const grouped = groupMealsByDay(data)
-      setGroupedMeals(grouped || [])
+      try {
+        const grouped = groupMealsByDay(mealsArray)
+        setGroupedMeals(grouped || [])
+      } catch (groupError) {
+        console.error("Error grouping meals by day:", groupError)
+        setGroupedMeals([])
+      }
 
       // Group meals by cycle
       try {
-        const cycles = groupMealsByCycle(data, cycleDuration, cycleStartDay)
+        const cycles = groupMealsByCycle(mealsArray, cycleDuration, cycleStartDay)
         setCycleGroups(cycles || [])
-      } catch (error) {
-        console.error("Error grouping meals by cycle:", error)
+      } catch (cycleError) {
+        console.error("Error grouping meals by cycle:", cycleError)
         setCycleGroups([])
       }
 
       // All sections start collapsed by default
       setExpandedCycle(null)
 
-      console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycleGroups.length} cycles`)
+      console.log(`Loaded ${mealsArray.length} meals`)
+      setDataInitialized(true)
     } catch (error) {
       console.error("Error in loadMeals:", error)
       setLoadError(error instanceof Error ? error.message : "Ocurrió un error al cargar el historial")
@@ -159,6 +177,7 @@ export default function MealHistory() {
         description: "Ocurrió un error al cargar el historial",
         variant: "destructive",
       })
+      setDataInitialized(true)
     } finally {
       setLoading(false)
     }
@@ -364,8 +383,8 @@ export default function MealHistory() {
     return <MealEditor meal={editingMeal} onCancel={handleEditCancel} onSaved={handleEditSaved} />
   }
 
+  // Show loading state if not mounted yet
   if (!mounted) {
-    // Return a placeholder with the same structure to prevent hydration mismatch
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
@@ -374,6 +393,7 @@ export default function MealHistory() {
     )
   }
 
+  // Show login prompt if using Supabase but not logged in
   if (storageType === "supabase" && !user) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
@@ -389,6 +409,7 @@ export default function MealHistory() {
     )
   }
 
+  // Show loading state
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4">
@@ -398,6 +419,7 @@ export default function MealHistory() {
     )
   }
 
+  // Show error state
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
@@ -414,7 +436,8 @@ export default function MealHistory() {
     )
   }
 
-  if (meals.length === 0) {
+  // Show empty state
+  if (!meals || meals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <div className="mb-4 text-neutral-400">
@@ -447,6 +470,17 @@ export default function MealHistory() {
     )
   }
 
+  // Ensure data is initialized before rendering
+  if (!dataInitialized) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
+        <p className="text-neutral-500">Inicializando datos...</p>
+      </div>
+    )
+  }
+
+  // Main content
   return (
     <>
       <ScrollArea className="h-full">
@@ -522,13 +556,13 @@ export default function MealHistory() {
 
           <div id="pdf-content" ref={contentRef} className="pdf-content">
             {viewMode === "days"
-              ? // Display by days
+              ? // Display by days - with null check and empty array fallback
                 (groupedMeals || []).map((group) => (
                   <DaySection
                     key={group.date}
                     date={group.date}
                     displayDate={group.displayDate}
-                    meals={group.meals}
+                    meals={group.meals || []}
                     onDeleteMeal={handleDeleteClick}
                     onEditMeal={handleEditClick}
                     onExpand={handleSectionExpand}
@@ -536,11 +570,14 @@ export default function MealHistory() {
                     isPdfMode={isPdfMode}
                   />
                 ))
-              : // Display by cycles
+              : // Display by cycles - with null check and empty array fallback
                 (cycleGroups || []).map((cycle) => (
                   <CycleSection
                     key={cycle.cycleNumber}
-                    cycle={cycle}
+                    cycle={{
+                      ...cycle,
+                      days: cycle.days || [],
+                    }}
                     onDeleteMeal={handleDeleteClick}
                     onEditMeal={handleEditClick}
                     onExpand={handleCycleExpand}
@@ -582,9 +619,4 @@ export default function MealHistory() {
       </AlertDialog>
     </>
   )
-}
-
-function getDayOfWeekName(dayNumber: number): string {
-  const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-  return days[dayNumber] || "Lunes"
 }
