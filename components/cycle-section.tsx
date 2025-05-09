@@ -1,115 +1,213 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown, ChevronUp, Calendar, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
-import { groupMealsByCycle } from "@/lib/cycle-utils"
+import { useSettings } from "@/lib/settings-context"
 import type { Meal } from "@/lib/types"
-import MealCard from "./meal-card"
-import * as settingsService from "@/lib/settings-service"
+import {
+  calculateCycleInfo,
+  countSweetDessertsInCurrentCycle,
+  formatNextCycleStartDate,
+  calculateNextCycleStartDate,
+} from "@/lib/cycle-utils"
 
 export default function CycleSection() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [cycleDuration, setCycleDuration] = useState(7)
-  const [cycleStartDay, setCycleStartDay] = useState(1) // Default to Monday
+  const [isOpen, setIsOpen] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [cycleInfo, setCycleInfo] = useState<{
+    cycleNumber: number
+    startDate: Date
+    endDate: Date
+    daysLeft: number
+    daysTotal: number
+    sweetDessertsCount: number
+    sweetDessertLimit: number
+    nextCycleStart: string
+  } | null>(null)
+
   const { user } = useAuth()
   const { getUserMeals } = useStorage()
+  const { cycleSettings, isLoading: isLoadingSettings } = useSettings()
 
   useEffect(() => {
-    const loadSettings = async () => {
-      if (user?.id) {
-        try {
-          const settings = await settingsService.getUserSettings(user.id)
-          setCycleDuration(settings.cycleDuration)
-          setCycleStartDay(settings.cycleStartDay)
-        } catch (error) {
-          console.error("Error loading cycle settings:", error)
-          // Use defaults if settings can't be loaded
-          setCycleDuration(7)
-          setCycleStartDay(1)
-        }
-      }
+    if (!isLoadingSettings) {
+      loadMeals()
     }
+  }, [isLoadingSettings, cycleSettings])
 
-    loadSettings()
-  }, [user])
+  const loadMeals = async () => {
+    setIsLoading(true)
+    setError(null)
 
-  useEffect(() => {
-    const loadMeals = async () => {
-      setIsLoading(true)
-      try {
-        const { success, data } = await getUserMeals()
-        if (success && data) {
-          setMeals(data)
-        }
-      } catch (error) {
-        console.error("Error loading meals:", error)
-      } finally {
-        setIsLoading(false)
+    try {
+      const { success, data, error } = await getUserMeals()
+
+      if (!success || !data) {
+        throw new Error(error || "No se pudieron cargar las comidas")
       }
+
+      setMeals(data)
+
+      // Calculate cycle information
+      if (data.length > 0) {
+        // Sort meals by date (oldest first)
+        const sortedMeals = [...data].sort((a, b) => {
+          return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
+        })
+
+        const firstMealDate = new Date(sortedMeals[0].created_at || "")
+        const today = new Date()
+
+        // Get cycle info using the settings
+        const info = calculateCycleInfo(today, firstMealDate, cycleSettings.cycleDuration, cycleSettings.cycleStartDay)
+
+        // Count sweet desserts in current cycle
+        const sweetDessertsCount = countSweetDessertsInCurrentCycle(
+          data,
+          cycleSettings.cycleDuration,
+          cycleSettings.cycleStartDay,
+        )
+
+        // Calculate next cycle start date
+        const nextStartDate = calculateNextCycleStartDate(cycleSettings.cycleStartDay)
+        const formattedNextStart = formatNextCycleStartDate(nextStartDate)
+
+        setCycleInfo({
+          ...info,
+          daysTotal: cycleSettings.cycleDuration,
+          sweetDessertsCount,
+          sweetDessertLimit: cycleSettings.sweetDessertLimit,
+          nextCycleStart: formattedNextStart,
+        })
+      } else {
+        setCycleInfo(null)
+      }
+    } catch (err) {
+      console.error("Error loading meals for cycle info:", err)
+      setError("No se pudo cargar la información del ciclo")
+    } finally {
+      setIsLoading(false)
     }
-
-    loadMeals()
-  }, [getUserMeals])
-
-  // Group meals by cycle
-  const cycleGroups = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
   }
 
-  if (meals.length === 0) {
+  const handleRetry = () => {
+    loadMeals()
+  }
+
+  if (isLoading || isLoadingSettings) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Ciclos Nutricionales</CardTitle>
-          <CardDescription>
-            Aún no tienes comidas registradas. Comienza a registrar tus comidas para ver tus ciclos nutricionales.
-          </CardDescription>
+      <Card className="mb-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex justify-between items-center">
+            <span>Ciclo actual</span>
+          </CardTitle>
         </CardHeader>
+        <CardContent>
+          <div className="h-24 flex items-center justify-center">
+            <div className="animate-pulse bg-gray-200 h-4 w-3/4 rounded"></div>
+          </div>
+        </CardContent>
       </Card>
     )
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Ciclos Nutricionales</CardTitle>
-        <CardDescription>Visualiza tus comidas organizadas por ciclos de {cycleDuration} días</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue={cycleGroups[0]?.cycleNumber.toString() || "1"} className="w-full">
-          <TabsList className="mb-4 flex flex-wrap">
-            {cycleGroups.map((group) => (
-              <TabsTrigger key={group.cycleNumber} value={group.cycleNumber.toString()} className="mb-1">
-                Ciclo {group.cycleNumber}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          {error}
+          <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry}>
+            Reintentar
+          </Button>
+        </AlertDescription>
+      </Alert>
+    )
+  }
 
-          {cycleGroups.map((group) => (
-            <TabsContent key={group.cycleNumber} value={group.cycleNumber.toString()}>
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-muted-foreground">{group.displayDateRange}</h3>
+  if (!cycleInfo) {
+    return (
+      <Card className="mb-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Ciclo actual</CardTitle>
+          <CardDescription>Aún no has registrado comidas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Registra tu primera comida para comenzar a seguir tu ciclo nutricional.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const daysElapsed = cycleInfo.daysTotal - cycleInfo.daysLeft
+  const progress = Math.round((daysElapsed / cycleInfo.daysTotal) * 100)
+  const dessertProgress = Math.round((cycleInfo.sweetDessertsCount / cycleInfo.sweetDessertLimit) * 100)
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CollapsibleTrigger asChild>
+            <CardTitle className="text-lg flex justify-between items-center cursor-pointer">
+              <span>Ciclo {cycleInfo.cycleNumber}</span>
+              {isOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </CardTitle>
+          </CollapsibleTrigger>
+          <CardDescription>
+            {format(cycleInfo.startDate, "d 'de' MMMM", { locale: es })} -{" "}
+            {format(cycleInfo.endDate, "d 'de' MMMM", { locale: es })}
+          </CardDescription>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-sm font-medium">
+                  Día {daysElapsed} de {cycleInfo.daysTotal}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {cycleInfo.daysLeft} {cycleInfo.daysLeft === 1 ? "día" : "días"} restantes
+                </span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {group.meals.map((meal) => (
-                  <MealCard key={meal.id} meal={meal} />
-                ))}
+              <Progress value={progress} className="h-2" />
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-sm font-medium">Postres dulces</span>
+                <span className="text-sm text-muted-foreground">
+                  {cycleInfo.sweetDessertsCount} de {cycleInfo.sweetDessertLimit}
+                </span>
               </div>
-            </TabsContent>
-          ))}
-        </Tabs>
-      </CardContent>
-    </Card>
+              <Progress
+                value={dessertProgress}
+                className={`h-2 ${cycleInfo.sweetDessertsCount >= cycleInfo.sweetDessertLimit ? "bg-red-200" : ""}`}
+                indicatorClassName={
+                  cycleInfo.sweetDessertsCount >= cycleInfo.sweetDessertLimit ? "bg-red-500" : undefined
+                }
+              />
+            </div>
+
+            <div className="flex items-center text-sm text-muted-foreground mt-2">
+              <Calendar className="h-4 w-4 mr-1" />
+              <span>Próximo ciclo: {cycleInfo.nextCycleStart}</span>
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   )
 }

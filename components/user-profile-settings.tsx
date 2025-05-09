@@ -6,16 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { ArrowLeft, Loader2, Save, Check, AlertCircle, RefreshCw } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Check, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
-import { getDayOfWeekName } from "@/lib/cycle-utils"
+import { getDayOfWeekName, calculateNextCycleStartDate, formatNextCycleStartDate } from "@/lib/cycle-utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import * as settingsService from "@/lib/settings-service"
-import { getSupabaseClient } from "@/lib/supabase-client"
 import type { UserCycleSettings } from "@/lib/types"
 
 interface UserSettings extends UserCycleSettings {
@@ -44,15 +43,6 @@ export default function UserProfileSettings() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [nextCycleStart, setNextCycleStart] = useState<string>("")
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [dbStatus, setDbStatus] = useState<{
-    tableExists: boolean
-    columnExists: boolean
-    checking: boolean
-  }>({
-    tableExists: false,
-    columnExists: false,
-    checking: true,
-  })
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -64,7 +54,7 @@ export default function UserProfileSettings() {
       return
     }
 
-    checkDatabaseStatus()
+    loadUserSettings()
   }, [user, router])
 
   useEffect(() => {
@@ -81,85 +71,11 @@ export default function UserProfileSettings() {
     updateNextCycleStart()
   }, [settings, originalSettings])
 
-  const checkDatabaseStatus = async () => {
-    setDbStatus({ ...dbStatus, checking: true })
-    try {
-      const supabase = getSupabaseClient()
-
-      // Check if user_settings table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .rpc("check_table_exists", { table_name: "user_settings" })
-        .single()
-
-      if (tableError) {
-        console.error("Error checking if table exists:", tableError)
-        setDbStatus({ tableExists: false, columnExists: false, checking: false })
-        setLoadError(
-          "Error al verificar la estructura de la base de datos. Es posible que necesites ejecutar el script de migración.",
-        )
-        return
-      }
-
-      if (!tableExists) {
-        setDbStatus({ tableExists: false, columnExists: false, checking: false })
-        setLoadError("La tabla user_settings no existe. Por favor, ejecuta el script de migración.")
-        return
-      }
-
-      // Check if cycle_start_day column exists
-      const { data: columnExists, error: columnError } = await supabase
-        .rpc("check_column_exists", { table_name: "user_settings", column_name: "cycle_start_day" })
-        .single()
-
-      if (columnError) {
-        console.error("Error checking if column exists:", columnError)
-        setDbStatus({ tableExists: true, columnExists: false, checking: false })
-        setLoadError(
-          "Error al verificar la columna cycle_start_day. Es posible que necesites ejecutar el script de migración.",
-        )
-        return
-      }
-
-      setDbStatus({ tableExists: true, columnExists: !!columnExists, checking: false })
-
-      if (!columnExists) {
-        setLoadError("La columna cycle_start_day no existe. Por favor, ejecuta el script de migración.")
-      } else {
-        // If everything is good, load user settings
-        loadUserSettings()
-      }
-    } catch (error) {
-      console.error("Error checking database status:", error)
-      setDbStatus({ tableExists: false, columnExists: false, checking: false })
-      setLoadError(
-        "Error al verificar la estructura de la base de datos. Es posible que necesites ejecutar el script de migración.",
-      )
-    }
-  }
-
   const updateNextCycleStart = () => {
     try {
-      const today = new Date()
-      const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
-      const targetDayOfWeek = settings.cycleStartDay
-
-      // Calculate days until next cycle start
-      let daysUntilNext = (targetDayOfWeek - dayOfWeek + 7) % 7
-      if (daysUntilNext === 0) {
-        daysUntilNext = 7 // If today is the start day, next cycle starts in 7 days
-      }
-
-      // Calculate next cycle start date
-      const nextStart = new Date(today)
-      nextStart.setDate(today.getDate() + daysUntilNext)
-
-      // Format the date
-      const options: Intl.DateTimeFormatOptions = {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-      }
-      setNextCycleStart(nextStart.toLocaleDateString("es-ES", options))
+      const nextStartDate = calculateNextCycleStartDate(settings.cycleStartDay)
+      const formattedDate = formatNextCycleStartDate(nextStartDate)
+      setNextCycleStart(formattedDate)
     } catch (error) {
       console.error("Error calculating next cycle start:", error)
       setNextCycleStart("")
@@ -319,65 +235,11 @@ export default function UserProfileSettings() {
     }
   }
 
-  const runMigration = async () => {
-    setIsLoading(true)
-    setLoadError(null)
-
-    try {
-      const supabase = getSupabaseClient()
-
-      // Execute the migration SQL directly
-      const { error } = await supabase.rpc("execute_sql", {
-        sql_query: `
-          -- Add cycle_start_day column if it doesn't exist
-          DO $$
-          BEGIN
-            IF NOT EXISTS (
-              SELECT FROM information_schema.columns 
-              WHERE table_schema = 'public'
-              AND table_name = 'user_settings'
-              AND column_name = 'cycle_start_day'
-            ) THEN
-              ALTER TABLE public.user_settings 
-              ADD COLUMN cycle_start_day INTEGER NOT NULL DEFAULT 1;
-              
-              COMMENT ON COLUMN public.user_settings.cycle_start_day IS 'Day of week to start cycle (0=Sunday, 1=Monday, ..., 6=Saturday)';
-              
-              -- Update existing rows to default to Monday (1)
-              UPDATE public.user_settings
-              SET cycle_start_day = 1;
-            END IF;
-          END
-          $$;
-        `,
-      })
-
-      if (error) {
-        throw new Error(`Error executing migration: ${error.message}`)
-      }
-
-      toast({
-        title: "Migración completada",
-        description: "La base de datos ha sido actualizada correctamente",
-      })
-
-      // Check database status again
-      await checkDatabaseStatus()
-    } catch (error) {
-      console.error("Error running migration:", error)
-      setLoadError(`Error al ejecutar la migración: ${error instanceof Error ? error.message : "Error desconocido"}`)
-
-      toast({
-        title: "Error",
-        description: "No se pudo ejecutar la migración",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+  const retryLoading = () => {
+    loadUserSettings()
   }
 
-  if (isLoading || dbStatus.checking) {
+  if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
@@ -412,23 +274,11 @@ export default function UserProfileSettings() {
         {loadError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>{loadError}</span>
-              {!dbStatus.columnExists && (
-                <Button variant="outline" size="sm" onClick={runMigration} disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Migrando...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Ejecutar migración
-                    </>
-                  )}
-                </Button>
-              )}
+            <AlertDescription>
+              {loadError}
+              <Button variant="outline" size="sm" className="ml-2" onClick={retryLoading}>
+                Reintentar
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -462,11 +312,7 @@ export default function UserProfileSettings() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="cycle-start-day">Día de inicio del ciclo</Label>
-                <Select
-                  value={settings.cycleStartDay.toString()}
-                  onValueChange={handleCycleStartDayChange}
-                  disabled={!dbStatus.columnExists}
-                >
+                <Select value={settings.cycleStartDay.toString()} onValueChange={handleCycleStartDayChange}>
                   <SelectTrigger id="cycle-start-day" className="w-full">
                     <SelectValue placeholder="Selecciona el día de inicio" />
                   </SelectTrigger>
@@ -481,11 +327,6 @@ export default function UserProfileSettings() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-neutral-500">Define qué día de la semana comienza cada ciclo nutricional</p>
-                {!dbStatus.columnExists && (
-                  <p className="text-xs text-amber-600">
-                    Esta opción estará disponible después de ejecutar la migración.
-                  </p>
-                )}
               </div>
 
               <div>
@@ -504,7 +345,7 @@ export default function UserProfileSettings() {
                 </p>
               </div>
 
-              {nextCycleStart && dbStatus.columnExists && (
+              {nextCycleStart && (
                 <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
                   <p className="text-sm text-blue-700">
                     <span className="font-medium">Próximo inicio de ciclo:</span> {nextCycleStart}
@@ -546,7 +387,7 @@ export default function UserProfileSettings() {
           <CardFooter>
             <Button
               onClick={saveSettings}
-              disabled={isSaving || !hasChanges || (settings.username && !usernameAvailable) || !dbStatus.tableExists}
+              disabled={isSaving || !hasChanges || (settings.username && !usernameAvailable)}
               className="w-full"
             >
               {isSaving ? (
