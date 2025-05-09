@@ -1,8 +1,9 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import type { Session, User } from "@supabase/supabase-js"
+import type React from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 import { getSupabaseClient } from "./supabase-client"
+import type { Session, User } from "@supabase/supabase-js"
 
 export interface UserProfile {
   id: string
@@ -16,215 +17,308 @@ export interface UserProfile {
   updated_at?: string
 }
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null
   session: Session | null
-  isLoading: boolean
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: any; data?: any }>
-  signUp: (email: string, password: string) => Promise<{ success: boolean; error?: any }>
+  loading: boolean
+  error: Error | null
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error: Error | null }>
+  signUp: (email: string, password: string) => Promise<{ success: boolean; error: Error | null }>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<{ success: boolean; error?: any }>
-  updatePassword: (password: string) => Promise<{ success: boolean; error?: any }>
-  updateProfile: (profile: Partial<UserProfile>) => Promise<{ success: boolean; error?: any }>
+  resetPassword: (email: string) => Promise<{ success: boolean; error: Error | null }>
+  updatePassword: (password: string) => Promise<{ success: boolean; error: Error | null }>
+  updateProfile: (fields: {
+    username?: string | null
+    full_name?: string | null
+    bio?: string | null
+    website?: string | null
+    avatar_url?: string | null
+  }) => Promise<{ success: boolean; error: Error | null }>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  loading: true,
+  error: null,
+  signIn: async () => ({ success: false, error: new Error("Not implemented") }),
+  signUp: async () => ({ success: false, error: new Error("Not implemented") }),
+  signOut: async () => {},
+  resetPassword: async () => ({ success: false, error: new Error("Not implemented") }),
+  updatePassword: async () => ({ success: false, error: new Error("Not implemented") }),
+  updateProfile: async () => ({ success: false, error: new Error("Not implemented") }),
+})
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const useAuth = () => useContext(AuthContext)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isBrowser, setIsBrowser] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const [initialized, setInitialized] = useState(false)
 
+  // Initialize auth state
   useEffect(() => {
-    setIsBrowser(true)
-  }, [])
-
-  useEffect(() => {
-    // Only run on the client side
-    if (!isBrowser) return
-
-    const supabase = getSupabaseClient()
-
-    // Get initial session
-    const getInitialSession = async () => {
+    const initAuth = async () => {
       try {
-        console.log("Getting initial session...")
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
+        console.log("Initializing auth context")
+        const supabase = getSupabaseClient()
 
-        if (error) {
-          console.error("Error getting session:", error)
-        }
+        // Get initial session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
 
-        if (session) {
-          console.log("Session found:", session.user.id)
-          setSession(session)
-          setUser(session.user)
+        if (sessionError) {
+          console.error("Error getting session:", sessionError)
+          setError(sessionError)
+        } else if (sessionData?.session) {
+          console.log("Session found:", sessionData.session.user.id)
+          setSession(sessionData.session)
+          setUser(sessionData.session.user)
         } else {
           console.log("No session found")
-          setSession(null)
-          setUser(null)
         }
-      } catch (error) {
-        console.error("Error getting initial session:", error)
-      } finally {
-        setIsLoading(false)
+
+        // Set up auth state change listener
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+          console.log("Auth state changed:", event, newSession?.user?.id)
+
+          if (newSession) {
+            setSession(newSession)
+            setUser(newSession.user)
+          } else {
+            setSession(null)
+            setUser(null)
+          }
+
+          setLoading(false)
+        })
+
+        setInitialized(true)
+        setLoading(false)
+
+        // Clean up subscription
+        return () => {
+          authListener.subscription.unsubscribe()
+        }
+      } catch (err) {
+        console.error("Error in auth initialization:", err)
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setLoading(false)
       }
     }
 
-    getInitialSession()
+    initAuth()
+  }, [])
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Auth state changed:", _event, session?.user?.id)
-      setSession(session)
-      setUser(session?.user ?? null)
-      setIsLoading(false)
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [isBrowser])
-
+  // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
+      setLoading(true)
+      setError(null)
+
       const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        options: {
-          // Ensure session persistence
-          persistSession: true,
-        },
       })
 
       if (error) {
         console.error("Sign in error:", error)
+        setError(error)
         return { success: false, error }
       }
 
-      return { success: true, data }
-    } catch (error) {
-      console.error("Sign in exception:", error)
+      console.log("Sign in successful:", data.user?.id)
+      setSession(data.session)
+      setUser(data.user)
+
+      return { success: true, error: null }
+    } catch (err) {
+      console.error("Error in signIn:", err)
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
       return { success: false, error }
+    } finally {
+      setLoading(false)
     }
   }
 
+  // Sign up with email and password
   const signUp = async (email: string, password: string) => {
     try {
+      setLoading(true)
+      setError(null)
+
       const supabase = getSupabaseClient()
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // Ensure session persistence
-          persistSession: true,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
       if (error) {
+        console.error("Sign up error:", error)
+        setError(error)
         return { success: false, error }
       }
 
-      // Create a profile record for the new user
-      if (data.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          email: data.user.email,
-        })
+      console.log("Sign up successful:", data)
 
-        if (profileError) {
-          console.error("Error creating profile:", profileError)
-        }
+      // Note: For email confirmation flow, user won't be signed in immediately
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.user)
       }
 
-      return { success: true }
-    } catch (error) {
+      return { success: true, error: null }
+    } catch (err) {
+      console.error("Error in signUp:", err)
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
       return { success: false, error }
+    } finally {
+      setLoading(false)
     }
   }
 
+  // Sign out
   const signOut = async () => {
-    const supabase = getSupabaseClient()
-    await supabase.auth.signOut()
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
+      await supabase.auth.signOut()
+
+      // Clear state
+      setSession(null)
+      setUser(null)
+    } catch (err) {
+      console.error("Error in signOut:", err)
+      setError(err instanceof Error ? err : new Error(String(err)))
+    } finally {
+      setLoading(false)
+    }
   }
 
+  // Reset password
   const resetPassword = async (email: string) => {
     try {
+      setLoading(true)
+      setError(null)
+
       const supabase = getSupabaseClient()
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       })
 
       if (error) {
+        console.error("Password reset error:", error)
+        setError(error)
         return { success: false, error }
       }
 
-      return { success: true }
-    } catch (error) {
+      console.log("Password reset email sent to:", email)
+      return { success: true, error: null }
+    } catch (err) {
+      console.error("Error in resetPassword:", err)
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
       return { success: false, error }
+    } finally {
+      setLoading(false)
     }
   }
 
+  // Update password
   const updatePassword = async (password: string) => {
     try {
+      setLoading(true)
+      setError(null)
+
       const supabase = getSupabaseClient()
-      const { error } = await supabase.auth.updateUser({ password })
+      const { data, error } = await supabase.auth.updateUser({
+        password: password,
+      })
 
       if (error) {
+        console.error("Update password error:", error)
+        setError(error)
         return { success: false, error }
       }
 
-      return { success: true }
-    } catch (error) {
+      console.log("Password updated successfully")
+      return { success: true, error: null }
+    } catch (err) {
+      console.error("Error in updatePassword:", err)
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
       return { success: false, error }
+    } finally {
+      setLoading(false)
     }
   }
 
-  const updateProfile = async (profile: Partial<UserProfile>) => {
+  // Update profile
+  const updateProfile = async (fields: {
+    username?: string | null
+    full_name?: string | null
+    bio?: string | null
+    website?: string | null
+    avatar_url?: string | null
+  }) => {
     try {
-      if (!user) {
-        return { success: false, error: "No user logged in" }
-      }
+      setLoading(true)
+      setError(null)
 
       const supabase = getSupabaseClient()
-      const { error } = await supabase.from("profiles").update(profile).eq("id", user.id)
+      const { data, error } = await supabase.from("profiles").upsert(
+        [
+          {
+            id: user?.id,
+            ...fields,
+          },
+        ],
+        { returning: "minimal" },
+      )
 
       if (error) {
+        console.error("Update profile error:", error)
+        setError(error)
         return { success: false, error }
       }
 
-      return { success: true }
-    } catch (error) {
+      console.log("Profile updated successfully")
+      return { success: true, error: null }
+    } catch (err) {
+      console.error("Error in updateProfile:", err)
+      const error = err instanceof Error ? err : new Error(String(err))
+      setError(error)
       return { success: false, error }
+    } finally {
+      setLoading(false)
     }
   }
 
-  const value = {
-    user,
-    session,
-    isLoading,
-    signIn,
-    signUp,
-    signOut,
-    resetPassword,
-    updatePassword,
-    updateProfile,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading: loading && !initialized,
+        error,
+        signIn,
+        signUp,
+        signOut,
+        resetPassword,
+        updatePassword,
+        updateProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
-}
+export type { AuthContextType }

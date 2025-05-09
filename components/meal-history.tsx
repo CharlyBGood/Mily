@@ -71,8 +71,13 @@ export default function MealHistory() {
   useEffect(() => {
     if (cycleSettingsLoaded && meals.length > 0) {
       console.log("Reloading cycle groups with new settings:", { cycleDuration, cycleStartDay })
-      const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
-      setCycleGroups(cycles)
+      try {
+        const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
+        setCycleGroups(cycles || [])
+      } catch (error) {
+        console.error("Error grouping meals by cycle:", error)
+        setCycleGroups([])
+      }
     }
   }, [cycleDuration, cycleStartDay, cycleSettingsLoaded, meals])
 
@@ -131,16 +136,21 @@ export default function MealHistory() {
 
       // Group meals by day for display
       const grouped = groupMealsByDay(data)
-      setGroupedMeals(grouped)
+      setGroupedMeals(grouped || [])
 
       // Group meals by cycle
-      const cycles = groupMealsByCycle(data, cycleDuration, cycleStartDay)
-      setCycleGroups(cycles)
+      try {
+        const cycles = groupMealsByCycle(data, cycleDuration, cycleStartDay)
+        setCycleGroups(cycles || [])
+      } catch (error) {
+        console.error("Error grouping meals by cycle:", error)
+        setCycleGroups([])
+      }
 
       // All sections start collapsed by default
       setExpandedCycle(null)
 
-      console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycles.length} cycles`)
+      console.log(`Loaded ${data.length} meals in ${grouped.length} days and ${cycleGroups.length} cycles`)
     } catch (error) {
       console.error("Error in loadMeals:", error)
       setLoadError(error instanceof Error ? error.message : "Ocurrió un error al cargar el historial")
@@ -513,7 +523,7 @@ export default function MealHistory() {
           <div id="pdf-content" ref={contentRef} className="pdf-content">
             {viewMode === "days"
               ? // Display by days
-                groupedMeals.map((group) => (
+                (groupedMeals || []).map((group) => (
                   <DaySection
                     key={group.date}
                     date={group.date}
@@ -527,7 +537,7 @@ export default function MealHistory() {
                   />
                 ))
               : // Display by cycles
-                cycleGroups.map((cycle) => (
+                (cycleGroups || []).map((cycle) => (
                   <CycleSection
                     key={cycle.cycleNumber}
                     cycle={cycle}
@@ -576,5 +586,5 @@ export default function MealHistory() {
 
 function getDayOfWeekName(dayNumber: number): string {
   const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-  return days[dayNumber]
+  return days[dayNumber] || "Lunes"
 }
