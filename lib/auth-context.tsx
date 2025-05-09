@@ -80,7 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       const supabase = getSupabaseClient()
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: {
+          // Ensure session persistence
+          persistSession: true,
+        },
+      })
 
       if (error) {
         console.error("Sign in error:", error)
@@ -97,7 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string) => {
     try {
       const supabase = getSupabaseClient()
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // Ensure session persistence
+          persistSession: true,
+        },
+      })
 
       if (error) {
         return { success: false, error }

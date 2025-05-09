@@ -40,6 +40,8 @@ export default function MealLogger() {
   const [sweetDessertsCount, setSweetDessertsCount] = useState(0)
   const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
+  const [photoRequired, setPhotoRequired] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -115,6 +117,7 @@ export default function MealLogger() {
       }
 
       setPhoto(file)
+      setPhotoRequired(null)
       const reader = new FileReader()
       reader.onload = (e) => {
         setPhotoPreview(e.target?.result as string)
@@ -134,6 +137,7 @@ export default function MealLogger() {
     setMealType("")
     setNotes("")
     setStorageWarning(null)
+    setPhotoRequired(null)
 
     // Reset the file input
     if (fileInputRef.current) {
@@ -144,10 +148,21 @@ export default function MealLogger() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!mealType || !description) {
+    // Check if photo is provided
+    if (!photo) {
+      setPhotoRequired("Por favor agrega una foto de tu comida")
       toast({
-        title: "Campos requeridos",
-        description: "Por favor completa todos los campos requeridos",
+        title: "Foto requerida",
+        description: "Por favor agrega una foto de tu comida",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!mealType) {
+      toast({
+        title: "Tipo de comida requerido",
+        description: "Por favor selecciona el tipo de comida",
         variant: "destructive",
       })
       return
@@ -194,7 +209,106 @@ export default function MealLogger() {
 
       // Save meal
       const meal: Meal = {
-        description,
+        description: description || "Sin descripción", // Make description optional
+        meal_type: finalMealType as MealType,
+        photo_url: photoUrl,
+        notes: notes || undefined,
+        // Add metadata for dessert type
+        metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
+      }
+
+      const { success, data, error } = await saveMeal(meal)
+      console.log("Meal save result:", success)
+
+      if (!success) {
+        toast({
+          title: "Error",
+          description: error?.message || "Error al guardar la comida",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
+      // Reset form
+      resetForm()
+
+      // Update sweet desserts count if this was a sweet dessert
+      if (mealType === "postre_dulce") {
+        setSweetDessertsCount((prev) => prev + 1)
+      }
+
+      toast({
+        title: "Comida guardada",
+        description: "Tu comida ha sido registrada exitosamente",
+      })
+
+      // Force a refresh of the router to update the history tab
+      router.refresh()
+
+      // Navigate to history tab
+      router.push("?tab=history")
+    } catch (error) {
+      console.error("Error saving meal:", error)
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al guardar la comida",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSave = async () => {
+    // Check if photo is required but missing
+    if (!photo) {
+      setError("Photo is required")
+      return
+    }
+
+    // If using Supabase storage, we need to be logged in
+    if (storageType === "supabase" && !user) {
+      toast({
+        title: "No autenticado",
+        description: "Debes iniciar sesión para guardar comidas",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check dessert limit for sweet desserts
+    const isSweetDessert = mealType === "postre_dulce"
+
+    if (isSweetDessert && sweetDessertsCount >= sweetDessertLimit) {
+      toast({
+        title: "Límite de postres alcanzado",
+        description: `Has alcanzado el límite de ${sweetDessertLimit} postres dulces para este ciclo. Nuevo ciclo en ${daysLeftInCycle} días.`,
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      console.log("Saving meal...")
+
+      // Upload photo if provided
+      let photoUrl = undefined
+      if (photo) {
+        photoUrl = await uploadImage(photo)
+        console.log("Photo uploaded")
+      }
+
+      // Map the new dessert types to the original ones for backward compatibility
+      let finalMealType = mealType
+      if (mealType === "postre_dulce") finalMealType = "postre1"
+      if (mealType === "postre_fruta") finalMealType = "postre2"
+
+      // Save meal
+      const meal: Meal = {
+        description: description || "Sin descripción", // Make description optional
         meal_type: finalMealType as MealType,
         photo_url: photoUrl,
         notes: notes || undefined,
@@ -247,39 +361,50 @@ export default function MealLogger() {
 
   return (
     <div className="p-4 max-w-md mx-auto">
-      <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
-        <CardContent className="p-0">
-          {photoPreview ? (
-            <div className="bg-white relative flex justify-center w-full">
-              <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200"
+      <div className="mb-4">
+        <Label className="block text-sm font-medium text-gray-700 mb-1">
+          Photo <span className="text-red-500">*</span>
+        </Label>
+        <Card className={`mb-4 overflow-hidden w-full max-w-md mx-auto ${photoRequired ? "border-red-500" : ""}`}>
+          <CardContent className="p-0">
+            {photoPreview ? (
+              <div className="bg-white relative flex justify-center w-full">
+                <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200"
+                  onClick={triggerFileInput}
+                >
+                  Cambiar
+                </Button>
+              </div>
+            ) : (
+              <div
+                className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[200px] p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
                 onClick={triggerFileInput}
               >
-                Cambiar
-              </Button>
-            </div>
-          ) : (
-            <div
-              className="flex flex-col items-center justify-center bg-neutral-100 min-h-[200px] p-6 cursor-pointer"
-              onClick={triggerFileInput}
-            >
-              <Camera className="h-12 w-12 text-neutral-400 mb-2" />
-              <p className="text-neutral-500 text-center text-base">Toca para tomar una foto de tu comida</p>
-            </div>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handlePhotoCapture}
-            ref={fileInputRef}
-          />
-        </CardContent>
-      </Card>
+                <Camera className={`h-12 w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`} />
+                <p
+                  className={`text-center text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
+                >
+                  {photoRequired || "Toca para tomar una foto de tu comida"}
+                </p>
+                {photoRequired && <p className="text-red-500 text-sm mt-1">Este campo es obligatorio</p>}
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePhotoCapture}
+              ref={fileInputRef}
+            />
+          </CardContent>
+        </Card>
+        {error && !photo && <p className="text-red-500 text-sm mt-1">Photo is required</p>}
+      </div>
 
       {storageWarning && (
         <Alert variant="warning" className="mb-4">
@@ -337,15 +462,14 @@ export default function MealLogger() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description" className="text-base">
-            Descripción
+          <Label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+            Descripción <span className="text-gray-400">(opcional)</span>
           </Label>
           <Input
             id="description"
             placeholder="¿Qué comiste?"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            required
             className="text-base"
           />
         </div>
@@ -367,7 +491,7 @@ export default function MealLogger() {
         <Button
           type="submit"
           className="w-full bg-teal-600 hover:bg-teal-700 text-base py-6"
-          disabled={!description || !mealType || isSubmitting || (isDessertLimitReached && mealType === "postre_dulce")}
+          disabled={!mealType || isSubmitting || (isDessertLimitReached && mealType === "postre_dulce")}
         >
           {isSubmitting ? "Guardando..." : "Guardar comida"}
         </Button>

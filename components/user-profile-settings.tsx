@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { ArrowLeft, Loader2, Save, Check } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Check, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
@@ -14,6 +14,7 @@ import MilyLogo from "@/components/mily-logo"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import { getDayOfWeekName } from "@/lib/cycle-utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface UserSettings {
   username: string
@@ -43,6 +44,7 @@ export default function UserProfileSettings() {
   const [hasChanges, setHasChanges] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [nextCycleStart, setNextCycleStart] = useState<string>("")
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -97,8 +99,25 @@ export default function UserProfileSettings() {
 
   const loadUserSettings = async () => {
     setIsLoading(true)
+    setLoadError(null)
+
     try {
       const supabase = getSupabaseClient()
+
+      // First check if the column exists
+      const { data: columnExists, error: columnError } = await supabase
+        .rpc("check_column_exists", {
+          table_name: "user_settings",
+          column_name: "cycle_start_day",
+        })
+        .single()
+
+      if (columnError) {
+        console.error("Error checking column:", columnError)
+        // Continue anyway, we'll handle missing column later
+      }
+
+      // Get user settings
       const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user?.id).single()
 
       if (error && error.code !== "PGRST116") {
@@ -107,10 +126,11 @@ export default function UserProfileSettings() {
       }
 
       if (data) {
+        console.log("Loaded settings:", data)
         const loadedSettings = {
           username: data.username || "",
           cycleDuration: data.cycle_duration || 7,
-          cycleStartDay: data.cycle_start_day || 1,
+          cycleStartDay: data.cycle_start_day !== undefined ? data.cycle_start_day : 1,
           sweetDessertLimit: data.sweet_dessert_limit || 3,
         }
         setSettings(loadedSettings)
@@ -132,6 +152,7 @@ export default function UserProfileSettings() {
       }
     } catch (error) {
       console.error("Error loading user settings:", error)
+      setLoadError("No se pudieron cargar tus configuraciones. Por favor, intenta de nuevo más tarde.")
       toast({
         title: "Error",
         description: "No se pudieron cargar tus configuraciones",
@@ -213,7 +234,9 @@ export default function UserProfileSettings() {
   }
 
   const handleCycleStartDayChange = (value: string) => {
-    setSettings({ ...settings, cycleStartDay: Number.parseInt(value) })
+    const dayValue = Number.parseInt(value)
+    console.log("Setting cycle start day to:", dayValue)
+    setSettings({ ...settings, cycleStartDay: dayValue })
   }
 
   const saveSettings = async () => {
@@ -234,7 +257,7 @@ export default function UserProfileSettings() {
     try {
       const supabase = getSupabaseClient()
 
-      const { error } = await supabase.from("user_settings").upsert({
+      console.log("Saving settings:", {
         user_id: user.id,
         username: settings.username,
         cycle_duration: settings.cycleDuration,
@@ -242,7 +265,21 @@ export default function UserProfileSettings() {
         sweet_dessert_limit: settings.sweetDessertLimit,
       })
 
-      if (error) throw error
+      const { data, error } = await supabase.from("user_settings").upsert(
+        {
+          user_id: user.id,
+          username: settings.username,
+          cycle_duration: settings.cycleDuration,
+          cycle_start_day: settings.cycleStartDay,
+          sweet_dessert_limit: settings.sweetDessertLimit,
+        },
+        { returning: "minimal" },
+      )
+
+      if (error) {
+        console.error("Error saving settings:", error)
+        throw error
+      }
 
       setOriginalSettings({ ...settings })
       setSaveSuccess(true)
@@ -300,6 +337,18 @@ export default function UserProfileSettings() {
       </header>
 
       <main className="flex-1 p-4">
+        {loadError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {loadError}
+              <Button variant="outline" size="sm" className="ml-2" onClick={loadUserSettings}>
+                Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card className="max-w-md mx-auto">
           <CardHeader>
             <CardTitle>Configuración de perfil</CardTitle>
