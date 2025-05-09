@@ -45,6 +45,7 @@ export default function UserProfileSettings() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [nextCycleStart, setNextCycleStart] = useState<string>("")
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [profileData, setProfileData] = useState<any>(null)
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -56,6 +57,7 @@ export default function UserProfileSettings() {
       return
     }
 
+    loadUserProfile()
     loadUserSettings()
   }, [user, router])
 
@@ -72,6 +74,25 @@ export default function UserProfileSettings() {
     // Calculate next cycle start date
     calculateNextCycleStart()
   }, [settings, originalSettings])
+
+  const loadUserProfile = async () => {
+    if (!user) return
+
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+
+      if (error) {
+        console.error("Error loading user profile:", error)
+        return
+      }
+
+      console.log("Loaded user profile:", data)
+      setProfileData(data)
+    } catch (error) {
+      console.error("Error in loadUserProfile:", error)
+    }
+  }
 
   const calculateNextCycleStart = () => {
     const today = new Date()
@@ -105,16 +126,21 @@ export default function UserProfileSettings() {
       const supabase = getSupabaseClient()
 
       // First check if the column exists
-      const { data: columnExists, error: columnError } = await supabase
-        .rpc("check_column_exists", {
-          table_name: "user_settings",
-          column_name: "cycle_start_day",
-        })
-        .single()
+      try {
+        const { data: columnExists, error: columnError } = await supabase
+          .rpc("check_column_exists", {
+            table_name: "user_settings",
+            column_name: "cycle_start_day",
+          })
+          .single()
 
-      if (columnError) {
-        console.error("Error checking column:", columnError)
-        // Continue anyway, we'll handle missing column later
+        if (columnError) {
+          console.error("Error checking column:", columnError)
+          // Continue anyway, we'll handle missing column later
+        }
+      } catch (error) {
+        console.error("Error checking column existence:", error)
+        // Continue with the query anyway
       }
 
       // Get user settings
@@ -140,15 +166,19 @@ export default function UserProfileSettings() {
           setUsernameAvailable(true)
         }
       } else {
-        // No settings found, use defaults
+        // No settings found, use defaults and try to get username from profile
         const defaultSettings = {
-          username: "",
+          username: profileData?.username || "",
           cycleDuration: 7,
           cycleStartDay: 1,
           sweetDessertLimit: 3,
         }
         setSettings(defaultSettings)
         setOriginalSettings(defaultSettings)
+
+        if (defaultSettings.username) {
+          setUsernameAvailable(true)
+        }
       }
     } catch (error) {
       console.error("Error loading user settings:", error)
@@ -265,7 +295,8 @@ export default function UserProfileSettings() {
         sweet_dessert_limit: settings.sweetDessertLimit,
       })
 
-      const { data, error } = await supabase.from("user_settings").upsert(
+      // Update user_settings table
+      const { error: settingsError } = await supabase.from("user_settings").upsert(
         {
           user_id: user.id,
           username: settings.username,
@@ -276,9 +307,22 @@ export default function UserProfileSettings() {
         { returning: "minimal" },
       )
 
-      if (error) {
-        console.error("Error saving settings:", error)
-        throw error
+      if (settingsError) {
+        console.error("Error saving settings:", settingsError)
+        throw settingsError
+      }
+
+      // Also update the profiles table to keep username in sync
+      if (settings.username) {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ username: settings.username })
+          .eq("id", user.id)
+
+        if (profileError) {
+          console.error("Error updating profile:", profileError)
+          // Continue anyway, the main settings were saved
+        }
       }
 
       setOriginalSettings({ ...settings })

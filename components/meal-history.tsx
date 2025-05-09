@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, LayoutGrid, List, Calendar } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Alert } from "@/components/ui/alert"
 
 export default function MealHistory() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -49,6 +50,7 @@ export default function MealHistory() {
   const router = useRouter()
   const { getUserMeals, deleteMeal, storageType } = useStorage()
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [cycleSettingsLoaded, setCycleSettingsLoaded] = useState(false)
 
   useEffect(() => {
     console.log("MealHistory component mounted")
@@ -65,6 +67,15 @@ export default function MealHistory() {
     return () => clearTimeout(timer)
   }, [user, storageType])
 
+  // Effect to reload cycle groups when cycle settings change
+  useEffect(() => {
+    if (cycleSettingsLoaded && meals.length > 0) {
+      console.log("Reloading cycle groups with new settings:", { cycleDuration, cycleStartDay })
+      const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
+      setCycleGroups(cycles)
+    }
+  }, [cycleDuration, cycleStartDay, cycleSettingsLoaded, meals])
+
   const loadMeals = async () => {
     console.log("loadMeals called, storageType:", storageType, "user:", user?.id)
 
@@ -76,6 +87,7 @@ export default function MealHistory() {
 
     setLoading(true)
     setLoadError(null)
+    setCycleSettingsLoaded(false)
 
     try {
       console.log("Loading meals...")
@@ -88,10 +100,14 @@ export default function MealHistory() {
           console.log("Cycle settings loaded:", settings)
           setCycleDuration(settings.cycleDuration)
           setCycleStartDay(settings.cycleStartDay)
+          setCycleSettingsLoaded(true)
         } catch (error) {
           console.error("Error loading cycle settings:", error)
           // Continue with defaults if settings can't be loaded
+          setCycleSettingsLoaded(true)
         }
+      } else {
+        setCycleSettingsLoaded(true)
       }
 
       console.log("Calling getUserMeals...")
@@ -376,21 +392,7 @@ export default function MealHistory() {
     return (
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <div className="mb-4 text-red-400">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          <AlertCircle className="h-16 w-16 mx-auto" />
         </div>
         <h3 className="text-lg font-medium mb-1">Error al cargar el historial</h3>
         <p className="text-neutral-500 mb-4">{loadError}</p>
@@ -439,6 +441,18 @@ export default function MealHistory() {
     <>
       <ScrollArea className="h-full">
         <div className="p-4 pb-40 max-w-full overflow-x-hidden">
+          {cycleSettingsLoaded && (
+            <Alert className="mb-4">
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span className="font-medium">Ciclo actual:</span>
+                <span className="ml-2">
+                  Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                </span>
+              </div>
+            </Alert>
+          )}
+
           <div className="flex flex-wrap gap-2 mb-4">
             <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -558,4 +572,9 @@ export default function MealHistory() {
       </AlertDialog>
     </>
   )
+}
+
+function getDayOfWeekName(dayNumber: number): string {
+  const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+  return days[dayNumber]
 }

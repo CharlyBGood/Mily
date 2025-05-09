@@ -1,31 +1,71 @@
-import { format, differenceInDays, addDays, startOfDay, getDay, subDays, nextDay, addWeeks } from "date-fns"
-import type { Meal, UserCycleSettings } from "./types"
-
-export interface CycleInfo {
-  cycleNumber: number
-  startDate: Date
-  endDate: Date
-  daysLeft: number
-}
-
-export interface MealWithCycle extends Meal {
-  cycleInfo?: CycleInfo
-}
+import { getSupabaseClient } from "./supabase-client"
+import type { Meal } from "./types"
 
 export interface CycleGroup {
   cycleNumber: number
-  startDate: Date
-  endDate: Date
+  startDate: string
+  endDate: string
   displayDateRange: string
-  meals: MealWithCycle[]
+  days: {
+    date: string
+    displayDate: string
+    meals: Meal[]
+  }[]
 }
 
-// Get user's cycle settings from database
-export async function getUserCycleSettings(userId: string): Promise<UserCycleSettings> {
+export interface CycleSettings {
+  cycleDuration: number
+  cycleStartDay: number
+  sweetDessertLimit: number
+}
+
+// Cache for cycle settings to avoid repeated database calls
+const cycleSettingsCache = new Map<string, { settings: CycleSettings; timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes in milliseconds
+
+// Function to get all user cycle settings in one call
+export async function getUserCycleSettings(userId?: string): Promise<CycleSettings> {
+  if (!userId) {
+    return {
+      cycleDuration: 7,
+      cycleStartDay: 1,
+      sweetDessertLimit: 3,
+    }
+  }
+
+  // Check cache first
+  const cachedSettings = cycleSettingsCache.get(userId)
+  if (cachedSettings && Date.now() - cachedSettings.timestamp < CACHE_TTL) {
+    console.log("Using cached cycle settings for user:", userId)
+    return cachedSettings.settings
+  }
+
   try {
-    const { getSupabaseClient } = await import("@/lib/supabase-client")
+    console.log("Fetching cycle settings from database for user:", userId)
     const supabase = getSupabaseClient()
 
+    // First try to use the RPC function if it exists
+    try {
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc("get_user_cycle_settings", { p_user_id: userId })
+        .single()
+
+      if (!rpcError && rpcData) {
+        const settings: CycleSettings = {
+          cycleDuration: rpcData.cycle_duration || 7,
+          cycleStartDay: rpcData.cycle_start_day || 1,
+          sweetDessertLimit: rpcData.sweet_dessert_limit || 3,
+        }
+
+        // Cache the result
+        cycleSettingsCache.set(userId, { settings, timestamp: Date.now() })
+        return settings
+      }
+    } catch (rpcError) {
+      console.warn("RPC function not available, falling back to direct query:", rpcError)
+    }
+
+    // Fallback to direct query if RPC fails
     const { data, error } = await supabase
       .from("user_settings")
       .select("cycle_duration, cycle_start_day, sweet_dessert_limit")
@@ -33,220 +73,209 @@ export async function getUserCycleSettings(userId: string): Promise<UserCycleSet
       .single()
 
     if (error) {
-      console.error("Error fetching cycle settings:", error)
-      return {
-        cycleDuration: 7,
-        cycleStartDay: 1, // Default to Monday
-        sweetDessertLimit: 3,
-      }
+      console.error("Error fetching user cycle settings:", error)
+      return { cycleDuration: 7, cycleStartDay: 1, sweetDessertLimit: 3 }
     }
 
-    return {
-      cycleDuration: data?.cycle_duration || 7,
-      cycleStartDay: data?.cycle_start_day || 1, // Default to Monday
-      sweetDessertLimit: data?.sweet_dessert_limit || 3,
+    const settings: CycleSettings = {
+      cycleDuration: data.cycle_duration || 7,
+      cycleStartDay: data.cycle_start_day || 1,
+      sweetDessertLimit: data.sweet_dessert_limit || 3,
     }
+
+    // Cache the result
+    cycleSettingsCache.set(userId, { settings, timestamp: Date.now() })
+    return settings
   } catch (error) {
     console.error("Error in getUserCycleSettings:", error)
-    return {
-      cycleDuration: 7,
-      cycleStartDay: 1, // Default to Monday
-      sweetDessertLimit: 3,
-    }
+    return { cycleDuration: 7, cycleStartDay: 1, sweetDessertLimit: 3 }
   }
 }
 
-// Get user's cycle duration from settings or use default
-export async function getUserCycleDuration(userId: string): Promise<number> {
+// Function to count sweet desserts in the current cycle
+export function countSweetDessertsInCurrentCycle(meals: Meal[], cycleDuration: number): number {
+  const now = new Date()
+  const cycleStartDate = new Date(now.getTime() - cycleDuration * 24 * 60 * 60 * 1000)
+  let count = 0
+
+  for (const meal of meals) {
+    if (meal.meal_type === "postre1" && meal.created_at) {
+      const mealDate = new Date(meal.created_at)
+      if (mealDate >= cycleStartDate && mealDate <= now) {
+        count++
+      }
+    }
+  }
+
+  return count
+}
+
+// Function to get user's cycle duration from the database
+export async function getUserCycleDuration(userId?: string): Promise<number> {
+  if (!userId) return 7 // Default value
+
   try {
     const settings = await getUserCycleSettings(userId)
     return settings.cycleDuration
   } catch (error) {
     console.error("Error in getUserCycleDuration:", error)
-    return 7 // Default cycle duration
+    return 7 // Default value
   }
 }
 
-// Get user's sweet dessert limit from settings or use default
-export async function getUserSweetDessertLimit(userId: string): Promise<number> {
+// Function to get user's sweet dessert limit from the database
+export async function getUserSweetDessertLimit(userId?: string): Promise<number> {
+  if (!userId) return 3 // Default value
+
   try {
     const settings = await getUserCycleSettings(userId)
     return settings.sweetDessertLimit
   } catch (error) {
     console.error("Error in getUserSweetDessertLimit:", error)
-    return 3 // Default sweet dessert limit
+    return 3 // Default value
   }
 }
 
-// Find the first day of the cycle that contains the given date
-function findCycleStartDate(date: Date, firstMealDate: Date, cycleStartDay: number, cycleDuration: number): Date {
-  // Ensure cycleStartDay is valid (0-6)
-  cycleStartDay = Math.max(0, Math.min(6, cycleStartDay))
-
-  // Find the first occurrence of the cycle start day on or before the first meal date
-  let baseStartDate = startOfDay(firstMealDate)
-  const firstMealDayOfWeek = getDay(baseStartDate)
-
-  // Adjust to find the most recent cycle start day on or before the first meal
-  if (firstMealDayOfWeek !== cycleStartDay) {
-    // Calculate days to go back to reach the previous cycle start day
-    const daysToSubtract = (firstMealDayOfWeek - cycleStartDay + 7) % 7
-    baseStartDate = subDays(baseStartDate, daysToSubtract)
-  }
-
-  // Now calculate how many cycles have passed since the base start date
-  const daysSinceBase = differenceInDays(date, baseStartDate)
-  const cyclesPassed = Math.floor(daysSinceBase / cycleDuration)
-
-  // Calculate the start date of the current cycle
-  return addDays(baseStartDate, cyclesPassed * cycleDuration)
-}
-
-// Calculate cycle information for a given date
+// Function to calculate cycle information
 export function calculateCycleInfo(
-  date: Date,
+  today: Date,
   firstMealDate: Date,
   cycleDuration: number,
-  cycleStartDay = 1,
-): CycleInfo {
-  // Find the start date of the cycle containing this date
-  const cycleStartDate = findCycleStartDate(date, firstMealDate, cycleStartDay, cycleDuration)
-
-  // Calculate the end date (start date + duration - 1)
-  const cycleEndDate = addDays(cycleStartDate, cycleDuration - 1)
-
-  // Calculate cycle number (1-based)
-  const daysSinceFirstCycle = differenceInDays(
-    cycleStartDate,
-    findCycleStartDate(firstMealDate, firstMealDate, cycleStartDay, cycleDuration),
-  )
-  const cycleNumber = Math.floor(daysSinceFirstCycle / cycleDuration) + 1
-
-  // Calculate days left in current cycle
-  const today = startOfDay(new Date())
-  const daysLeft = Math.max(0, differenceInDays(addDays(cycleStartDate, cycleDuration), today))
+): {
+  cycleNumber: number
+  daysLeft: number
+} {
+  const timeDiff = today.getTime() - firstMealDate.getTime()
+  const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24))
+  const cycleNumber = Math.floor(dayDiff / cycleDuration) + 1
+  const daysLeft = cycleDuration - (dayDiff % cycleDuration)
 
   return {
     cycleNumber,
-    startDate: cycleStartDate,
-    endDate: cycleEndDate,
-    daysLeft: daysLeft,
+    daysLeft,
   }
 }
 
-// Get the next cycle start date
-export function getNextCycleStartDate(currentCycleStartDate: Date, cycleDuration: number, cycleStartDay: number): Date {
-  // If using weekly cycles aligned to a specific day
-  if (cycleDuration % 7 === 0) {
-    // For weekly cycles, simply add the number of weeks
-    return addWeeks(currentCycleStartDate, cycleDuration / 7)
-  } else {
-    // For non-weekly cycles, add the duration and find the next occurrence of the start day
-    let nextCycleStart = addDays(currentCycleStartDate, cycleDuration)
-
-    // If we need to align to a specific day of week
-    if (getDay(nextCycleStart) !== cycleStartDay) {
-      // Find the next occurrence of the cycle start day
-      nextCycleStart = nextDay(nextCycleStart, cycleStartDay)
-    }
-
-    return nextCycleStart
-  }
-}
-
-// Group meals by cycles
-export function groupMealsByCycle(meals: Meal[], cycleDuration: number, cycleStartDay = 1): CycleGroup[] {
+// Function to group meals by cycle
+export function groupMealsByCycle(meals: Meal[], cycleDuration: number, cycleStartDay: number): CycleGroup[] {
   if (!meals.length) return []
 
-  // Sort meals by date (oldest first) to find the first meal date
+  // Sort meals by date (newest first)
   const sortedMeals = [...meals].sort((a, b) => {
-    return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
+    const dateA = new Date(a.created_at || 0).getTime()
+    const dateB = new Date(b.created_at || 0).getTime()
+    return dateB - dateA
   })
 
-  const firstMealDate = startOfDay(new Date(sortedMeals[0].created_at || ""))
+  // Group meals by date
+  const mealsByDate = new Map<string, Meal[]>()
+  for (const meal of sortedMeals) {
+    if (!meal.created_at) continue
 
-  // Add cycle information to each meal
-  const mealsWithCycles: MealWithCycle[] = meals.map((meal) => {
-    const mealDate = startOfDay(new Date(meal.created_at || ""))
-    const cycleInfo = calculateCycleInfo(mealDate, firstMealDate, cycleDuration, cycleStartDay)
+    const date = new Date(meal.created_at)
+    const dateStr = date.toISOString().split("T")[0]
 
-    return {
-      ...meal,
-      cycleInfo,
-    }
-  })
-
-  // Group meals by cycle
-  const cycleGroups: Record<number, MealWithCycle[]> = {}
-
-  mealsWithCycles.forEach((meal) => {
-    if (!meal.cycleInfo) return
-
-    const cycleNumber = meal.cycleInfo.cycleNumber
-
-    if (!cycleGroups[cycleNumber]) {
-      cycleGroups[cycleNumber] = []
+    if (!mealsByDate.has(dateStr)) {
+      mealsByDate.set(dateStr, [])
     }
 
-    cycleGroups[cycleNumber].push(meal)
-  })
+    mealsByDate.get(dateStr)!.push(meal)
+  }
 
-  // Convert to array and sort by cycle number (newest first)
-  return Object.entries(cycleGroups)
-    .map(([cycleNumber, meals]) => {
-      const cycleInfo = meals[0].cycleInfo!
+  // Create array of dates with meals
+  const datesWithMeals = Array.from(mealsByDate.entries())
+    .map(([dateStr, meals]) => {
+      const date = new Date(dateStr)
+      const displayDate = formatDate(date)
 
       return {
-        cycleNumber: Number.parseInt(cycleNumber),
-        startDate: cycleInfo.startDate,
-        endDate: cycleInfo.endDate,
-        displayDateRange: `Ciclo ${cycleNumber}: ${format(cycleInfo.startDate, "dd/MM/yyyy")} - ${format(cycleInfo.endDate, "dd/MM/yyyy")}`,
-        meals: meals.sort((a, b) => {
-          // Sort meals within cycle by date (newest first)
-          return new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime()
-        }),
+        date: dateStr,
+        displayDate,
+        dateObj: date,
+        meals,
       }
     })
-    .sort((a, b) => b.cycleNumber - a.cycleNumber) // Sort cycles by number (newest first)
+    .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
+
+  // Find the earliest and latest dates
+  const latestDate = datesWithMeals[0].dateObj
+  const earliestDate = datesWithMeals[datesWithMeals.length - 1].dateObj
+
+  // Find the first cycle start date before or on the earliest meal date
+  const firstCycleStart = findPreviousCycleStartDate(earliestDate, cycleStartDay)
+
+  // Calculate how many cycles we need
+  const totalDays = Math.ceil((latestDate.getTime() - firstCycleStart.getTime()) / (24 * 60 * 60 * 1000)) + 1
+  const totalCycles = Math.ceil(totalDays / cycleDuration)
+
+  // Create cycle groups
+  const cycleGroups: CycleGroup[] = []
+
+  for (let i = 0; i < totalCycles; i++) {
+    const cycleStartDate = new Date(firstCycleStart)
+    cycleStartDate.setDate(cycleStartDate.getDate() + i * cycleDuration)
+
+    const cycleEndDate = new Date(cycleStartDate)
+    cycleEndDate.setDate(cycleEndDate.getDate() + cycleDuration - 1)
+
+    const daysInCycle = datesWithMeals
+      .filter((day) => {
+        return day.dateObj >= cycleStartDate && day.dateObj <= cycleEndDate
+      })
+      .map((day) => ({
+        date: day.date,
+        displayDate: day.displayDate,
+        meals: day.meals,
+      }))
+
+    if (daysInCycle.length > 0) {
+      cycleGroups.push({
+        cycleNumber: i + 1,
+        startDate: cycleStartDate.toISOString().split("T")[0],
+        endDate: cycleEndDate.toISOString().split("T")[0],
+        displayDateRange: `${formatDate(cycleStartDate)} - ${formatDate(cycleEndDate)}`,
+        days: daysInCycle,
+      })
+    }
+  }
+
+  return cycleGroups
 }
 
-// Count sweet desserts in the current cycle
-export function countSweetDessertsInCurrentCycle(meals: Meal[], cycleDuration: number, cycleStartDay = 1): number {
-  if (!meals.length) return 0
+// Helper function to find the previous cycle start date
+function findPreviousCycleStartDate(date: Date, cycleStartDay: number): Date {
+  const result = new Date(date)
 
-  // Sort meals by date (oldest first) to find the first meal date
-  const sortedMeals = [...meals].sort((a, b) => {
-    return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
-  })
+  // Adjust day of week (0 = Sunday, 1 = Monday, etc.)
+  const currentDayOfWeek = result.getDay()
 
-  const firstMealDate = startOfDay(new Date(sortedMeals[0].created_at || ""))
-  const today = startOfDay(new Date())
-  const currentCycleInfo = calculateCycleInfo(today, firstMealDate, cycleDuration, cycleStartDay)
+  // Calculate days to go back to reach the previous cycle start day
+  const daysToSubtract = (currentDayOfWeek - cycleStartDay + 7) % 7
 
-  // Filter meals in current cycle that are sweet desserts
-  return meals.filter((meal) => {
-    if (meal.meal_type !== "postre1" && meal.meal_type !== "postre2") return false
+  // If we're already on the cycle start day, don't go back a week
+  if (daysToSubtract === 0) {
+    return result
+  }
 
-    const mealDate = startOfDay(new Date(meal.created_at || ""))
-    const mealCycleInfo = calculateCycleInfo(mealDate, firstMealDate, cycleDuration, cycleStartDay)
+  // Go back to the previous cycle start day
+  result.setDate(result.getDate() - daysToSubtract)
 
-    // Check if meal is in current cycle and is a sweet dessert (not a fruit dessert)
-    return mealCycleInfo.cycleNumber === currentCycleInfo.cycleNumber && !meal.notes?.toLowerCase().includes("fruta")
-  }).length
+  return result
 }
 
-// Check if a meal is a fruit dessert based on notes
-export function isFruitDessert(meal: Meal): boolean {
-  if (meal.meal_type !== "postre1" && meal.meal_type !== "postre2") return false
-
-  return !!meal.notes?.toLowerCase().includes("fruta")
+// Helper function to format date
+function formatDate(date: Date): string {
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }
+  return date.toLocaleDateString("es-ES", options)
 }
 
-// Get day of week name
-export function getDayOfWeekName(dayIndex: number): string {
+// Helper function to get day of week name
+export function getDayOfWeekName(dayNumber: number): string {
   const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-
-  // Ensure index is valid
-  const safeIndex = ((dayIndex % 7) + 7) % 7
-  return days[safeIndex]
+  return days[dayNumber]
 }
