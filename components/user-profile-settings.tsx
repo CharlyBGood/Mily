@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import { getDayOfWeekName } from "@/lib/cycle-utils"
+import { getDayOfWeekName, clearCycleSettingsCache } from "@/lib/cycle-utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -62,7 +62,7 @@ export default function UserProfileSettings() {
       // Then load settings
       loadUserSettings()
     })
-  }, [user])
+  }, [user, router])
 
   useEffect(() => {
     // Check if settings have changed
@@ -348,8 +348,7 @@ export default function UserProfileSettings() {
       }
 
       // Clear the cycle settings cache to ensure fresh data is loaded
-      const cycleUtils = await import("@/lib/cycle-utils")
-      cycleUtils.clearCycleSettingsCache(user.id)
+      clearCycleSettingsCache(user.id)
 
       setOriginalSettings({ ...settings })
       setSaveSuccess(true)

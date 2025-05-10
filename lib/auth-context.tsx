@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       const supabase = getSupabaseClient()
-      await supabase.auth.signOut()
+      await supabase.auth.signOut({ scope: "local" }) // Only sign out locally
 
       // Clear state
       setSession(null)

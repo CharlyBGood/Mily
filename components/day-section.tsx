@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import MealCard from "./meal-card"
-import MealThumbnail from "./meal-thumbnail"
 import type { Meal } from "@/lib/types"
 
 interface DaySectionProps {
@@ -45,6 +44,17 @@ export default function DaySection({
     }
   }
 
+  // Get thumbnails for preview (up to 4)
+  const thumbnails: string[] = []
+  if (!open) {
+    for (const meal of meals) {
+      if (meal.photo_url && thumbnails.length < 4) {
+        thumbnails.push(meal.photo_url)
+      }
+      if (thumbnails.length >= 4) break
+    }
+  }
+
   return (
     <Card className="mb-4 day-section">
       <Collapsible open={open} onOpenChange={handleOpenChange}>
@@ -58,12 +68,19 @@ export default function DaySection({
               {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </div>
           </CollapsibleTrigger>
-          {!open && (
+          {!open && thumbnails.length > 0 && (
             <div className="meal-thumbnails flex flex-wrap gap-1 mt-2">
-              {meals.slice(0, 5).map((meal) => (
-                <MealThumbnail key={meal.id} meal={meal} size="sm" />
+              {thumbnails.map((url, index) => (
+                <div key={index} className="w-16 h-16 rounded-md bg-neutral-100 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt="Thumbnail"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                  />
+                </div>
               ))}
-              {meals.length > 5 && <div className="text-xs text-neutral-500 ml-1">+{meals.length - 5} más</div>}
             </div>
           )}
         </CardHeader>

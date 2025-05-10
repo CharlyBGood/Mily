@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import MealCard from "./meal-card"
-import MealThumbnail from "./meal-thumbnail"
 import type { CycleGroup } from "@/lib/cycle-utils"
 import type { Meal } from "@/lib/types"
 
@@ -45,6 +44,21 @@ export default function CycleSection({
   // Get all meals from all days in the cycle
   const allMeals = cycle.days.flatMap((day) => day.meals)
 
+  // Get thumbnails for preview (up to 4)
+  const thumbnails: string[] = []
+  if (!open) {
+    for (const day of cycle.days) {
+      if (!day.meals) continue
+      for (const meal of day.meals) {
+        if (meal.photo_url && thumbnails.length < 4) {
+          thumbnails.push(meal.photo_url)
+        }
+        if (thumbnails.length >= 4) break
+      }
+      if (thumbnails.length >= 4) break
+    }
+  }
+
   return (
     <Card className="mb-4 cycle-section">
       <Collapsible open={open} onOpenChange={handleOpenChange}>
@@ -53,9 +67,7 @@ export default function CycleSection({
             <div className="flex items-center">
               <h3 className="text-lg font-medium">
                 Ciclo {cycle.cycleNumber}
-                <span className="text-sm font-normal text-neutral-500 ml-2">
-                  {cycle.startDate} - {cycle.endDate}
-                </span>
+                <span className="text-sm font-normal text-neutral-500 ml-2">{cycle.displayDateRange}</span>
               </h3>
             </div>
             <div className="flex items-center">
@@ -63,22 +75,31 @@ export default function CycleSection({
               {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </div>
           </CollapsibleTrigger>
-          {!open && (
+          {!open && thumbnails.length > 0 && (
             <div className="meal-thumbnails flex flex-wrap gap-1 mt-2">
-              {allMeals.slice(0, 5).map((meal) => (
-                <MealThumbnail key={meal.id} meal={meal} size="sm" />
+              {thumbnails.map((url, index) => (
+                <div key={index} className="w-16 h-16 rounded-md bg-neutral-100 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={url || "/placeholder.svg"}
+                    alt="Thumbnail"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    crossOrigin="anonymous"
+                  />
+                </div>
               ))}
-              {allMeals.length > 5 && <div className="text-xs text-neutral-500 ml-1">+{allMeals.length - 5} más</div>}
             </div>
           )}
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="p-3 pt-0">
             <div className="space-y-4">
-              {cycle.days.map((day) => (
-                <div key={day.date} className="border-t pt-3 first:border-t-0 first:pt-0">
-                  <h4 className="text-md font-medium mb-2">{day.displayDate}</h4>
-                  <div className="space-y-3">
+              {cycle.days.map((day) => {
+                // Skip days with no meals
+                if (!day.meals || day.meals.length === 0) return null
+
+                return (
+                  <div key={day.date} className="space-y-3">
                     {day.meals.map((meal) => (
                       <MealCard
                         key={meal.id}
@@ -86,11 +107,12 @@ export default function CycleSection({
                         onDelete={() => onDeleteMeal(meal)}
                         onEdit={() => onEditMeal(meal)}
                         isPdfMode={isPdfMode}
+                        showTime={true}
                       />
                     ))}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </CardContent>
         </CollapsibleContent>

@@ -8,17 +8,40 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { ArrowLeft, LogOut, Settings } from "lucide-react"
+import { getSupabaseClient } from "@/lib/supabase-client"
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [username, setUsername] = useState<string | null>(null)
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true)
 
   useEffect(() => {
     if (!user) {
       router.push("/login")
+      return
     }
+
+    // Load user profile to get username
+    const loadUserProfile = async () => {
+      try {
+        setIsLoadingProfile(true)
+        const supabase = getSupabaseClient()
+        const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single()
+
+        if (!error && data) {
+          setUsername(data.username)
+        }
+      } catch (error) {
+        console.error("Error loading user profile:", error)
+      } finally {
+        setIsLoadingProfile(false)
+      }
+    }
+
+    loadUserProfile()
   }, [user, router])
 
   const handleSignOut = async () => {
@@ -42,7 +65,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!user) {
+  if (!user || isLoadingProfile) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
@@ -69,6 +92,12 @@ export default function ProfilePage() {
             <CardDescription>Gestiona tu cuenta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {username && (
+              <div>
+                <p className="text-sm font-medium text-neutral-500">Nombre de usuario</p>
+                <p className="text-base font-medium">{username}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium text-neutral-500">Correo electrónico</p>
               <p className="text-base">{user.email}</p>

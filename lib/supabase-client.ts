@@ -1,85 +1,101 @@
 import { createClient } from "@supabase/supabase-js"
-import type { SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/supabase"
 
-// Store a single instance of the Supabase client
-let supabaseInstance: SupabaseClient | null = null
+// Create a custom storage object that persists auth state
+const createCustomStorage = () => {
+  const storageKey = "mily_supabase_auth"
 
-// Get the Supabase client (singleton pattern)
-export function getSupabaseClient(): SupabaseClient {
-  if (supabaseInstance) {
-    return supabaseInstance
+  return {
+    getItem: (key: string) => {
+      if (typeof window === "undefined") {
+        return null
+      }
+
+      const storedValue = localStorage.getItem(storageKey)
+      if (!storedValue) return null
+
+      try {
+        const parsed = JSON.parse(storedValue)
+        return parsed[key]
+      } catch (error) {
+        console.error("Error parsing stored auth:", error)
+        return null
+      }
+    },
+    setItem: (key: string, value: string) => {
+      if (typeof window === "undefined") {
+        return
+      }
+
+      let storedValue = {}
+      const existing = localStorage.getItem(storageKey)
+
+      if (existing) {
+        try {
+          storedValue = JSON.parse(existing)
+        } catch (error) {
+          console.error("Error parsing stored auth:", error)
+        }
+      }
+
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          ...storedValue,
+          [key]: value,
+        }),
+      )
+    },
+    removeItem: (key: string) => {
+      if (typeof window === "undefined") {
+        return
+      }
+
+      const existing = localStorage.getItem(storageKey)
+      if (!existing) return
+
+      try {
+        const parsed = JSON.parse(existing)
+        delete parsed[key]
+
+        if (Object.keys(parsed).length === 0) {
+          localStorage.removeItem(storageKey)
+        } else {
+          localStorage.setItem(storageKey, JSON.stringify(parsed))
+        }
+      } catch (error) {
+        console.error("Error removing item from stored auth:", error)
+      }
+    },
+  }
+}
+
+// Singleton pattern to ensure we only create one client
+let supabaseClient: ReturnType<typeof createClient> | null = null
+
+export function getSupabaseClient() {
+  if (supabaseClient) {
+    return supabaseClient
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Supabase URL and anon key must be defined")
+    throw new Error("Missing Supabase environment variables")
   }
 
-  // Create a new client if one doesn't exist
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+  supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
+      storage: createCustomStorage(),
       persistSession: true,
-      storageKey: "mily_supabase_auth",
       autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storage: {
-        getItem: (key) => {
-          if (typeof window === "undefined") {
-            return null
-          }
-          const value = localStorage.getItem(key)
-          return value
-        },
-        setItem: (key, value) => {
-          if (typeof window !== "undefined") {
-            localStorage.setItem(key, value)
-          }
-        },
-        removeItem: (key) => {
-          if (typeof window !== "undefined") {
-            localStorage.removeItem(key)
-          }
-        },
-      },
     },
   })
 
-  return supabaseInstance
+  return supabaseClient
 }
 
-// Reset the Supabase client (useful for testing or when signing out)
-export function resetSupabaseClient(): void {
-  supabaseInstance = null
-}
-
-// Create a server-side client for server components and API routes
-export function createServerClient() {
-  // Check if we have the server-side environment variables
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-  const supabaseServiceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    ""
-
-  // Only create the client if we have the required environment variables
-  if (supabaseUrl && supabaseServiceKey) {
-    return createClient(supabaseUrl, supabaseServiceKey)
-  }
-
-  // Return a mock client that won't throw errors
-  return {
-    auth: {
-      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-    },
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          single: () => Promise.resolve({ data: null, error: new Error("Server Supabase not initialized") }),
-        }),
-      }),
-    }),
-  } as unknown as ReturnType<typeof createClient>
+export function resetSupabaseClient() {
+  supabaseClient = null
 }
