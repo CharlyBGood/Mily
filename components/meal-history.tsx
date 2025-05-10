@@ -112,12 +112,22 @@ export default function MealHistory() {
         try {
           const settings = await getUserCycleSettings(user.id)
           console.log("Cycle settings loaded:", settings)
-          setCycleDuration(settings.cycleDuration)
-          setCycleStartDay(settings.cycleStartDay)
+
+          // Only update if settings are valid
+          if (settings && typeof settings.cycleDuration === "number" && typeof settings.cycleStartDay === "number") {
+            setCycleDuration(settings.cycleDuration)
+            setCycleStartDay(settings.cycleStartDay)
+          } else {
+            console.warn("Invalid cycle settings received, using defaults")
+            setCycleDuration(7)
+            setCycleStartDay(1)
+          }
           setCycleSettingsLoaded(true)
         } catch (error) {
           console.error("Error loading cycle settings:", error)
           // Continue with defaults if settings can't be loaded
+          setCycleDuration(7)
+          setCycleStartDay(1)
           setCycleSettingsLoaded(true)
         }
       } else {
@@ -506,7 +516,7 @@ export default function MealHistory() {
                 variant={viewMode === "cycles" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setViewMode("cycles")}
-                className="flex items-center"
+                className={`flex items-center ${viewMode === "cycles" ? "bg-orange-500 hover:bg-orange-600" : "text-orange-500 border-orange-500 hover:bg-orange-50"}`}
               >
                 <LayoutGrid className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Ciclos</span>
@@ -518,7 +528,7 @@ export default function MealHistory() {
                 variant={viewMode === "days" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setViewMode("days")}
-                className="flex items-center"
+                className={`flex items-center ${viewMode === "days" ? "bg-green-500 hover:bg-green-600" : "text-green-500 border-green-500 hover:bg-green-50"}`}
               >
                 <List className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Días</span>

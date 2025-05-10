@@ -26,6 +26,22 @@ const cycleSettingsCache: Record<string, { settings: CycleSettings; timestamp: n
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 /**
+ * Clear the cycle settings cache for a user
+ */
+export function clearCycleSettingsCache(userId?: string): void {
+  if (userId) {
+    delete cycleSettingsCache[userId]
+    console.log("Cleared cycle settings cache for user", userId)
+  } else {
+    // Clear all cache if no userId provided
+    Object.keys(cycleSettingsCache).forEach((key) => {
+      delete cycleSettingsCache[key]
+    })
+    console.log("Cleared all cycle settings cache")
+  }
+}
+
+/**
  * Get all cycle settings for a user
  */
 export async function getUserCycleSettings(userId: string): Promise<CycleSettings> {

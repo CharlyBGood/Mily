@@ -89,6 +89,24 @@ export default function UserProfileSettings() {
 
       console.log("Loaded user profile:", data)
       setProfileData(data)
+
+      // Update settings with username from profile if available
+      if (data && data.username) {
+        setSettings((prevSettings) => ({
+          ...prevSettings,
+          username: data.username || "",
+        }))
+
+        // Also update original settings to prevent false "changes detected"
+        setOriginalSettings((prevSettings) => ({
+          ...prevSettings,
+          username: data.username || "",
+        }))
+
+        if (data.username) {
+          setUsernameAvailable(true)
+        }
+      }
     } catch (error) {
       console.error("Error in loadUserProfile:", error)
     }
@@ -151,10 +169,23 @@ export default function UserProfileSettings() {
         throw error
       }
 
+      // Get profile data for username if not already loaded
+      if (!profileData && user) {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single()
+
+        if (!profileError && profileData) {
+          console.log("Loaded username from profile:", profileData.username)
+        }
+      }
+
       if (data) {
         console.log("Loaded settings:", data)
         const loadedSettings = {
-          username: data.username || "",
+          username: profileData?.username || data.username || "",
           cycleDuration: data.cycle_duration || 7,
           cycleStartDay: data.cycle_start_day !== undefined ? data.cycle_start_day : 1,
           sweetDessertLimit: data.sweet_dessert_limit || 3,
@@ -162,7 +193,7 @@ export default function UserProfileSettings() {
         setSettings(loadedSettings)
         setOriginalSettings(loadedSettings)
 
-        if (data.username) {
+        if (loadedSettings.username) {
           setUsernameAvailable(true)
         }
       } else {
@@ -325,6 +356,10 @@ export default function UserProfileSettings() {
         }
       }
 
+      // Clear the cycle settings cache to ensure fresh data is loaded
+      const cycleUtils = await import("@/lib/cycle-utils")
+      cycleUtils.clearCycleSettingsCache(user.id)
+
       setOriginalSettings({ ...settings })
       setSaveSuccess(true)
 
@@ -333,10 +368,11 @@ export default function UserProfileSettings() {
         description: "Tus preferencias han sido actualizadas",
       })
 
-      // Hide success indicator after 3 seconds
+      // Show success indicator briefly before redirecting
       setTimeout(() => {
-        setSaveSuccess(false)
-      }, 3000)
+        // Redirect to the Historial page
+        router.push("/")
+      }, 1500)
     } catch (error) {
       console.error("Error saving settings:", error)
       toast({
@@ -344,7 +380,6 @@ export default function UserProfileSettings() {
         description: "No se pudieron guardar tus configuraciones",
         variant: "destructive",
       })
-    } finally {
       setIsSaving(false)
     }
   }

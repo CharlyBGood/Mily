@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { getSupabaseClient } from "./supabase-client"
+import { getSupabaseClient, resetSupabaseClient } from "./supabase-client"
 import type { Session, User } from "@supabase/supabase-js"
 
 export interface UserProfile {
@@ -194,6 +194,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Clear state
       setSession(null)
       setUser(null)
+
+      // Reset the Supabase client to ensure a clean state
+      resetSupabaseClient()
+
+      // Clear any local storage related to auth
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("mily_supabase_auth")
+      }
     } catch (err) {
       console.error("Error in signOut:", err)
       setError(err instanceof Error ? err : new Error(String(err)))
