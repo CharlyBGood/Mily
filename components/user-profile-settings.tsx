@@ -57,9 +57,12 @@ export default function UserProfileSettings() {
       return
     }
 
-    loadUserProfile()
-    loadUserSettings()
-  }, [user, router])
+    // First load profile data to get username
+    loadUserProfile().then(() => {
+      // Then load settings
+      loadUserSettings()
+    })
+  }, [user])
 
   useEffect(() => {
     // Check if settings have changed
@@ -169,22 +172,10 @@ export default function UserProfileSettings() {
         throw error
       }
 
-      // Get profile data for username if not already loaded
-      if (!profileData && user) {
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", user.id)
-          .single()
-
-        if (!profileError && profileData) {
-          console.log("Loaded username from profile:", profileData.username)
-        }
-      }
-
       if (data) {
         console.log("Loaded settings:", data)
         const loadedSettings = {
+          // Prioritize username from profile data if available
           username: profileData?.username || data.username || "",
           cycleDuration: data.cycle_duration || 7,
           cycleStartDay: data.cycle_start_day !== undefined ? data.cycle_start_day : 1,

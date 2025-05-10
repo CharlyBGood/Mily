@@ -22,6 +22,8 @@ export function getSupabaseClient(): SupabaseClient {
     auth: {
       persistSession: true,
       storageKey: "mily_supabase_auth",
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
       storage: {
         getItem: (key) => {
           if (typeof window === "undefined") {
@@ -50,4 +52,34 @@ export function getSupabaseClient(): SupabaseClient {
 // Reset the Supabase client (useful for testing or when signing out)
 export function resetSupabaseClient(): void {
   supabaseInstance = null
+}
+
+// Create a server-side client for server components and API routes
+export function createServerClient() {
+  // Check if we have the server-side environment variables
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+  const supabaseServiceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    ""
+
+  // Only create the client if we have the required environment variables
+  if (supabaseUrl && supabaseServiceKey) {
+    return createClient(supabaseUrl, supabaseServiceKey)
+  }
+
+  // Return a mock client that won't throw errors
+  return {
+    auth: {
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve({ data: null, error: new Error("Server Supabase not initialized") }),
+        }),
+      }),
+    }),
+  } as unknown as ReturnType<typeof createClient>
 }

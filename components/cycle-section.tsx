@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ChevronDown, ChevronUp } from "lucide-react"
 import MealCard from "./meal-card"
-import type { Meal } from "@/lib/types"
+import MealThumbnail from "./meal-thumbnail"
 import type { CycleGroup } from "@/lib/cycle-utils"
+import type { Meal } from "@/lib/types"
 
 interface CycleSectionProps {
   cycle: CycleGroup
@@ -16,8 +16,6 @@ interface CycleSectionProps {
   onExpand: (cycleNumber: number) => void
   isExpanded: boolean
   isPdfMode?: boolean
-  showEditButton?: boolean
-  showDeleteButton?: boolean
 }
 
 export default function CycleSection({
@@ -27,112 +25,73 @@ export default function CycleSection({
   onExpand,
   isExpanded,
   isPdfMode = false,
-  showEditButton = true,
-  showDeleteButton = true,
 }: CycleSectionProps) {
   const [open, setOpen] = useState(isExpanded)
-
-  // Ensure cycle and days are defined
-  const safeCycle = cycle || { cycleNumber: 0, startDate: "", endDate: "", displayDateRange: "", days: [] }
-  const safeDays = safeCycle.days || []
-
-  // Count total meals in this cycle
-  const totalMeals = safeDays.reduce((total, day) => total + (day.meals?.length || 0), 0)
-
-  // Get thumbnails for preview (up to 4)
-  const thumbnails: string[] = []
-  if (!open) {
-    for (const day of safeDays) {
-      if (!day.meals) continue
-      for (const meal of day.meals) {
-        if (meal.photo_url && thumbnails.length < 4) {
-          thumbnails.push(meal.photo_url)
-        }
-        if (thumbnails.length >= 4) break
-      }
-      if (thumbnails.length >= 4) break
-    }
-  }
-
-  // Handle open state change
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen)
-    if (isOpen !== open) {
-      onExpand(safeCycle.cycleNumber)
-    }
-  }
 
   // Update open state when isExpanded prop changes
   if (open !== isExpanded) {
     setOpen(isExpanded)
   }
 
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (isOpen) {
+      onExpand(cycle.cycleNumber)
+    } else {
+      onExpand(-1)
+    }
+  }
+
+  // Get all meals from all days in the cycle
+  const allMeals = cycle.days.flatMap((day) => day.meals)
+
   return (
     <Card className="mb-4 cycle-section">
       <Collapsible open={open} onOpenChange={handleOpenChange}>
-        <CardHeader className="p-3 pb-0">
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full flex justify-between items-center p-2 h-auto">
-              <div className="flex flex-col items-start text-left">
-                <span className="text-sm font-medium">
-                  Ciclo {safeCycle.cycleNumber} ({safeCycle.displayDateRange})
+        <CardHeader className="p-3 pb-2">
+          <CollapsibleTrigger className="flex items-center justify-between w-full">
+            <div className="flex items-center">
+              <h3 className="text-lg font-medium">
+                Ciclo {cycle.cycleNumber}
+                <span className="text-sm font-normal text-neutral-500 ml-2">
+                  {cycle.startDate} - {cycle.endDate}
                 </span>
-                <span className="text-xs text-neutral-500">
-                  {totalMeals} {totalMeals === 1 ? "comida" : "comidas"}
-                </span>
-              </div>
-              {open ? (
-                <ChevronUp className="h-4 w-4 text-neutral-500" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-neutral-500" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-        </CardHeader>
-
-        {!open && thumbnails.length > 0 && (
-          <div className="px-3 pb-3 meal-thumbnails">
-            <div className="flex space-x-2 mt-2 overflow-x-auto pb-1">
-              {thumbnails.map((url, index) => (
-                <div key={index} className="w-16 h-16 rounded-md bg-neutral-100 flex-shrink-0 overflow-hidden">
-                  <img
-                    src={url || "/placeholder.svg"}
-                    alt="Thumbnail"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    crossOrigin="anonymous"
-                  />
-                </div>
-              ))}
+              </h3>
             </div>
-          </div>
-        )}
-
+            <div className="flex items-center">
+              <span className="text-sm text-neutral-500 mr-2">{allMeals.length} comidas</span>
+              {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </div>
+          </CollapsibleTrigger>
+          {!open && (
+            <div className="meal-thumbnails flex flex-wrap gap-1 mt-2">
+              {allMeals.slice(0, 5).map((meal) => (
+                <MealThumbnail key={meal.id} meal={meal} size="sm" />
+              ))}
+              {allMeals.length > 5 && <div className="text-xs text-neutral-500 ml-1">+{allMeals.length - 5} más</div>}
+            </div>
+          )}
+        </CardHeader>
         <CollapsibleContent>
-          <CardContent className="p-3">
-            {safeDays.map((day) => {
-              // Skip days with no meals
-              if (!day.meals || day.meals.length === 0) return null
-
-              return (
-                <div key={day.date} className="mb-4 last:mb-0">
-                  <h4 className="text-sm font-medium mb-2">{day.displayDate}</h4>
-                  <div className="grid grid-cols-1 gap-3">
-                    {(day.meals || []).map((meal) => (
+          <CardContent className="p-3 pt-0">
+            <div className="space-y-4">
+              {cycle.days.map((day) => (
+                <div key={day.date} className="border-t pt-3 first:border-t-0 first:pt-0">
+                  <h4 className="text-md font-medium mb-2">{day.displayDate}</h4>
+                  <div className="space-y-3">
+                    {day.meals.map((meal) => (
                       <MealCard
                         key={meal.id}
                         meal={meal}
                         onDelete={() => onDeleteMeal(meal)}
                         onEdit={() => onEditMeal(meal)}
                         isPdfMode={isPdfMode}
-                        showEditButton={showEditButton}
-                        showDeleteButton={showDeleteButton}
                       />
                     ))}
                   </div>
                 </div>
-              )
-            })}
+              ))}
+            </div>
           </CardContent>
         </CollapsibleContent>
       </Collapsible>

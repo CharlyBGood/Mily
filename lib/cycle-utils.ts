@@ -22,60 +22,25 @@ export interface CycleGroup {
 }
 
 // Cache for cycle settings to avoid repeated database calls
-const cycleSettingsCache: Record<string, { settings: CycleSettings; timestamp: number }> = {}
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+const cycleSettingsCache: Record<string, { timestamp: number; settings: any }> = {}
 
-/**
- * Clear the cycle settings cache for a user
- */
-export function clearCycleSettingsCache(userId?: string): void {
-  if (userId) {
+// Cache expiration time in milliseconds (5 minutes)
+const CACHE_EXPIRATION = 5 * 60 * 1000
+
+export function clearCycleSettingsCache(userId: string): void {
+  if (cycleSettingsCache[userId]) {
     delete cycleSettingsCache[userId]
-    console.log("Cleared cycle settings cache for user", userId)
-  } else {
-    // Clear all cache if no userId provided
-    Object.keys(cycleSettingsCache).forEach((key) => {
-      delete cycleSettingsCache[key]
-    })
-    console.log("Cleared all cycle settings cache")
   }
 }
 
-/**
- * Get all cycle settings for a user
- */
-export async function getUserCycleSettings(userId: string): Promise<CycleSettings> {
-  // Check cache first
-  const cachedSettings = cycleSettingsCache[userId]
-  if (cachedSettings && Date.now() - cachedSettings.timestamp < CACHE_TTL) {
-    console.log("Using cached cycle settings for user", userId)
-    return cachedSettings.settings
+export async function getUserCycleSettings(userId: string) {
+  // Check if we have cached settings that aren't expired
+  if (cycleSettingsCache[userId] && Date.now() - cycleSettingsCache[userId].timestamp < CACHE_EXPIRATION) {
+    return cycleSettingsCache[userId].settings
   }
-
-  console.log("Fetching cycle settings for user", userId)
 
   try {
     const supabase = getSupabaseClient()
-
-    // Try to use the RPC function first (more efficient)
-    const { data: rpcData, error: rpcError } = await supabase
-      .rpc("get_user_cycle_settings", { p_user_id: userId })
-      .single()
-
-    if (!rpcError && rpcData) {
-      const settings: CycleSettings = {
-        cycleDuration: rpcData.cycle_duration || 7,
-        cycleStartDay: rpcData.cycle_start_day || 1,
-        sweetDessertLimit: rpcData.sweet_dessert_limit || 3,
-      }
-
-      // Cache the settings
-      cycleSettingsCache[userId] = { settings, timestamp: Date.now() }
-      return settings
-    }
-
-    // Fallback to direct query if RPC fails
-    console.log("RPC failed, falling back to direct query", rpcError)
     const { data, error } = await supabase
       .from("user_settings")
       .select("cycle_duration, cycle_start_day, sweet_dessert_limit")
@@ -83,25 +48,36 @@ export async function getUserCycleSettings(userId: string): Promise<CycleSetting
       .single()
 
     if (error) {
-      console.error("Error fetching user cycle settings:", error)
-      // Return defaults if query fails
-      const defaultSettings: CycleSettings = { cycleDuration: 7, cycleStartDay: 1, sweetDessertLimit: 3 }
-      return defaultSettings
+      console.error("Error fetching cycle settings:", error)
+      // Return default settings
+      return {
+        cycleDuration: 7,
+        cycleStartDay: 1, // Monday
+        sweetDessertLimit: 3,
+      }
     }
 
-    const settings: CycleSettings = {
+    const settings = {
       cycleDuration: data.cycle_duration || 7,
-      cycleStartDay: data.cycle_start_day || 1,
+      cycleStartDay: data.cycle_start_day !== undefined ? data.cycle_start_day : 1,
       sweetDessertLimit: data.sweet_dessert_limit || 3,
     }
 
     // Cache the settings
-    cycleSettingsCache[userId] = { settings, timestamp: Date.now() }
+    cycleSettingsCache[userId] = {
+      timestamp: Date.now(),
+      settings,
+    }
+
     return settings
   } catch (error) {
     console.error("Error in getUserCycleSettings:", error)
-    // Return defaults if anything fails
-    return { cycleDuration: 7, cycleStartDay: 1, sweetDessertLimit: 3 }
+    // Return default settings
+    return {
+      cycleDuration: 7,
+      cycleStartDay: 1, // Monday
+      sweetDessertLimit: 3,
+    }
   }
 }
 
@@ -132,6 +108,28 @@ export async function getUserSweetDessertLimit(userId: string): Promise<number> 
 }
 
 /**
+ * Count sweet desserts in the current cycle
+ */
+export function countSweetDessertsInCurrentCycle(meals: Meal[], cycleDuration: number): number {
+  if (!meals || meals.length === 0) return 0
+
+  const now = new Date()
+  const cycleStartDate = new Date(now.getTime() - cycleDuration * 24 * 60 * 60 * 1000)
+  let count = 0
+
+  for (const meal of meals) {
+    if (meal.meal_type === "postre1" && meal.created_at) {
+      const mealDate = new Date(meal.created_at)
+      if (mealDate >= cycleStartDate && mealDate <= now) {
+        count++
+      }
+    }
+  }
+
+  return count
+}
+
+/**
  * Calculate cycle information based on dates and cycle duration
  */
 export function calculateCycleInfo(
@@ -151,6 +149,12 @@ export function calculateCycleInfo(
     cycleNumber,
     daysLeft,
   }
+}
+
+export interface CycleDay {
+  date: string
+  displayDate: string
+  meals: any[]
 }
 
 /**
@@ -192,28 +196,6 @@ function formatDateRange(startDate: Date, endDate: Date): string {
   const end = endDate.toLocaleDateString("es-ES", options)
 
   return `${start} - ${end}`
-}
-
-/**
- * Count sweet desserts in the current cycle
- */
-export function countSweetDessertsInCurrentCycle(meals: Meal[], cycleDuration: number): number {
-  if (!meals || meals.length === 0) return 0
-
-  const now = new Date()
-  const cycleStartDate = new Date(now.getTime() - cycleDuration * 24 * 60 * 60 * 1000)
-  let count = 0
-
-  for (const meal of meals) {
-    if (meal.meal_type === "postre1" && meal.created_at) {
-      const mealDate = new Date(meal.created_at)
-      if (mealDate >= cycleStartDate && mealDate <= now) {
-        count++
-      }
-    }
-  }
-
-  return count
 }
 
 /**
