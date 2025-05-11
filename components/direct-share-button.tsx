@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Share, Copy, Check, ExternalLink } from "lucide-react"
+import { Share, Copy, Check, ExternalLink, AlertCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { getSupabaseClient } from "@/lib/supabase-client"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface DirectShareButtonProps {
   compact?: boolean
@@ -29,22 +31,19 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
-  const { user, ensureDbSetup } = useAuth()
+  const { user } = useAuth()
 
-  // Check if user exists when the component mounts or when the dialog opens
+  // Generate share URL when dialog opens or cycle selection changes
   useEffect(() => {
     if (isOpen && user) {
-      handleShare()
+      generateShareUrl()
     }
-  }, [isOpen, user])
+  }, [isOpen, selectedCycle, user])
 
-  const handleShare = async () => {
+  // Function to generate the share URL
+  const generateShareUrl = async () => {
     if (!user) {
-      toast({
-        title: "Error",
-        description: "Debes iniciar sesión para compartir tu historial",
-        variant: "destructive",
-      })
+      setError("Debes iniciar sesión para compartir tu historial")
       return
     }
 
@@ -52,28 +51,39 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
     setError(null)
 
     try {
-      // Ensure database is set up
-      await ensureDbSetup()
+      // Verify that the user exists in the database
+      const supabase = getSupabaseClient()
+
+      // Check if user has meals to share
+      const { count, error: countError } = await supabase
+        .from("meals")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+
+      if (countError) {
+        console.error("Error checking meals:", countError)
+        throw new Error("Error al verificar las comidas")
+      }
+
+      if (count === 0) {
+        setError("No tienes comidas para compartir")
+        setIsLoading(false)
+        return
+      }
 
       // Create share URL with the user ID
       const baseUrl = window.location.origin
-      let shareUrl = `${baseUrl}/share/${user.id}`
+      let url = `${baseUrl}/share/${user.id}`
 
       // Add cycle parameter if a specific cycle is selected
       if (selectedCycle !== "all") {
-        shareUrl += `?cycle=${selectedCycle}`
+        url += `?cycle=${selectedCycle}`
       }
 
-      setShareUrl(shareUrl)
-      setCopied(false)
+      setShareUrl(url)
     } catch (error) {
       console.error("Error generating share URL:", error)
       setError("No se pudo generar el enlace para compartir")
-      toast({
-        title: "Error",
-        description: "No se pudo generar el enlace para compartir",
-        variant: "destructive",
-      })
     } finally {
       setIsLoading(false)
     }
@@ -82,28 +92,48 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
   const copyToClipboard = () => {
     if (!shareUrl) return
 
-    navigator.clipboard.writeText(shareUrl)
-    setCopied(true)
-    toast({
-      title: "Enlace copiado",
-      description: "El enlace ha sido copiado al portapapeles",
-    })
+    navigator.clipboard
+      .writeText(shareUrl)
+      .then(() => {
+        setCopied(true)
+        toast({
+          title: "Enlace copiado",
+          description: "El enlace ha sido copiado al portapapeles",
+        })
 
-    // Reset copied state after 3 seconds
-    setTimeout(() => {
-      setCopied(false)
-    }, 3000)
+        // Reset copied state after 3 seconds
+        setTimeout(() => {
+          setCopied(false)
+        }, 3000)
+      })
+      .catch((err) => {
+        console.error("Error copying to clipboard:", err)
+        toast({
+          title: "Error",
+          description: "No se pudo copiar el enlace",
+          variant: "destructive",
+        })
+      })
   }
 
   const openShareLink = () => {
     if (!shareUrl) return
-
     window.open(shareUrl, "_blank")
     setIsOpen(false)
   }
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+    if (!open) {
+      // Reset state when dialog closes
+      setError(null)
+      setShareUrl("")
+      setCopied(false)
+    }
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="default" size={compact ? "sm" : "default"} className="flex items-center">
           <Share className="h-4 w-4 mr-2" />
@@ -122,11 +152,10 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
               value={selectedCycle}
               onValueChange={(value) => {
                 setSelectedCycle(value)
-                // Regenerate share URL when selection changes
-                setTimeout(() => {
-                  if (user) handleShare()
-                }, 0)
+                setShareUrl("")
+                setCopied(false)
               }}
+              disabled={isLoading}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona qué compartir" />
@@ -143,13 +172,29 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
             </Select>
           </div>
 
-          {error && <div className="bg-red-50 p-3 rounded-md border border-red-200 text-red-700 text-sm">{error}</div>}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Enlace para compartir</label>
             <div className="flex items-center space-x-2">
-              <Input value={shareUrl} readOnly className="font-mono text-sm flex-1" placeholder="Generando enlace..." />
-              <Button size="icon" className="h-10 w-10" onClick={copyToClipboard} disabled={!shareUrl || isLoading}>
+              <Input
+                value={shareUrl}
+                readOnly
+                className="font-mono text-sm flex-1"
+                placeholder={isLoading ? "Generando enlace..." : "Enlace de compartir"}
+                disabled={isLoading || !!error}
+              />
+              <Button
+                size="icon"
+                className="h-10 w-10"
+                onClick={copyToClipboard}
+                disabled={!shareUrl || isLoading || !!error}
+              >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 ) : copied ? (
@@ -165,7 +210,12 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
           <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>
             Cerrar
           </Button>
-          <Button type="button" onClick={openShareLink} className="flex items-center" disabled={!shareUrl || isLoading}>
+          <Button
+            type="button"
+            onClick={openShareLink}
+            className="flex items-center"
+            disabled={!shareUrl || isLoading || !!error}
+          >
             <ExternalLink className="h-4 w-4 mr-2" />
             Abrir enlace
           </Button>
