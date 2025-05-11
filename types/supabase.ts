@@ -67,6 +67,35 @@ export interface Database {
           updated_at?: string
         }
       }
+      meals: {
+        Row: {
+          id: string
+          user_id: string
+          description: string | null
+          meal_type: string
+          photo_url: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          description?: string | null
+          meal_type: string
+          photo_url?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          description?: string | null
+          meal_type?: string
+          photo_url?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

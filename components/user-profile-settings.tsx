@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
-import { ArrowLeft, Loader2, Save, Check, AlertCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Save, Check, AlertCircle, Database } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
@@ -46,8 +46,9 @@ export default function UserProfileSettings() {
   const [nextCycleStart, setNextCycleStart] = useState<string>("")
   const [loadError, setLoadError] = useState<string | null>(null)
   const [setupNeeded, setSetupNeeded] = useState(false)
+  const [isSettingUpDatabase, setIsSettingUpDatabase] = useState(false)
 
-  const { user } = useAuth()
+  const { user, refreshSession } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
 
@@ -102,45 +103,172 @@ export default function UserProfileSettings() {
   const setupDatabase = async () => {
     if (!user) return
 
-    setIsLoading(true)
+    setIsSettingUpDatabase(true)
     setLoadError(null)
 
     try {
       const supabase = getSupabaseClient()
 
-      // Create profiles table entry
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        {
-          id: user.id,
-          email: user.email,
-          username: user.email?.split("@")[0] || "",
-        },
-        { onConflict: "id" },
-      )
+      // Create tables if they don't exist
+      const setupSql = `
+      -- Create profiles table
+      CREATE TABLE IF NOT EXISTS public.profiles (
+        id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        username TEXT UNIQUE,
+        full_name TEXT,
+        avatar_url TEXT,
+        bio TEXT,
+        website TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+      );
 
-      if (profileError && profileError.code !== "23505") {
-        // Ignore unique constraint violations
-        console.error("Error creating profile:", profileError)
-        throw profileError
+      -- Create user_settings table
+      CREATE TABLE IF NOT EXISTS public.user_settings (
+        user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+        username TEXT UNIQUE,
+        cycle_duration INTEGER DEFAULT 7,
+        cycle_start_day INTEGER DEFAULT 1,
+        sweet_dessert_limit INTEGER DEFAULT 3,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+      );
+
+      -- Enable Row Level Security
+      ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+
+      -- Create policies for profiles table
+      DO $$
+      BEGIN
+        -- Create policies if they don't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies 
+          WHERE schemaname = 'public' 
+          AND tablename = 'profiles' 
+          AND policyname = 'Public profiles are viewable by everyone'
+        ) THEN
+          CREATE POLICY "Public profiles are viewable by everyone" 
+            ON profiles FOR SELECT USING (true);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies 
+          WHERE schemaname = 'public' 
+          AND tablename = 'profiles' 
+          AND policyname = 'Users can insert their own profile'
+        ) THEN
+          CREATE POLICY "Users can insert their own profile" 
+            ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies 
+          WHERE schemaname = 'public' 
+          AND tablename = 'profiles' 
+          AND policyname = 'Users can update their own profile'
+        ) THEN
+          CREATE POLICY "Users can update their own profile" 
+            ON profiles FOR UPDATE USING (auth.uid() = id);
+        END IF;
+      EXCEPTION
+        WHEN others THEN
+          RAISE NOTICE 'Error creating policies for profiles: %', SQLERRM;
+      END $$;
+
+      -- Create policies for user_settings table
+      DO $$
+      BEGIN
+        -- Create policies if they don't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies 
+          WHERE schemaname = 'public' 
+          AND tablename = 'user_settings' 
+          AND policyname = 'Users can view any user settings'
+        ) THEN
+          CREATE POLICY "Users can view any user settings" 
+            ON user_settings FOR SELECT USING (true);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies 
+          WHERE schemaname = 'public' 
+          AND tablename = 'user_settings' 
+          AND policyname = 'Users can insert their own settings'
+        ) THEN
+          CREATE POLICY "Users can insert their own settings" 
+            ON user_settings FOR INSERT WITH CHECK (auth.uid() = user_id);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies 
+          WHERE schemaname = 'public' 
+          AND tablename = 'user_settings' 
+          AND policyname = 'Users can update their own settings'
+        ) THEN
+          CREATE POLICY "Users can update their own settings" 
+            ON user_settings FOR UPDATE USING (auth.uid() = user_id);
+        END IF;
+      EXCEPTION
+        WHEN others THEN
+          RAISE NOTICE 'Error creating policies for user_settings: %', SQLERRM;
+      END $$;
+      `
+
+      try {
+        // Try to execute the SQL using the exec_sql RPC function
+        const { error: sqlError } = await supabase.rpc("exec_sql", { sql_query: setupSql })
+
+        if (sqlError) {
+          console.error("Error executing SQL:", sqlError)
+          // Continue anyway, we'll try to create the records directly
+        }
+      } catch (error) {
+        console.error("Error setting up database tables:", error)
+        // Continue anyway, we'll try to create the records directly
+      }
+
+      // Create initial profile and settings for the user
+      try {
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            email: user.email || "",
+            username: user.email?.split("@")[0] || "",
+          },
+          { onConflict: "id" },
+        )
+
+        if (profileError && !profileError.message.includes("duplicate key")) {
+          console.error("Error creating profile:", profileError)
+        }
+      } catch (error) {
+        console.error("Error creating profile record:", error)
       }
 
       // Create user_settings table entry
-      const { error: settingsError } = await supabase.from("user_settings").upsert(
-        {
-          user_id: user.id,
-          username: user.email?.split("@")[0] || "",
-          cycle_duration: 7,
-          cycle_start_day: 1,
-          sweet_dessert_limit: 3,
-        },
-        { onConflict: "user_id" },
-      )
+      try {
+        const { error: settingsError } = await supabase.from("user_settings").upsert(
+          {
+            user_id: user.id,
+            username: user.email?.split("@")[0] || "",
+            cycle_duration: 7,
+            cycle_start_day: 1,
+            sweet_dessert_limit: 3,
+          },
+          { onConflict: "user_id" },
+        )
 
-      if (settingsError && settingsError.code !== "23505") {
-        // Ignore unique constraint violations
-        console.error("Error creating user settings:", settingsError)
-        throw settingsError
+        if (settingsError && !settingsError.message.includes("duplicate key")) {
+          console.error("Error creating user settings:", settingsError)
+        }
+      } catch (error) {
+        console.error("Error creating user settings record:", error)
       }
+
+      // Refresh the session to ensure we have the latest data
+      await refreshSession()
 
       // Reload settings
       await loadUserSettings()
@@ -159,7 +287,7 @@ export default function UserProfileSettings() {
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsSettingUpDatabase(false)
     }
   }
 
@@ -173,33 +301,37 @@ export default function UserProfileSettings() {
       const supabase = getSupabaseClient()
 
       // Try to get user profile
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .single()
+      let profileData = null
+      try {
+        const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single()
 
-      // If profile doesn't exist, we need to set up the database
-      if (profileError && (profileError.code === "PGRST116" || profileError.message.includes("does not exist"))) {
-        console.log("Profile not found or table doesn't exist, setup needed")
-        setSetupNeeded(true)
-        setIsLoading(false)
-        return
+        if (!error) {
+          profileData = data
+        } else if (error.message.includes("does not exist")) {
+          console.log("Profiles table doesn't exist, setup needed")
+          setSetupNeeded(true)
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        console.error("Error checking profiles table:", error)
       }
 
       // Try to get user settings
-      const { data: settingsData, error: settingsError } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .single()
+      let settingsData = null
+      try {
+        const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
 
-      // If settings don't exist, we need to set up the database
-      if (settingsError && (settingsError.code === "PGRST116" || settingsError.message.includes("does not exist"))) {
-        console.log("Settings not found or table doesn't exist, setup needed")
-        setSetupNeeded(true)
-        setIsLoading(false)
-        return
+        if (!error) {
+          settingsData = data
+        } else if (error.message.includes("does not exist")) {
+          console.log("User settings table doesn't exist, setup needed")
+          setSetupNeeded(true)
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        console.error("Error checking user_settings table:", error)
       }
 
       // If we have settings data, use it
@@ -217,10 +349,10 @@ export default function UserProfileSettings() {
         if (loadedSettings.username) {
           setUsernameAvailable(true)
         }
-      } else {
-        // Use defaults
+      } else if (profileData) {
+        // If we only have profile data but no settings
         const defaultSettings = {
-          username: profileData?.username || "",
+          username: profileData.username || "",
           cycleDuration: 7,
           cycleStartDay: 1,
           sweetDessertLimit: 3,
@@ -232,6 +364,9 @@ export default function UserProfileSettings() {
         if (defaultSettings.username) {
           setUsernameAvailable(true)
         }
+      } else {
+        // If we have neither, setup is needed
+        setSetupNeeded(true)
       }
     } catch (error) {
       console.error("Error loading user settings:", error)
@@ -276,35 +411,44 @@ export default function UserProfileSettings() {
       const supabase = getSupabaseClient()
 
       // Check if username exists in user_settings
-      const { data: settingsData, error: settingsError } = await supabase
-        .from("user_settings")
-        .select("username")
-        .eq("username", username)
-        .not("user_id", "eq", user?.id)
-        .maybeSingle()
+      try {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from("user_settings")
+          .select("username")
+          .eq("username", username)
+          .not("user_id", "eq", user?.id)
+          .maybeSingle()
+
+        if (!settingsError && settingsData) {
+          setUsernameError("Este nombre de usuario ya está en uso")
+          setUsernameAvailable(false)
+          return
+        }
+      } catch (error) {
+        console.error("Error checking username in user_settings:", error)
+      }
 
       // Check if username exists in profiles
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("username", username)
-        .not("id", "eq", user?.id)
-        .maybeSingle()
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("username", username)
+          .not("id", "eq", user?.id)
+          .maybeSingle()
 
-      if (
-        (settingsError && !settingsError.message.includes("does not exist")) ||
-        (profileError && !profileError.message.includes("does not exist"))
-      ) {
-        throw new Error("Error checking username availability")
+        if (!profileError && profileData) {
+          setUsernameError("Este nombre de usuario ya está en uso")
+          setUsernameAvailable(false)
+          return
+        }
+      } catch (error) {
+        console.error("Error checking username in profiles:", error)
       }
 
-      if (settingsData || profileData) {
-        setUsernameError("Este nombre de usuario ya está en uso")
-        setUsernameAvailable(false)
-      } else {
-        setUsernameError(null)
-        setUsernameAvailable(true)
-      }
+      // If we got here, username is available
+      setUsernameError(null)
+      setUsernameAvailable(true)
     } catch (error) {
       console.error("Error checking username availability:", error)
       setUsernameError("Error al verificar disponibilidad del nombre de usuario")
@@ -365,35 +509,45 @@ export default function UserProfileSettings() {
       })
 
       // Update user_settings table
-      const { error: settingsError } = await supabase.from("user_settings").upsert(
-        {
-          user_id: user.id,
-          username: settings.username,
-          cycle_duration: settings.cycleDuration,
-          cycle_start_day: settings.cycleStartDay,
-          sweet_dessert_limit: settings.sweetDessertLimit,
-        },
-        { onConflict: "user_id" },
-      )
+      try {
+        const { error: settingsError } = await supabase.from("user_settings").upsert(
+          {
+            user_id: user.id,
+            username: settings.username,
+            cycle_duration: settings.cycleDuration,
+            cycle_start_day: settings.cycleStartDay,
+            sweet_dessert_limit: settings.sweetDessertLimit,
+          },
+          { onConflict: "user_id" },
+        )
 
-      if (settingsError) {
-        console.error("Error saving settings:", settingsError)
-        throw settingsError
+        if (settingsError) {
+          console.error("Error saving settings:", settingsError)
+          throw settingsError
+        }
+      } catch (error) {
+        console.error("Error upserting user_settings:", error)
+        throw error
       }
 
       // Also update the profiles table to keep username in sync
       if (settings.username) {
-        const { error: profileError } = await supabase.from("profiles").upsert(
-          {
-            id: user.id,
-            username: settings.username,
-            email: user.email || "",
-          },
-          { onConflict: "id" },
-        )
+        try {
+          const { error: profileError } = await supabase.from("profiles").upsert(
+            {
+              id: user.id,
+              username: settings.username,
+              email: user.email || "",
+            },
+            { onConflict: "id" },
+          )
 
-        if (profileError) {
-          console.error("Error updating profile:", profileError)
+          if (profileError) {
+            console.error("Error updating profile:", profileError)
+            // Continue anyway, the main settings were saved
+          }
+        } catch (error) {
+          console.error("Error upserting profile:", error)
           // Continue anyway, the main settings were saved
         }
       }
@@ -467,7 +621,10 @@ export default function UserProfileSettings() {
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md mx-auto w-full">
             <CardHeader>
-              <CardTitle>Configuración inicial</CardTitle>
+              <CardTitle className="flex items-center">
+                <Database className="mr-2 h-5 w-5" />
+                Configuración inicial
+              </CardTitle>
               <CardDescription>Necesitamos configurar tu perfil para continuar</CardDescription>
             </CardHeader>
             <CardContent>
@@ -477,16 +634,26 @@ export default function UserProfileSettings() {
                   Es necesario configurar tu perfil antes de continuar. Esto solo tomará un momento.
                 </AlertDescription>
               </Alert>
+
+              {loadError && (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{loadError}</AlertDescription>
+                </Alert>
+              )}
             </CardContent>
             <CardFooter>
-              <Button onClick={setupDatabase} className="w-full" disabled={isSaving}>
-                {isSaving ? (
+              <Button onClick={setupDatabase} className="w-full" disabled={isSettingUpDatabase}>
+                {isSettingUpDatabase ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Configurando...
                   </>
                 ) : (
-                  "Configurar perfil"
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    Configurar perfil
+                  </>
                 )}
               </Button>
             </CardFooter>

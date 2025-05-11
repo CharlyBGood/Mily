@@ -7,18 +7,20 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
-import { ArrowLeft, LogOut, Settings, AlertCircle } from "lucide-react"
+import { ArrowLeft, LogOut, Settings, AlertCircle, Database } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProfilePage() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, refreshSession } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
   const [setupNeeded, setSetupNeeded] = useState(false)
+  const [isSettingUpDatabase, setIsSettingUpDatabase] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) {
@@ -35,44 +37,79 @@ export default function ProfilePage() {
 
     try {
       setIsLoadingProfile(true)
+      setError(null)
+
+      // Try to refresh the session first
+      await refreshSession()
+
       const supabase = getSupabaseClient()
 
       // Try to get from profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .single()
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single()
 
-      // If profiles table doesn't exist, try user_settings
-      if (profileError && (profileError.code === "PGRST116" || profileError.message.includes("does not exist"))) {
+        if (!profileError && profileData?.username) {
+          setUsername(profileData.username)
+          setSetupNeeded(false)
+          return
+        } else if (profileError && profileError.message.includes("does not exist")) {
+          console.log("Profiles table doesn't exist")
+          setSetupNeeded(true)
+        }
+      } catch (error) {
+        console.error("Error checking profiles table:", error)
+      }
+
+      // If profiles table doesn't exist or no profile found, try user_settings
+      try {
         const { data: settingsData, error: settingsError } = await supabase
           .from("user_settings")
           .select("username")
           .eq("user_id", user.id)
           .single()
 
-        if (settingsError && (settingsError.code === "PGRST116" || settingsError.message.includes("does not exist"))) {
-          // Both tables don't exist or no data found
-          setSetupNeeded(true)
-          return
-        }
-
-        if (settingsData?.username) {
+        if (!settingsError && settingsData?.username) {
           setUsername(settingsData.username)
+          setSetupNeeded(false)
+          return
+        } else if (settingsError && settingsError.message.includes("does not exist")) {
+          console.log("User settings table doesn't exist")
+          setSetupNeeded(true)
         }
-      } else if (!profileError && profileData?.username) {
-        setUsername(profileData.username)
+      } catch (error) {
+        console.error("Error checking user_settings table:", error)
+      }
+
+      // If we got here and no username was set, setup is needed
+      if (!username) {
+        setSetupNeeded(true)
       }
     } catch (error) {
       console.error("Error loading user profile:", error)
+      setError("Error al cargar el perfil. Por favor, intenta de nuevo.")
     } finally {
       setIsLoadingProfile(false)
     }
   }
 
-  const setupProfile = () => {
-    router.push("/profile/settings")
+  const setupDatabase = async () => {
+    if (!user) return
+
+    setIsSettingUpDatabase(true)
+    setError(null)
+
+    try {
+      router.push("/profile/settings")
+    } catch (error) {
+      console.error("Error navigating to settings:", error)
+      setError("Error al configurar el perfil. Por favor, intenta de nuevo.")
+    } finally {
+      setIsSettingUpDatabase(false)
+    }
   }
 
   const handleSignOut = async () => {
@@ -123,9 +160,21 @@ export default function ProfilePage() {
             <CardDescription>Gestiona tu cuenta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error}
+                  <Button variant="outline" size="sm" className="ml-2" onClick={loadUserProfile}>
+                    Reintentar
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
             {setupNeeded && (
               <Alert className="mb-4">
-                <AlertCircle className="h-4 w-4" />
+                <Database className="h-4 w-4" />
                 <AlertDescription>
                   Es necesario configurar tu perfil para acceder a todas las funciones.
                 </AlertDescription>
@@ -149,11 +198,21 @@ export default function ProfilePage() {
 
             <Button
               variant={setupNeeded ? "default" : "outline"}
-              onClick={() => router.push("/profile/settings")}
+              onClick={setupDatabase}
               className="w-full"
+              disabled={isSettingUpDatabase}
             >
-              <Settings className="h-4 w-4 mr-2" />
-              {setupNeeded ? "Configurar perfil" : "Configuración de perfil"}
+              {isSettingUpDatabase ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Configurando...
+                </>
+              ) : (
+                <>
+                  <Settings className="h-4 w-4 mr-2" />
+                  {setupNeeded ? "Configurar perfil" : "Configuración de perfil"}
+                </>
+              )}
             </Button>
           </CardContent>
           <CardFooter>

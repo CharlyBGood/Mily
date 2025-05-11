@@ -34,6 +34,7 @@ interface AuthContextType {
     website?: string | null
     avatar_url?: string | null
   }) => Promise<{ success: boolean; error: Error | null }>
+  refreshSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -47,6 +48,7 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => ({ success: false, error: new Error("Not implemented") }),
   updatePassword: async () => ({ success: false, error: new Error("Not implemented") }),
   updateProfile: async () => ({ success: false, error: new Error("Not implemented") }),
+  refreshSession: async () => {},
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -110,6 +112,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth()
   }, [])
+
+  // Function to refresh the session
+  const refreshSession = async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.auth.refreshSession()
+
+      if (error) {
+        console.error("Error refreshing session:", error)
+        return
+      }
+
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+      }
+    } catch (err) {
+      console.error("Error in refreshSession:", err)
+    }
+  }
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
@@ -189,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       const supabase = getSupabaseClient()
-      await supabase.auth.signOut({ scope: "local" }) // Only sign out locally
+      await supabase.auth.signOut({ scope: "local" })
 
       // Clear state
       setSession(null)
@@ -280,15 +302,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true)
       setError(null)
 
+      if (!user) {
+        throw new Error("No user logged in")
+      }
+
       const supabase = getSupabaseClient()
-      const { data, error } = await supabase.from("profiles").upsert(
+
+      // First check if the profiles table exists
+      try {
+        const { count, error: countError } = await supabase.from("profiles").select("*", { count: "exact", head: true })
+
+        if (countError && countError.message.includes("does not exist")) {
+          // Table doesn't exist, create it first
+          await supabase.rpc("exec_sql", {
+            sql_query: `
+              CREATE TABLE IF NOT EXISTS public.profiles (
+                id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+                email TEXT NOT NULL,
+                username TEXT UNIQUE,
+                full_name TEXT,
+                avatar_url TEXT,
+                bio TEXT,
+                website TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+              );
+              
+              ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+              
+              CREATE POLICY "Public profiles are viewable by everyone" 
+                ON public.profiles FOR SELECT USING (true);
+              
+              CREATE POLICY "Users can insert their own profile" 
+                ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+              
+              CREATE POLICY "Users can update their own profile" 
+                ON public.profiles FOR UPDATE USING (auth.uid() = id);
+            `,
+          })
+        }
+      } catch (error) {
+        console.error("Error checking profiles table:", error)
+        // Continue anyway, we'll handle errors in the upsert
+      }
+
+      // Now try to upsert the profile
+      const { error } = await supabase.from("profiles").upsert(
         [
           {
-            id: user?.id,
+            id: user.id,
+            email: user.email || "",
             ...fields,
+            updated_at: new Date().toISOString(),
           },
         ],
-        { returning: "minimal" },
+        { onConflict: "id" },
       )
 
       if (error) {
@@ -322,6 +390,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         updatePassword,
         updateProfile,
+        refreshSession,
       }}
     >
       {children}
