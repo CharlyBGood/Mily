@@ -3,43 +3,6 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
-      meals: {
-        Row: {
-          id: string
-          user_id: string
-          description: string | null
-          meal_type: string
-          photo_url: string | null
-          notes: string | null
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          description?: string | null
-          meal_type: string
-          photo_url?: string | null
-          notes?: string | null
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          description?: string | null
-          meal_type?: string
-          photo_url?: string | null
-          notes?: string | null
-          created_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "meals_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           id: string
@@ -49,8 +12,8 @@ export interface Database {
           avatar_url: string | null
           bio: string | null
           website: string | null
-          created_at: string | null
-          updated_at: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id: string
@@ -60,8 +23,8 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
           website?: string | null
-          created_at?: string | null
-          updated_at?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -71,17 +34,9 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
           website?: string | null
-          created_at?: string | null
-          updated_at?: string | null
+          created_at?: string
+          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_id_fkey"
-            columns: ["id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_settings: {
         Row: {
@@ -90,6 +45,8 @@ export interface Database {
           cycle_duration: number
           cycle_start_day: number
           sweet_dessert_limit: number
+          created_at: string
+          updated_at: string
         }
         Insert: {
           user_id: string
@@ -97,6 +54,8 @@ export interface Database {
           cycle_duration?: number
           cycle_start_day?: number
           sweet_dessert_limit?: number
+          created_at?: string
+          updated_at?: string
         }
         Update: {
           user_id?: string
@@ -104,22 +63,28 @@ export interface Database {
           cycle_duration?: number
           cycle_start_day?: number
           sweet_dessert_limit?: number
+          created_at?: string
+          updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_settings_user_id_fkey"
-            columns: ["user_id"]
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      exec_sql: {
+        Args: {
+          sql_query: string
+        }
+        Returns: undefined
+      }
+      check_column_exists: {
+        Args: {
+          p_table_name: string
+          p_column_name: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

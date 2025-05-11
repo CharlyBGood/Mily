@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import { getDayOfWeekName, clearCycleSettingsCache } from "@/lib/cycle-utils"
+import { getDayOfWeekName } from "@/lib/cycle-utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -45,7 +45,7 @@ export default function UserProfileSettings() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [nextCycleStart, setNextCycleStart] = useState<string>("")
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [profileData, setProfileData] = useState<any>(null)
+  const [setupNeeded, setSetupNeeded] = useState(false)
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -57,11 +57,8 @@ export default function UserProfileSettings() {
       return
     }
 
-    // First load profile data to get username
-    loadUserProfile().then(() => {
-      // Then load settings
-      loadUserSettings()
-    })
+    // Load settings
+    loadUserSettings()
   }, [user, router])
 
   useEffect(() => {
@@ -77,43 +74,6 @@ export default function UserProfileSettings() {
     // Calculate next cycle start date
     calculateNextCycleStart()
   }, [settings, originalSettings])
-
-  const loadUserProfile = async () => {
-    if (!user) return
-
-    try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-      if (error) {
-        console.error("Error loading user profile:", error)
-        return
-      }
-
-      console.log("Loaded user profile:", data)
-      setProfileData(data)
-
-      // Update settings with username from profile if available
-      if (data && data.username) {
-        setSettings((prevSettings) => ({
-          ...prevSettings,
-          username: data.username || "",
-        }))
-
-        // Also update original settings to prevent false "changes detected"
-        setOriginalSettings((prevSettings) => ({
-          ...prevSettings,
-          username: data.username || "",
-        }))
-
-        if (data.username) {
-          setUsernameAvailable(true)
-        }
-      }
-    } catch (error) {
-      console.error("Error in loadUserProfile:", error)
-    }
-  }
 
   const calculateNextCycleStart = () => {
     const today = new Date()
@@ -139,48 +99,118 @@ export default function UserProfileSettings() {
     setNextCycleStart(nextStart.toLocaleDateString("es-ES", options))
   }
 
-  const loadUserSettings = async () => {
+  const setupDatabase = async () => {
+    if (!user) return
+
     setIsLoading(true)
     setLoadError(null)
 
     try {
       const supabase = getSupabaseClient()
 
-      // First check if the column exists
-      try {
-        const { data: columnExists, error: columnError } = await supabase
-          .rpc("check_column_exists", {
-            table_name: "user_settings",
-            column_name: "cycle_start_day",
-          })
-          .single()
+      // Create profiles table entry
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          email: user.email,
+          username: user.email?.split("@")[0] || "",
+        },
+        { onConflict: "id" },
+      )
 
-        if (columnError) {
-          console.error("Error checking column:", columnError)
-          // Continue anyway, we'll handle missing column later
-        }
-      } catch (error) {
-        console.error("Error checking column existence:", error)
-        // Continue with the query anyway
+      if (profileError && profileError.code !== "23505") {
+        // Ignore unique constraint violations
+        console.error("Error creating profile:", profileError)
+        throw profileError
       }
 
-      // Get user settings
-      const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user?.id).single()
+      // Create user_settings table entry
+      const { error: settingsError } = await supabase.from("user_settings").upsert(
+        {
+          user_id: user.id,
+          username: user.email?.split("@")[0] || "",
+          cycle_duration: 7,
+          cycle_start_day: 1,
+          sweet_dessert_limit: 3,
+        },
+        { onConflict: "user_id" },
+      )
 
-      if (error && error.code !== "PGRST116") {
-        // PGRST116 is "no rows returned" error
-        throw error
+      if (settingsError && settingsError.code !== "23505") {
+        // Ignore unique constraint violations
+        console.error("Error creating user settings:", settingsError)
+        throw settingsError
       }
 
-      if (data) {
-        console.log("Loaded settings:", data)
+      // Reload settings
+      await loadUserSettings()
+
+      setSetupNeeded(false)
+      toast({
+        title: "Configuración inicial completada",
+        description: "Tu perfil ha sido configurado correctamente",
+      })
+    } catch (error) {
+      console.error("Error setting up database:", error)
+      setLoadError("No se pudo configurar la base de datos. Por favor, intenta de nuevo más tarde.")
+      toast({
+        title: "Error",
+        description: "No se pudo configurar la base de datos",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadUserSettings = async () => {
+    if (!user) return
+
+    setIsLoading(true)
+    setLoadError(null)
+
+    try {
+      const supabase = getSupabaseClient()
+
+      // Try to get user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single()
+
+      // If profile doesn't exist, we need to set up the database
+      if (profileError && (profileError.code === "PGRST116" || profileError.message.includes("does not exist"))) {
+        console.log("Profile not found or table doesn't exist, setup needed")
+        setSetupNeeded(true)
+        setIsLoading(false)
+        return
+      }
+
+      // Try to get user settings
+      const { data: settingsData, error: settingsError } = await supabase
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .single()
+
+      // If settings don't exist, we need to set up the database
+      if (settingsError && (settingsError.code === "PGRST116" || settingsError.message.includes("does not exist"))) {
+        console.log("Settings not found or table doesn't exist, setup needed")
+        setSetupNeeded(true)
+        setIsLoading(false)
+        return
+      }
+
+      // If we have settings data, use it
+      if (settingsData) {
         const loadedSettings = {
-          // Prioritize username from profile data if available
-          username: profileData?.username || data.username || "",
-          cycleDuration: data.cycle_duration || 7,
-          cycleStartDay: data.cycle_start_day !== undefined ? data.cycle_start_day : 1,
-          sweetDessertLimit: data.sweet_dessert_limit || 3,
+          username: profileData?.username || settingsData.username || "",
+          cycleDuration: settingsData.cycle_duration || 7,
+          cycleStartDay: settingsData.cycle_start_day !== undefined ? settingsData.cycle_start_day : 1,
+          sweetDessertLimit: settingsData.sweet_dessert_limit || 3,
         }
+
         setSettings(loadedSettings)
         setOriginalSettings(loadedSettings)
 
@@ -188,13 +218,14 @@ export default function UserProfileSettings() {
           setUsernameAvailable(true)
         }
       } else {
-        // No settings found, use defaults and try to get username from profile
+        // Use defaults
         const defaultSettings = {
           username: profileData?.username || "",
           cycleDuration: 7,
           cycleStartDay: 1,
           sweetDessertLimit: 3,
         }
+
         setSettings(defaultSettings)
         setOriginalSettings(defaultSettings)
 
@@ -243,20 +274,36 @@ export default function UserProfileSettings() {
 
     try {
       const supabase = getSupabaseClient()
-      const { data, error } = await supabase
+
+      // Check if username exists in user_settings
+      const { data: settingsData, error: settingsError } = await supabase
         .from("user_settings")
         .select("username")
         .eq("username", username)
         .not("user_id", "eq", user?.id)
-        .single()
+        .maybeSingle()
 
-      if (error && error.code === "PGRST116") {
-        // No rows returned
-        setUsernameError(null)
-        setUsernameAvailable(true)
-      } else if (data) {
+      // Check if username exists in profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("username", username)
+        .not("id", "eq", user?.id)
+        .maybeSingle()
+
+      if (
+        (settingsError && !settingsError.message.includes("does not exist")) ||
+        (profileError && !profileError.message.includes("does not exist"))
+      ) {
+        throw new Error("Error checking username availability")
+      }
+
+      if (settingsData || profileData) {
         setUsernameError("Este nombre de usuario ya está en uso")
         setUsernameAvailable(false)
+      } else {
+        setUsernameError(null)
+        setUsernameAvailable(true)
       }
     } catch (error) {
       console.error("Error checking username availability:", error)
@@ -326,7 +373,7 @@ export default function UserProfileSettings() {
           cycle_start_day: settings.cycleStartDay,
           sweet_dessert_limit: settings.sweetDessertLimit,
         },
-        { returning: "minimal" },
+        { onConflict: "user_id" },
       )
 
       if (settingsError) {
@@ -336,10 +383,14 @@ export default function UserProfileSettings() {
 
       // Also update the profiles table to keep username in sync
       if (settings.username) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .update({ username: settings.username })
-          .eq("id", user.id)
+        const { error: profileError } = await supabase.from("profiles").upsert(
+          {
+            id: user.id,
+            username: settings.username,
+            email: user.email || "",
+          },
+          { onConflict: "id" },
+        )
 
         if (profileError) {
           console.error("Error updating profile:", profileError)
@@ -348,7 +399,15 @@ export default function UserProfileSettings() {
       }
 
       // Clear the cycle settings cache to ensure fresh data is loaded
-      clearCycleSettingsCache(user.id)
+      try {
+        const cycleUtils = await import("@/lib/cycle-utils")
+        if (typeof cycleUtils.clearCycleSettingsCache === "function") {
+          cycleUtils.clearCycleSettingsCache(user.id)
+        }
+      } catch (error) {
+        console.error("Error clearing cycle settings cache:", error)
+        // Continue anyway
+      }
 
       setOriginalSettings({ ...settings })
       setSaveSuccess(true)
@@ -388,6 +447,50 @@ export default function UserProfileSettings() {
         </header>
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        </main>
+      </div>
+    )
+  }
+
+  if (setupNeeded) {
+    return (
+      <div className="flex flex-col min-h-screen bg-neutral-50">
+        <header className="p-4 border-b bg-white flex items-center">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 flex justify-center">
+            <MilyLogo />
+          </div>
+          <div className="w-10"></div>
+        </header>
+        <main className="flex-1 flex items-center justify-center p-4">
+          <Card className="max-w-md mx-auto w-full">
+            <CardHeader>
+              <CardTitle>Configuración inicial</CardTitle>
+              <CardDescription>Necesitamos configurar tu perfil para continuar</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Es necesario configurar tu perfil antes de continuar. Esto solo tomará un momento.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={setupDatabase} className="w-full" disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Configurando...
+                  </>
+                ) : (
+                  "Configurar perfil"
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
         </main>
       </div>
     )

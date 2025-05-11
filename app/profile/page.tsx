@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
-import { ArrowLeft, LogOut, Settings } from "lucide-react"
+import { ArrowLeft, LogOut, Settings, AlertCircle } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
+  const [setupNeeded, setSetupNeeded] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -25,24 +27,53 @@ export default function ProfilePage() {
     }
 
     // Load user profile to get username
-    const loadUserProfile = async () => {
-      try {
-        setIsLoadingProfile(true)
-        const supabase = getSupabaseClient()
-        const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single()
-
-        if (!error && data) {
-          setUsername(data.username)
-        }
-      } catch (error) {
-        console.error("Error loading user profile:", error)
-      } finally {
-        setIsLoadingProfile(false)
-      }
-    }
-
     loadUserProfile()
   }, [user, router])
+
+  const loadUserProfile = async () => {
+    if (!user) return
+
+    try {
+      setIsLoadingProfile(true)
+      const supabase = getSupabaseClient()
+
+      // Try to get from profiles table
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single()
+
+      // If profiles table doesn't exist, try user_settings
+      if (profileError && (profileError.code === "PGRST116" || profileError.message.includes("does not exist"))) {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from("user_settings")
+          .select("username")
+          .eq("user_id", user.id)
+          .single()
+
+        if (settingsError && (settingsError.code === "PGRST116" || settingsError.message.includes("does not exist"))) {
+          // Both tables don't exist or no data found
+          setSetupNeeded(true)
+          return
+        }
+
+        if (settingsData?.username) {
+          setUsername(settingsData.username)
+        }
+      } else if (!profileError && profileData?.username) {
+        setUsername(profileData.username)
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error)
+    } finally {
+      setIsLoadingProfile(false)
+    }
+  }
+
+  const setupProfile = () => {
+    router.push("/profile/settings")
+  }
 
   const handleSignOut = async () => {
     setIsLoading(true)
@@ -92,6 +123,15 @@ export default function ProfilePage() {
             <CardDescription>Gestiona tu cuenta</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {setupNeeded && (
+              <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Es necesario configurar tu perfil para acceder a todas las funciones.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {username && (
               <div>
                 <p className="text-sm font-medium text-neutral-500">Nombre de usuario</p>
@@ -107,9 +147,13 @@ export default function ProfilePage() {
               <p className="text-xs text-neutral-400 break-all">{user.id}</p>
             </div>
 
-            <Button variant="outline" onClick={() => router.push("/profile/settings")} className="w-full">
+            <Button
+              variant={setupNeeded ? "default" : "outline"}
+              onClick={() => router.push("/profile/settings")}
+              className="w-full"
+            >
               <Settings className="h-4 w-4 mr-2" />
-              Configuración de perfil
+              {setupNeeded ? "Configurar perfil" : "Configuración de perfil"}
             </Button>
           </CardContent>
           <CardFooter>
