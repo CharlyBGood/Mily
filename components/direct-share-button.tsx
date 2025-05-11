@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Share, Copy, Check, ExternalLink } from "lucide-react"
+import { Share, Copy, Check, ExternalLink, AlertCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface DirectShareButtonProps {
   compact?: boolean
@@ -27,6 +28,7 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
   const [isOpen, setIsOpen] = useState(false)
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -39,15 +41,12 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
 
   const generateShareUrl = () => {
     if (!user) {
-      toast({
-        title: "Error",
-        description: "Debes iniciar sesión para compartir tu historial",
-        variant: "destructive",
-      })
+      setError("Debes iniciar sesión para compartir tu historial")
       return
     }
 
     setIsLoading(true)
+    setError(null)
 
     try {
       // Create share URL with the user ID
@@ -63,11 +62,7 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
       console.log("Generated share URL:", url)
     } catch (error) {
       console.error("Error generating share URL:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo generar el enlace para compartir",
-        variant: "destructive",
-      })
+      setError("No se pudo generar el enlace para compartir")
     } finally {
       setIsLoading(false)
     }
@@ -109,7 +104,8 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
     if (!open) {
-      // Reset copied state when dialog closes
+      // Reset states when dialog closes
+      setError(null)
       setCopied(false)
     }
   }
@@ -117,7 +113,12 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default" size={compact ? "sm" : "default"} className="flex items-center">
+        <Button
+          variant="default"
+          size={compact ? "sm" : "default"}
+          className="flex items-center"
+          aria-label="Compartir historial"
+        >
           <Share className="h-4 w-4 mr-2" />
           {!compact && <span>Compartir</span>}
         </Button>
@@ -129,7 +130,9 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">¿Qué quieres compartir?</label>
+            <label htmlFor="cycle-select" className="text-sm font-medium">
+              ¿Qué quieres compartir?
+            </label>
             <Select
               value={selectedCycle}
               onValueChange={(value) => {
@@ -138,7 +141,7 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
               }}
               disabled={isLoading}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="cycle-select" className="w-full">
                 <SelectValue placeholder="Selecciona qué compartir" />
               </SelectTrigger>
               <SelectContent>
@@ -153,16 +156,34 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
             </Select>
           </div>
 
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-2">
-            <label className="text-sm font-medium">Enlace para compartir</label>
+            <label htmlFor="share-url" className="text-sm font-medium">
+              Enlace para compartir
+            </label>
             <div className="flex items-center space-x-2">
               <Input
+                id="share-url"
                 value={shareUrl}
                 readOnly
                 className="font-mono text-sm flex-1"
                 placeholder={isLoading ? "Generando enlace..." : "Enlace de compartir"}
+                aria-label="Enlace para compartir"
               />
-              <Button size="icon" className="h-10 w-10" onClick={copyToClipboard} disabled={!shareUrl || isLoading}>
+              <Button
+                size="icon"
+                className="h-10 w-10"
+                onClick={copyToClipboard}
+                disabled={!shareUrl || isLoading}
+                aria-label="Copiar enlace"
+                title="Copiar enlace"
+              >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 ) : copied ? (
@@ -178,7 +199,13 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
           <Button type="button" variant="secondary" onClick={() => setIsOpen(false)}>
             Cerrar
           </Button>
-          <Button type="button" onClick={openShareLink} className="flex items-center" disabled={!shareUrl || isLoading}>
+          <Button
+            type="button"
+            onClick={openShareLink}
+            className="flex items-center"
+            disabled={!shareUrl || isLoading}
+            aria-label="Abrir enlace"
+          >
             <ExternalLink className="h-4 w-4 mr-2" />
             Abrir enlace
           </Button>

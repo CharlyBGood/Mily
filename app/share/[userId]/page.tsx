@@ -235,7 +235,7 @@ export default function SharePage() {
   return (
     <div className="flex flex-col h-screen bg-neutral-50">
       <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
+        <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 flex justify-center">
@@ -278,6 +278,7 @@ export default function SharePage() {
                     size="sm"
                     onClick={() => setViewMode("cycles")}
                     className="flex items-center"
+                    aria-label="Ver por ciclos"
                   >
                     <LayoutGrid className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Ciclos</span>
@@ -290,6 +291,7 @@ export default function SharePage() {
                     size="sm"
                     onClick={() => setViewMode("days")}
                     className="flex items-center"
+                    aria-label="Ver por días"
                   >
                     <List className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Días</span>
