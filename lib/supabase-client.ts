@@ -1,30 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types/supabase"
 
-// Create a custom storage object that persists auth state
-const createCustomStorage = () => {
-  return {
-    getItem: (key: string) => {
-      if (typeof window === "undefined") {
-        return null
-      }
-      return localStorage.getItem(key)
-    },
-    setItem: (key: string, value: string) => {
-      if (typeof window === "undefined") {
-        return
-      }
-      localStorage.setItem(key, value)
-    },
-    removeItem: (key: string) => {
-      if (typeof window === "undefined") {
-        return
-      }
-      localStorage.removeItem(key)
-    },
-  }
-}
-
 // Singleton pattern to ensure we only create one client
 let supabaseClient: ReturnType<typeof createClient> | null = null
 
@@ -42,7 +18,6 @@ export function getSupabaseClient() {
 
   supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
-      storage: createCustomStorage(),
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,

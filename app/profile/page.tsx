@@ -7,12 +7,12 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
-import { ArrowLeft, LogOut, Settings, AlertCircle, Database } from "lucide-react"
+import { ArrowLeft, LogOut, Settings, AlertCircle, Database, RefreshCw } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProfilePage() {
-  const { user, signOut, refreshSession } = useAuth()
+  const { user, signOut, refreshSession, ensureDbSetup } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -21,8 +21,10 @@ export default function ProfilePage() {
   const [setupNeeded, setSetupNeeded] = useState(false)
   const [isSettingUpDatabase, setIsSettingUpDatabase] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
+    // If no user, redirect to login
     if (!user) {
       router.push("/login")
       return
@@ -30,7 +32,9 @@ export default function ProfilePage() {
 
     // Load user profile to get username
     loadUserProfile()
-  }, [user, router])
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, router, retryCount]) // Only depend on user, router, and retryCount to prevent infinite loops
 
   const loadUserProfile = async () => {
     if (!user) return
@@ -39,8 +43,13 @@ export default function ProfilePage() {
       setIsLoadingProfile(true)
       setError(null)
 
-      // Try to refresh the session first
-      await refreshSession()
+      // Ensure database is set up
+      const isDbSetup = await ensureDbSetup()
+      if (!isDbSetup) {
+        setSetupNeeded(true)
+        setIsLoadingProfile(false)
+        return
+      }
 
       const supabase = getSupabaseClient()
 
@@ -50,44 +59,38 @@ export default function ProfilePage() {
           .from("profiles")
           .select("username")
           .eq("id", user.id)
-          .single()
+          .maybeSingle()
 
         if (!profileError && profileData?.username) {
           setUsername(profileData.username)
           setSetupNeeded(false)
+          setIsLoadingProfile(false)
           return
-        } else if (profileError && profileError.message.includes("does not exist")) {
-          console.log("Profiles table doesn't exist")
-          setSetupNeeded(true)
         }
       } catch (error) {
         console.error("Error checking profiles table:", error)
       }
 
-      // If profiles table doesn't exist or no profile found, try user_settings
+      // If no profile found, try user_settings
       try {
         const { data: settingsData, error: settingsError } = await supabase
           .from("user_settings")
           .select("username")
           .eq("user_id", user.id)
-          .single()
+          .maybeSingle()
 
         if (!settingsError && settingsData?.username) {
           setUsername(settingsData.username)
           setSetupNeeded(false)
+          setIsLoadingProfile(false)
           return
-        } else if (settingsError && settingsError.message.includes("does not exist")) {
-          console.log("User settings table doesn't exist")
-          setSetupNeeded(true)
         }
       } catch (error) {
         console.error("Error checking user_settings table:", error)
       }
 
-      // If we got here and no username was set, setup is needed
-      if (!username) {
-        setSetupNeeded(true)
-      }
+      // If we got here, setup is needed
+      setSetupNeeded(true)
     } catch (error) {
       console.error("Error loading user profile:", error)
       setError("Error al cargar el perfil. Por favor, intenta de nuevo.")
@@ -96,16 +99,20 @@ export default function ProfilePage() {
     }
   }
 
-  const setupDatabase = async () => {
-    if (!user) return
-
+  const setupProfile = async () => {
     setIsSettingUpDatabase(true)
     setError(null)
 
     try {
-      router.push("/profile/settings")
+      // Ensure database is set up
+      const isDbSetup = await ensureDbSetup()
+      if (isDbSetup) {
+        router.push("/profile/settings")
+      } else {
+        setError("No se pudo configurar la base de datos. Por favor, intenta de nuevo.")
+      }
     } catch (error) {
-      console.error("Error navigating to settings:", error)
+      console.error("Error setting up profile:", error)
       setError("Error al configurar el perfil. Por favor, intenta de nuevo.")
     } finally {
       setIsSettingUpDatabase(false)
@@ -133,10 +140,25 @@ export default function ProfilePage() {
     }
   }
 
+  const handleRetry = () => {
+    setRetryCount((prev) => prev + 1)
+  }
+
   if (!user || isLoadingProfile) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+      <div className="flex flex-col min-h-screen bg-neutral-50">
+        <header className="p-4 border-b bg-white flex items-center">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="mr-2">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 flex justify-center">
+            <MilyLogo />
+          </div>
+          <div className="w-10"></div>
+        </header>
+        <main className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+        </main>
       </div>
     )
   }
@@ -165,7 +187,8 @@ export default function ProfilePage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   {error}
-                  <Button variant="outline" size="sm" className="ml-2" onClick={loadUserProfile}>
+                  <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry}>
+                    <RefreshCw className="h-3 w-3 mr-1" />
                     Reintentar
                   </Button>
                 </AlertDescription>
@@ -198,7 +221,7 @@ export default function ProfilePage() {
 
             <Button
               variant={setupNeeded ? "default" : "outline"}
-              onClick={setupDatabase}
+              onClick={setupProfile}
               className="w-full"
               disabled={isSettingUpDatabase}
             >

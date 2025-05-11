@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { getSupabaseClient, resetSupabaseClient } from "./supabase-client"
 import type { Session, User } from "@supabase/supabase-js"
 
@@ -35,6 +35,7 @@ interface AuthContextType {
     avatar_url?: string | null
   }) => Promise<{ success: boolean; error: Error | null }>
   refreshSession: () => Promise<void>
+  ensureDbSetup: () => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -49,6 +50,7 @@ const AuthContext = createContext<AuthContextType>({
   updatePassword: async () => ({ success: false, error: new Error("Not implemented") }),
   updateProfile: async () => ({ success: false, error: new Error("Not implemented") }),
   refreshSession: async () => {},
+  ensureDbSetup: async () => false,
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -59,6 +61,106 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [initialized, setInitialized] = useState(false)
+
+  // Function to refresh the session
+  const refreshSession = useCallback(async () => {
+    try {
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.auth.refreshSession()
+
+      if (error) {
+        console.error("Error refreshing session:", error)
+        return
+      }
+
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+      }
+    } catch (err) {
+      console.error("Error in refreshSession:", err)
+    }
+  }, [])
+
+  // Function to ensure database tables are set up
+  const ensureDbSetup = useCallback(async () => {
+    if (!user) return false
+
+    try {
+      const supabase = getSupabaseClient()
+
+      // Check if profiles table exists and has a record for this user
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", user.id)
+          .maybeSingle()
+
+        // If no error and data exists, profile is set up
+        if (!profileError && profileData) {
+          return true
+        }
+
+        // If table doesn't exist or user doesn't have a profile, create it
+        if (profileError || !profileData) {
+          const { error: insertError } = await supabase.from("profiles").upsert({
+            id: user.id,
+            email: user.email || "",
+            username: user.email?.split("@")[0] || "",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+
+          if (insertError && !insertError.message.includes("duplicate key")) {
+            console.error("Error creating profile:", insertError)
+            return false
+          }
+        }
+      } catch (error) {
+        console.error("Error checking profiles:", error)
+      }
+
+      // Check if user_settings table exists and has a record for this user
+      try {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from("user_settings")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle()
+
+        // If no error and data exists, settings are set up
+        if (!settingsError && settingsData) {
+          return true
+        }
+
+        // If table doesn't exist or user doesn't have settings, create them
+        if (settingsError || !settingsData) {
+          const { error: insertError } = await supabase.from("user_settings").upsert({
+            user_id: user.id,
+            username: user.email?.split("@")[0] || "",
+            cycle_duration: 7,
+            cycle_start_day: 1,
+            sweet_dessert_limit: 3,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+
+          if (insertError && !insertError.message.includes("duplicate key")) {
+            console.error("Error creating user settings:", insertError)
+            return false
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user_settings:", error)
+      }
+
+      return true
+    } catch (error) {
+      console.error("Error in ensureDbSetup:", error)
+      return false
+    }
+  }, [user])
 
   // Initialize auth state
   useEffect(() => {
@@ -112,26 +214,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth()
   }, [])
-
-  // Function to refresh the session
-  const refreshSession = async () => {
-    try {
-      const supabase = getSupabaseClient()
-      const { data, error } = await supabase.auth.refreshSession()
-
-      if (error) {
-        console.error("Error refreshing session:", error)
-        return
-      }
-
-      if (data.session) {
-        setSession(data.session)
-        setUser(data.session.user)
-      }
-    } catch (err) {
-      console.error("Error in refreshSession:", err)
-    }
-  }
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
@@ -219,11 +301,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Reset the Supabase client to ensure a clean state
       resetSupabaseClient()
-
-      // Clear any local storage related to auth
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("mily_supabase_auth")
-      }
     } catch (err) {
       console.error("Error in signOut:", err)
       setError(err instanceof Error ? err : new Error(String(err)))
@@ -308,61 +385,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const supabase = getSupabaseClient()
 
-      // First check if the profiles table exists
-      try {
-        const { count, error: countError } = await supabase.from("profiles").select("*", { count: "exact", head: true })
-
-        if (countError && countError.message.includes("does not exist")) {
-          // Table doesn't exist, create it first
-          await supabase.rpc("exec_sql", {
-            sql_query: `
-              CREATE TABLE IF NOT EXISTS public.profiles (
-                id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-                email TEXT NOT NULL,
-                username TEXT UNIQUE,
-                full_name TEXT,
-                avatar_url TEXT,
-                bio TEXT,
-                website TEXT,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-                updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-              );
-              
-              ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-              
-              CREATE POLICY "Public profiles are viewable by everyone" 
-                ON public.profiles FOR SELECT USING (true);
-              
-              CREATE POLICY "Users can insert their own profile" 
-                ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-              
-              CREATE POLICY "Users can update their own profile" 
-                ON public.profiles FOR UPDATE USING (auth.uid() = id);
-            `,
-          })
-        }
-      } catch (error) {
-        console.error("Error checking profiles table:", error)
-        // Continue anyway, we'll handle errors in the upsert
+      // Ensure database is set up
+      const isDbSetup = await ensureDbSetup()
+      if (!isDbSetup) {
+        throw new Error("Database setup failed")
       }
 
-      // Now try to upsert the profile
-      const { error } = await supabase.from("profiles").upsert(
-        [
-          {
-            id: user.id,
-            email: user.email || "",
-            ...fields,
-            updated_at: new Date().toISOString(),
-          },
-        ],
+      // Update profiles table
+      const { error: profileError } = await supabase.from("profiles").upsert(
+        {
+          id: user.id,
+          email: user.email || "",
+          ...fields,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: "id" },
       )
 
-      if (error) {
-        console.error("Update profile error:", error)
-        setError(error)
-        return { success: false, error }
+      if (profileError) {
+        console.error("Update profile error:", profileError)
+        setError(profileError)
+        return { success: false, error: profileError }
+      }
+
+      // Update username in user_settings if provided
+      if (fields.username) {
+        const { error: settingsError } = await supabase
+          .from("user_settings")
+          .update({ username: fields.username, updated_at: new Date().toISOString() })
+          .eq("user_id", user.id)
+
+        if (settingsError) {
+          console.error("Update user_settings error:", settingsError)
+          // Continue anyway, the main profile was updated
+        }
       }
 
       console.log("Profile updated successfully")
@@ -391,6 +447,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updatePassword,
         updateProfile,
         refreshSession,
+        ensureDbSetup,
       }}
     >
       {children}
