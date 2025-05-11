@@ -1,8 +1,7 @@
--- This is the only SQL you need to run in your Supabase project
--- It allows public read access to the meals table, which is necessary for the sharing feature
+-- Allow public access to meals for sharing
+CREATE POLICY "Public can view meals for sharing" ON public.meals
+FOR SELECT USING (true);
 
--- Add a policy to allow public read access to meals
-CREATE POLICY IF NOT EXISTS "Public read access to meals for sharing"
-  ON public.meals
-  FOR SELECT
-  USING (true);
+-- Allow public access to user_settings for sharing
+CREATE POLICY "Public can view user_settings for sharing" ON public.user_settings
+FOR SELECT USING (true);

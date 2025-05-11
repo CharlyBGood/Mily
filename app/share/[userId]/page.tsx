@@ -61,6 +61,7 @@ export default function SharePage() {
 
   const loadUserInfo = async () => {
     try {
+      console.log("Loading user info for userId:", userId)
       const supabase = getSupabaseClient()
 
       // Get user's username and cycle settings
@@ -70,7 +71,13 @@ export default function SharePage() {
         .eq("user_id", userId)
         .single()
 
-      if (!error && data) {
+      if (error) {
+        console.error("Error loading user settings:", error)
+        // Continue with default settings
+      }
+
+      if (data) {
+        console.log("User settings loaded:", data)
         setUsername(data.username || null)
         setCycleSettings({
           cycleDuration: data.cycle_duration || 7,
@@ -79,13 +86,15 @@ export default function SharePage() {
         })
       }
     } catch (error) {
-      console.error("Error loading user info:", error)
+      console.error("Error in loadUserInfo:", error)
+      // Continue with default settings
     }
   }
 
   const loadMeals = async () => {
     setLoading(true)
     try {
+      console.log("Loading meals for userId:", userId)
       const supabase = getSupabaseClient()
 
       // Directly fetch meals for the specified user
@@ -96,8 +105,11 @@ export default function SharePage() {
         .order("created_at", { ascending: false })
 
       if (error) {
+        console.error("Error loading meals:", error)
         throw new Error("Error loading shared content")
       }
+
+      console.log(`Loaded ${data?.length || 0} meals`)
 
       if (data && data.length > 0) {
         // Group meals by day
@@ -115,6 +127,7 @@ export default function SharePage() {
       } else {
         setGroupedMeals([])
         setCycleGroups([])
+        setError("No hay comidas compartidas")
       }
     } catch (error) {
       console.error("Error loading meals:", error)
