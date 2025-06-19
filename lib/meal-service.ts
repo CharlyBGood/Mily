@@ -1,5 +1,9 @@
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
 import { v4 as uuidv4 } from "uuid"
 import { getSupabaseClient } from "./supabase-client"
+import { useStorage } from "./storage-provider"
 import type { Meal } from "./types"
 
 // Helper function to upload an image to Supabase Storage
@@ -191,4 +195,53 @@ export async function deleteMeal(mealId: string): Promise<{ success: boolean; er
     console.error("Error in deleteMeal:", error)
     return { success: false, error }
   }
+}
+
+// ---------------------------------------------
+// React hook: useMealService
+// Provides an easy client-side facade around the
+// storage-layer helpers above.
+// ---------------------------------------------
+export function useMealService() {
+  // Grab the storage-aware helpers (local or Supabase)
+  const { getUserMeals, deleteMeal, saveMeal } = useStorage()
+
+  const [meals, setMeals] = useState<Meal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch / refresh meals
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    const { success, data, error } = await getUserMeals()
+
+    if (success && data) {
+      setMeals(data)
+      setError(null)
+    } else {
+      setError(error?.message || "Error al cargar comidas")
+    }
+    setLoading(false)
+  }, [getUserMeals])
+
+  // Initial fetch
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  // Delete a meal and refresh state
+  const removeMeal = async (id: string) => {
+    const { success, error } = await deleteMeal(id)
+    if (!success) throw error
+    setMeals((prev) => prev.filter((m) => m.id !== id))
+  }
+
+  // Update / save a meal, then refresh state
+  const updateMeal = async (id: string, updated: Meal) => {
+    const { success, error } = await saveMeal({ ...updated, id })
+    if (!success) throw error
+    await refresh()
+  }
+
+  return { meals, loading, error, deleteMeal: removeMeal, updateMeal, refresh }
 }

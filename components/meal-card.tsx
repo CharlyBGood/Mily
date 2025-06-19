@@ -35,7 +35,7 @@ export default function MealCard({
   let formattedTime = ""
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [imageDimensions, setImageDimensions] = useState({ width: "auto", height: "auto" })
+  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
   const [showPhotoViewer, setShowPhotoViewer] = useState(false)
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -66,7 +66,8 @@ export default function MealCard({
 
   const handleImageLoad = () => {
     if (imageRef.current) {
-      calculateImageDimensions()
+      const { naturalWidth, naturalHeight } = imageRef.current
+      setImageDimensions({ width: naturalWidth, height: naturalHeight })
     }
     setImageLoaded(true)
     setImageError(false)
@@ -84,45 +85,6 @@ export default function MealCard({
     }
   }
 
-  const calculateImageDimensions = () => {
-    if (!imageRef.current || !containerRef.current) return
-
-    const containerWidth = containerRef.current.clientWidth
-    const naturalWidth = imageRef.current.naturalWidth
-    const naturalHeight = imageRef.current.naturalHeight
-
-    if (naturalWidth <= containerWidth) {
-      setImageDimensions({
-        width: `${naturalWidth}px`,
-        height: `${naturalHeight}px`,
-      })
-    } else {
-      const aspectRatio = naturalWidth / naturalHeight
-      const scaledHeight = containerWidth / aspectRatio
-
-      setImageDimensions({
-        width: "100%",
-        height: `${scaledHeight}px`,
-      })
-    }
-  }
-
-  useEffect(() => {
-    const handleResize = () => {
-      calculateImageDimensions()
-    }
-
-    window.addEventListener("resize", handleResize)
-
-    if (imageLoaded && imageRef.current) {
-      calculateImageDimensions()
-    }
-
-    return () => {
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [imageLoaded])
-
   useEffect(() => {
     if (isPdfMode && meal.photo_url && imageRef.current) {
       const img = new Image()
@@ -138,24 +100,41 @@ export default function MealCard({
     }
   }, [isPdfMode, meal.photo_url])
 
+  // Calculate card width based on image dimensions and screen size
+  const getCardStyle = () => {
+    if (!imageLoaded || !imageDimensions.width || isPdfMode) {
+      return { maxWidth: "100%" }
+    }
+
+    const screenWidth = typeof window !== "undefined" ? window.innerWidth : 400
+    const maxCardWidth = screenWidth < 640 ? screenWidth - 32 : 500 // 16px padding on each side for mobile
+    const imageWidth = Math.min(imageDimensions.width, maxCardWidth)
+
+    return {
+      width: `${imageWidth}px`,
+      maxWidth: "100%",
+    }
+  }
+
   return (
     <>
       <Card
-        className={`overflow-hidden shadow-sm w-full max-w-md mx-auto mb-3 sm:mb-4 ${isPdfMode ? "pdf-meal-card" : ""}`}
+        className={`overflow-hidden shadow-lg border-0 bg-white/80 backdrop-blur-sm mb-4 sm:mb-6 mx-auto transition-all duration-300 hover:shadow-xl hover:bg-white/90 ${isPdfMode ? "pdf-meal-card" : ""}`}
+        style={getCardStyle()}
       >
         {meal.photo_url && !imageError && (
-          <div ref={containerRef} className="bg-white flex justify-center w-full meal-image-container relative group">
+          <div ref={containerRef} className="relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 group">
             <img
               ref={imageRef}
               src={meal.photo_url || "/placeholder.svg"}
               alt={meal.description}
-              className={`object-contain cursor-pointer transition-all duration-200 ${isPdfMode ? "pdf-image" : "hover:brightness-95"}`}
+              className={`w-full h-auto object-contain cursor-pointer transition-all duration-300 ${
+                isPdfMode ? "pdf-image" : "group-hover:scale-[1.02]"
+              }`}
               style={{
-                width: imageDimensions.width,
-                height: imageDimensions.height,
-                maxWidth: "100%",
-                maxHeight: "300px",
                 display: "block",
+                maxWidth: "100%",
+                height: "auto",
               }}
               onLoad={handleImageLoad}
               onError={handleImageError}
@@ -163,42 +142,57 @@ export default function MealCard({
               crossOrigin="anonymous"
             />
             {!isPdfMode && (
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <div className="bg-white/90 rounded-full p-2 shadow-lg">
-                  <Expand className="h-4 w-4 text-gray-700" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="bg-white/95 rounded-full p-3 shadow-lg transform scale-90 group-hover:scale-100 transition-transform duration-200">
+                  <Expand className="h-5 w-5 text-gray-700" />
                 </div>
               </div>
             )}
+            {/* Subtle gradient overlay for better text readability */}
+            <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
           </div>
         )}
-        <CardContent className={`p-3 sm:p-4 ${isPdfMode ? "card-content" : ""}`}>
-          <div className="flex flex-col mb-2">
-            <h3 className="font-medium text-lg sm:text-xl line-clamp-2">{meal.description}</h3>
-            <div className="text-sm sm:text-base font-medium text-teal-600 mt-1">
-              {getMealTypeLabel(meal.meal_type)}
+
+        <CardContent className={`p-4 sm:p-6 ${isPdfMode ? "card-content" : ""}`}>
+          <div className="space-y-3">
+            <div className="flex flex-col space-y-2">
+              <h3 className="font-semibold text-xl sm:text-2xl text-gray-900 leading-tight">{meal.description}</h3>
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-teal-100 text-teal-800 w-fit">
+                {getMealTypeLabel(meal.meal_type)}
+              </div>
             </div>
+
             {showTime && formattedDate && formattedTime && (
-              <div className="text-sm sm:text-base text-neutral-500 mt-2 font-medium">
-                {formattedDate} • {formattedTime}
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                  <span className="font-medium">{formattedDate}</span>
+                </div>
+                <span>•</span>
+                <span className="font-medium">{formattedTime}</span>
+              </div>
+            )}
+
+            {meal.notes && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg border-l-4 border-teal-500">
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{meal.notes}</p>
               </div>
             )}
           </div>
-
-          {meal.notes && <div className="mt-3 text-sm sm:text-base text-neutral-600 line-clamp-3">{meal.notes}</div>}
         </CardContent>
 
         {!isPdfMode && (showDeleteButton || showEditButton) && (onDelete || onEdit) && (
-          <CardFooter className="px-3 sm:px-4 py-2 sm:py-3 border-t bg-neutral-50 flex justify-between">
-            <div className="flex space-x-2">
+          <CardFooter className="px-4 sm:px-6 py-3 sm:py-4 bg-gray-50/80 border-t border-gray-100">
+            <div className="flex justify-end space-x-2 w-full">
               {showEditButton && onEdit && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 h-8 sm:h-9 px-2 sm:px-3"
+                  className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 h-9 px-4 rounded-lg font-medium transition-all duration-200"
                   onClick={handleEdit}
                 >
-                  <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="text-xs sm:text-sm">Editar</span>
+                  <Edit className="h-4 w-4 mr-2" />
+                  <span>Editar</span>
                 </Button>
               )}
 
@@ -206,11 +200,11 @@ export default function MealCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 sm:h-9 px-2 sm:px-3"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-9 px-4 rounded-lg font-medium transition-all duration-200"
                   onClick={handleDelete}
                 >
-                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="text-xs sm:text-sm">Eliminar</span>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span>Eliminar</span>
                 </Button>
               )}
             </div>

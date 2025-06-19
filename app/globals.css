@@ -10,7 +10,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 173 80% 40%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --ring: 173 80% 40%;
     --radius: 0.5rem;
   }
 
@@ -33,7 +33,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
+    --primary: 173 80% 40%;
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -45,7 +45,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --ring: 173 80% 40%;
   }
 }
 
@@ -55,66 +55,43 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 /* Enhanced safe area utilities */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .h-safe-area {
-    height: env(safe-area-inset-bottom);
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
   }
 }
 
 /* Mobile-first optimizations */
 @layer utilities {
-  /* Safe area handling for mobile devices */
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .pl-safe {
-    padding-left: env(safe-area-inset-left);
-  }
-
-  .pr-safe {
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* Text truncation utilities */
-  .line-clamp-1 {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-  }
-
-  .line-clamp-2 {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-
-  .line-clamp-3 {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-  }
-
   /* Touch-friendly scrolling */
   .scroll-smooth {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Mobile-optimized focus states */
+  /* Better focus states for mobile */
   .focus-visible:focus-visible {
     @apply outline-2 outline-offset-2 outline-teal-600;
+  }
+
+  /* Image optimization */
+  .image-crisp {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
 }
 
@@ -132,7 +109,8 @@
   /* Better text readability on mobile */
   body {
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
   }
 
   /* Prevent zoom on input focus */
@@ -147,8 +125,13 @@
 
   /* Optimize modal dialogs for mobile */
   [role="dialog"] {
-    margin: 1rem;
-    max-height: calc(100vh - 2rem);
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
+  }
+
+  /* Better card spacing on mobile */
+  .meal-card-container {
+    padding: 0 1rem;
   }
 }
 
@@ -170,16 +153,23 @@
   }
 }
 
-/* Image container styles */
+/* Enhanced image container styles */
 .meal-image-container {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
-  min-height: 50px;
-  max-height: none; /* Remove max-height constraint to allow dynamic sizing */
   overflow: hidden;
-  background-color: #f9f9f9;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* Original size image handling */
+.original-size-image {
+  width: auto !important;
+  height: auto !important;
+  max-width: 100%;
+  display: block;
+  object-fit: contain;
 }
 
 /* PDF export specific styles */
@@ -207,6 +197,7 @@
 .pdf-meal-card {
   break-inside: avoid;
   page-break-inside: avoid;
+  margin-bottom: 1rem;
 }
 
 .pdf-meal-card .meal-image-container {
@@ -244,22 +235,6 @@
   aspect-ratio: auto !important;
 }
 
-.pdf-render-container .meal-image-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  overflow: hidden;
-}
-
-.pdf-render-container .meal-image-container img {
-  max-width: 100%;
-  width: auto !important;
-  height: auto !important;
-  object-fit: contain !important;
-  aspect-ratio: auto !important;
-}
-
 /* Print styles */
 @media print {
   .no-print {
@@ -272,7 +247,7 @@
   }
 
   .pdf-image {
-    max-height: 300px;
+    max-height: 400px;
     width: auto;
   }
 
@@ -284,5 +259,52 @@
   .meal-card {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+}
+
+/* Enhanced mobile layout */
+@media (max-width: 640px) {
+  .meal-history-container {
+    padding-bottom: 5rem; /* Space for bottom navigation */
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Better backdrop blur support */
+@supports (backdrop-filter: blur(10px)) {
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+  }
+  .backdrop-blur-md {
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* Fallback for browsers without backdrop-filter */
+@supports not (backdrop-filter: blur(10px)) {
+  .backdrop-blur-sm {
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+  .backdrop-blur-md {
+    background-color: rgba(255, 255, 255, 0.9);
   }
 }
