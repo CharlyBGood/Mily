@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { X, ZoomIn, ZoomOut, RotateCw, Download } from "lucide-react"
+import { X, ZoomIn, ZoomOut, RotateCw, Download, Share2 } from "lucide-react"
 
 interface PhotoViewerProps {
   src: string
@@ -20,6 +20,8 @@ export default function PhotoViewer({ src, alt, isOpen, onClose }: PhotoViewerPr
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [showControls, setShowControls] = useState(true)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -27,29 +29,61 @@ export default function PhotoViewer({ src, alt, isOpen, onClose }: PhotoViewerPr
       setZoom(1)
       setRotation(0)
       setPosition({ x: 0, y: 0 })
+      setImageLoaded(false)
+      setShowControls(true)
     }
   }, [isOpen])
 
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev + 0.25, 3))
-  }
+  // Auto-hide controls on mobile after 3 seconds
+  useEffect(() => {
+    if (isOpen && showControls) {
+      const timer = setTimeout(() => {
+        setShowControls(false)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen, showControls])
 
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev - 0.25, 0.5))
-  }
+  const handleZoomIn = useCallback(() => {
+    setZoom((prev) => Math.min(prev + 0.5, 4))
+  }, [])
 
-  const handleRotate = () => {
+  const handleZoomOut = useCallback(() => {
+    setZoom((prev) => Math.max(prev - 0.5, 0.5))
+  }, [])
+
+  const handleRotate = useCallback(() => {
     setRotation((prev) => (prev + 90) % 360)
-  }
+  }, [])
 
-  const handleDownload = async () => {
+  const handleReset = useCallback(() => {
+    setZoom(1)
+    setRotation(0)
+    setPosition({ x: 0, y: 0 })
+  }, [])
+
+  const handleShare = useCallback(async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: alt,
+          text: `Mira esta foto: ${alt}`,
+          url: src,
+        })
+      } catch (error) {
+        console.log("Error sharing:", error)
+      }
+    }
+  }, [alt, src])
+
+  const handleDownload = useCallback(async () => {
     try {
       const response = await fetch(src)
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = alt || "image"
+      a.download = `${alt || "imagen"}.jpg`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -57,119 +91,183 @@ export default function PhotoViewer({ src, alt, isOpen, onClose }: PhotoViewerPr
     } catch (error) {
       console.error("Error downloading image:", error)
     }
-  }
+  }, [src, alt])
 
+  // Touch and mouse event handlers
+  const handleStart = useCallback(
+    (clientX: number, clientY: number) => {
+      if (zoom > 1) {
+        setIsDragging(true)
+        setDragStart({
+          x: clientX - position.x,
+          y: clientY - position.y,
+        })
+      }
+      setShowControls(true)
+    },
+    [zoom, position],
+  )
+
+  const handleMove = useCallback(
+    (clientX: number, clientY: number) => {
+      if (isDragging && zoom > 1) {
+        setPosition({
+          x: clientX - dragStart.x,
+          y: clientY - dragStart.y,
+        })
+      }
+    },
+    [isDragging, zoom, dragStart],
+  )
+
+  const handleEnd = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  // Mouse events
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1) {
-      setIsDragging(true)
-      setDragStart({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      })
-    }
+    e.preventDefault()
+    handleStart(e.clientX, e.clientY)
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoom > 1) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      })
-    }
+    handleMove(e.clientX, e.clientY)
   }
 
-  const handleMouseUp = () => {
-    setIsDragging(false)
+  // Touch events
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault()
+    const touch = e.touches[0]
+    handleStart(touch.clientX, touch.clientY)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault()
+    const touch = e.touches[0]
+    handleMove(touch.clientX, touch.clientY)
+  }
+
+  const handleImageClick = () => {
+    setShowControls(!showControls)
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto h-auto p-0 bg-black/95 border-0">
-        <div className="relative w-full h-full flex items-center justify-center">
-          {/* Controls */}
-          <div className="absolute top-4 right-4 z-50 flex items-center space-x-2">
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={handleZoomOut}
-              disabled={zoom <= 0.5}
-              className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={handleZoomIn}
-              disabled={zoom >= 3}
-              className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={handleRotate}
-              className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-            >
-              <RotateCw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={handleDownload}
-              className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={onClose}
-              className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+      <DialogContent className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 bg-black border-0 m-0">
+        <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+          {/* Top Controls */}
+          <div
+            className={`absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/50 to-transparent p-4 transition-all duration-300 ${showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full"}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-medium">
+                  {Math.round(zoom * 100)}%
+                </div>
+              </div>
 
-          {/* Zoom indicator */}
-          <div className="absolute top-4 left-4 z-50">
-            <div className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-medium">
-              {Math.round(zoom * 100)}%
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleShare}
+                  className="text-white hover:bg-white/20 h-10 w-10 rounded-full"
+                >
+                  <Share2 className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDownload}
+                  className="text-white hover:bg-white/20 h-10 w-10 rounded-full"
+                >
+                  <Download className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className="text-white hover:bg-white/20 h-10 w-10 rounded-full"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Image */}
+          {/* Image Container */}
           <div
-            className="relative overflow-hidden cursor-move"
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            className="relative w-full h-full flex items-center justify-center cursor-pointer"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseUp={handleEnd}
+            onMouseLeave={handleEnd}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleEnd}
+            onClick={handleImageClick}
           >
             <img
               src={src || "/placeholder.svg"}
               alt={alt}
-              className="max-w-full max-h-full object-contain transition-transform duration-200 ease-out"
+              className="max-w-full max-h-full object-contain transition-transform duration-200 ease-out select-none"
               style={{
                 transform: `scale(${zoom}) rotate(${rotation}deg) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
-                cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
+                cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "pointer",
               }}
               draggable={false}
+              onLoad={() => setImageLoaded(true)}
             />
           </div>
 
-          {/* Instructions */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50">
-            <div className="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm">
-              {zoom > 1 ? "Arrastra para mover • " : ""}Usa los controles para zoom y rotación
+          {/* Bottom Controls */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black/50 to-transparent p-4 transition-all duration-300 ${showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-full"}`}
+          >
+            <div className="flex items-center justify-center space-x-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleZoomOut}
+                disabled={zoom <= 0.5}
+                className="text-white hover:bg-white/20 h-12 w-12 rounded-full disabled:opacity-50"
+              >
+                <ZoomOut className="h-5 w-5" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRotate}
+                className="text-white hover:bg-white/20 h-12 w-12 rounded-full"
+              >
+                <RotateCw className="h-5 w-5" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                onClick={handleReset}
+                className="text-white hover:bg-white/20 h-12 px-6 rounded-full font-medium"
+              >
+                Restablecer
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleZoomIn}
+                disabled={zoom >= 4}
+                className="text-white hover:bg-white/20 h-12 w-12 rounded-full disabled:opacity-50"
+              >
+                <ZoomIn className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Instructions */}
+            <div className="text-center mt-3">
+              <p className="text-white/80 text-sm">
+                {zoom > 1 ? "Arrastra para mover • " : ""}Toca para mostrar/ocultar controles
+              </p>
             </div>
           </div>
         </div>

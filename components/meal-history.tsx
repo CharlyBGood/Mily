@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
@@ -24,14 +24,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { Input } from "@/components/ui/input"
 import ShareDropdown from "./share-dropdown"
 
 export default function MealHistory() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
   const [cycleGroups, setCycleGroups] = useState<CycleGroup[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
+  const [filteredMeals, setFilteredMeals] = useState<Meal[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -42,6 +45,7 @@ export default function MealHistory() {
   const [cycleStartDay, setCycleStartDay] = useState(1)
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
   const { user } = useAuth()
@@ -67,17 +71,35 @@ export default function MealHistory() {
     return () => clearTimeout(timer)
   }, [user, storageType, mounted])
 
+  // Filter meals based on search query
   useEffect(() => {
-    if (cycleSettingsLoaded && meals && Array.isArray(meals) && meals.length > 0) {
+    if (!searchQuery.trim()) {
+      setFilteredMeals(meals)
+    } else {
+      const filtered = meals.filter(
+        (meal) =>
+          meal.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (meal.notes && meal.notes.toLowerCase().includes(searchQuery.toLowerCase())),
+      )
+      setFilteredMeals(filtered)
+    }
+  }, [meals, searchQuery])
+
+  useEffect(() => {
+    if (cycleSettingsLoaded && filteredMeals && Array.isArray(filteredMeals) && filteredMeals.length > 0) {
       try {
-        const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
+        const cycles = groupMealsByCycle(filteredMeals, cycleDuration, cycleStartDay)
         setCycleGroups(Array.isArray(cycles) ? cycles : [])
+
+        const grouped = groupMealsByDay(filteredMeals)
+        setGroupedMeals(Array.isArray(grouped) ? grouped : [])
       } catch (error) {
-        console.error("Error grouping meals by cycle:", error)
+        console.error("Error grouping meals:", error)
         setCycleGroups([])
+        setGroupedMeals([])
       }
     }
-  }, [cycleDuration, cycleStartDay, cycleSettingsLoaded, meals])
+  }, [cycleDuration, cycleStartDay, cycleSettingsLoaded, filteredMeals])
 
   const loadMeals = async () => {
     if (storageType === "supabase" && !user) {
@@ -128,22 +150,7 @@ export default function MealHistory() {
 
       const mealsArray = Array.isArray(data) ? data : []
       setMeals(mealsArray)
-
-      try {
-        const grouped = groupMealsByDay(mealsArray)
-        setGroupedMeals(Array.isArray(grouped) ? grouped : [])
-      } catch (groupError) {
-        console.error("Error grouping meals by day:", groupError)
-        setGroupedMeals([])
-      }
-
-      try {
-        const cycles = groupMealsByCycle(mealsArray, cycleDuration, cycleStartDay)
-        setCycleGroups(Array.isArray(cycles) ? cycles : [])
-      } catch (cycleError) {
-        console.error("Error grouping meals by cycle:", cycleError)
-        setCycleGroups([])
-      }
+      setFilteredMeals(mealsArray)
 
       setExpandedCycle(null)
       setDataInitialized(true)
@@ -238,31 +245,29 @@ export default function MealHistory() {
 
   if (!mounted) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-4 sm:p-8">
-        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-teal-600 mb-4 sm:mb-6"></div>
-        <p className="text-neutral-600 text-sm sm:text-lg">Cargando historial...</p>
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-6"></div>
+        <p className="text-neutral-600 text-lg">Cargando historial...</p>
       </div>
     )
   }
 
   if (storageType === "supabase" && !user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-8 text-center">
-        <Card className="p-6 sm:p-8 max-w-md mx-auto w-full">
-          <CardContent className="space-y-4 sm:space-y-6">
-            <div className="text-neutral-400">
-              <Database className="h-16 w-16 sm:h-20 sm:w-20 mx-auto" />
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
+        <Card className="p-8 max-w-md mx-auto w-full bg-gradient-to-br from-teal-50 to-blue-50 border-0 shadow-xl">
+          <CardContent className="space-y-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-full flex items-center justify-center mx-auto">
+              <Database className="h-10 w-10 text-white" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-2">Inicia sesión para ver tu historial</h3>
-              <p className="text-neutral-600 text-sm sm:text-base mb-4 sm:mb-6">
-                Debes iniciar sesión para ver tu historial de comidas
-              </p>
+              <h3 className="text-2xl font-bold mb-3 text-gray-900">Inicia sesión</h3>
+              <p className="text-gray-600 text-lg mb-6">Debes iniciar sesión para ver tu historial de comidas</p>
             </div>
             <Button
               variant="default"
               onClick={() => router.push("/login")}
-              className="w-full h-11 sm:h-12 bg-teal-600 hover:bg-teal-700"
+              className="w-full h-14 text-lg bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 rounded-xl shadow-lg"
             >
               Iniciar sesión
             </Button>
@@ -274,26 +279,26 @@ export default function MealHistory() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-8">
-        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-teal-600 mb-4 sm:mb-6"></div>
-        <p className="text-neutral-600 text-sm sm:text-lg">Cargando historial...</p>
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-6"></div>
+        <p className="text-neutral-600 text-lg">Cargando historial...</p>
       </div>
     )
   }
 
   if (loadError) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-8 text-center">
-        <Card className="p-6 sm:p-8 max-w-md mx-auto w-full">
-          <CardContent className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
+        <Card className="p-8 max-w-md mx-auto w-full">
+          <CardContent className="space-y-6">
             <div className="text-red-400">
-              <AlertCircle className="h-16 w-16 sm:h-20 sm:w-20 mx-auto" />
+              <AlertCircle className="h-20 w-20 mx-auto" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-2">Error al cargar el historial</h3>
-              <p className="text-neutral-600 text-sm sm:text-base mb-4 sm:mb-6">{loadError}</p>
+              <h3 className="text-xl font-semibold mb-2">Error al cargar el historial</h3>
+              <p className="text-neutral-600 mb-6">{loadError}</p>
             </div>
-            <Button variant="default" onClick={handleRefresh} className="w-full h-11 sm:h-12">
+            <Button variant="default" onClick={handleRefresh} className="w-full h-12">
               <RefreshCw className="h-4 w-4 mr-2" />
               Intentar nuevamente
             </Button>
@@ -305,39 +310,25 @@ export default function MealHistory() {
 
   // Safe check for meals array
   const safeMeals = Array.isArray(meals) ? meals : []
+  const safeFilteredMeals = Array.isArray(filteredMeals) ? filteredMeals : []
   const safeGroupedMeals = Array.isArray(groupedMeals) ? groupedMeals : []
   const safeCycleGroups = Array.isArray(cycleGroups) ? cycleGroups : []
 
   if (safeMeals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-8 text-center">
-        <Card className="p-6 sm:p-8 max-w-md mx-auto w-full">
-          <CardContent className="space-y-4 sm:space-y-6">
-            <div className="text-neutral-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mx-auto sm:w-20 sm:h-20"
-              >
-                <rect width="18" height="18" x="3" y="3" rx="2" />
-                <path d="M3 9h18" />
-                <path d="M9 21V9" />
-              </svg>
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
+        <Card className="p-8 max-w-md mx-auto w-full bg-gradient-to-br from-gray-50 to-gray-100 border-0 shadow-xl">
+          <CardContent className="space-y-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-gray-300 to-gray-400 rounded-full flex items-center justify-center mx-auto">
+              <Calendar className="h-10 w-10 text-white" />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-2">No hay comidas registradas</h3>
-              <p className="text-neutral-600 text-sm sm:text-base mb-4 sm:mb-6">
-                Tus comidas registradas aparecerán aquí
+              <h3 className="text-2xl font-bold mb-3 text-gray-900">¡Comienza tu diario!</h3>
+              <p className="text-gray-600 text-lg mb-6">
+                Aún no has registrado ninguna comida. ¡Agrega tu primera comida para comenzar!
               </p>
             </div>
-            <Button variant="outline" onClick={handleRefresh} className="w-full h-11 sm:h-12">
+            <Button variant="outline" onClick={handleRefresh} className="w-full h-12 rounded-xl">
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualizar
             </Button>
@@ -347,87 +338,87 @@ export default function MealHistory() {
     )
   }
 
-  if (!dataInitialized) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 sm:p-8">
-        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-teal-600 mb-4 sm:mb-6"></div>
-        <p className="text-neutral-600 text-sm sm:text-lg">Inicializando datos...</p>
-      </div>
-    )
-  }
-
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-6">
-          {/* Mobile-optimized header */}
-          <div className="mb-4 sm:mb-6">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">Mi Historial</h1>
-            <p className="text-gray-600 text-sm sm:text-base">Revisa y gestiona tu registro alimentario</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          {/* Header */}
+          <div className="mb-6">
+            <Card className="bg-gradient-to-r from-teal-500 to-blue-500 border-0 shadow-xl text-white">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                  <div>
+                    <CardTitle className="text-2xl sm:text-3xl font-bold">Mi Historial</CardTitle>
+                    <p className="text-teal-100 mt-1">Revisa y gestiona tu registro alimentario</p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      {safeFilteredMeals.length} comidas
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
           </div>
 
-          {/* Cycle Info Alert - Mobile optimized */}
-          {cycleSettingsLoaded && (
-            <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
-              <Calendar className="h-4 w-4 text-teal-600 flex-shrink-0" />
-              <AlertDescription className="text-teal-800 text-xs sm:text-sm">
-                <span className="font-medium">Ciclo actual:</span>
-                <span className="ml-1 sm:ml-2">
-                  Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
-                </span>
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* Search and Controls */}
+          <Card className="mb-6 shadow-lg border-0">
+            <CardContent className="p-4">
+              {/* Search Bar */}
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input
+                    placeholder="Buscar comidas..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 h-12 rounded-xl border-gray-200 focus:border-teal-500 focus:ring-teal-500"
+                  />
+                </div>
+              </div>
 
-          {/* Mobile-first controls */}
-          <Card className="mb-4 sm:mb-6 shadow-sm">
-            <CardContent className="p-3 sm:p-4">
-              {/* Mobile layout */}
+              {/* Mobile Controls */}
               <div className="block sm:hidden space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex bg-gray-100 rounded-lg p-1">
+                  <div className="flex bg-gray-100 rounded-xl p-1">
                     <Button
                       variant={viewMode === "cycles" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("cycles")}
-                      className={`flex items-center text-xs px-2 py-1 h-8 ${
-                        viewMode === "cycles"
-                          ? "bg-orange-500 hover:bg-orange-600 text-white shadow-sm"
-                          : "text-orange-600 hover:bg-orange-50"
+                      className={`flex items-center text-sm px-3 py-2 h-10 rounded-lg ${
+                        viewMode === "cycles" ? "bg-white shadow-sm text-teal-600" : "text-gray-600 hover:text-teal-600"
                       }`}
                     >
-                      <LayoutGrid className="h-3 w-3 mr-1" />
+                      <LayoutGrid className="h-4 w-4 mr-2" />
                       Ciclos
                     </Button>
                     <Button
                       variant={viewMode === "days" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("days")}
-                      className={`flex items-center text-xs px-2 py-1 h-8 ${
-                        viewMode === "days"
-                          ? "bg-green-500 hover:bg-green-600 text-white shadow-sm"
-                          : "text-green-600 hover:bg-green-50"
+                      className={`flex items-center text-sm px-3 py-2 h-10 rounded-lg ${
+                        viewMode === "days" ? "bg-white shadow-sm text-teal-600" : "text-gray-600 hover:text-teal-600"
                       }`}
                     >
-                      <List className="h-3 w-3 mr-1" />
+                      <List className="h-4 w-4 mr-2" />
                       Días
                     </Button>
                   </div>
 
                   <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="sm" className="px-3 h-8 text-xs">
-                        <Filter className="h-3 w-3 mr-1" />
+                      <Button variant="outline" size="sm" className="px-4 h-10 rounded-lg">
+                        <Filter className="h-4 w-4 mr-2" />
                         Opciones
                       </Button>
                     </SheetTrigger>
-                    <SheetContent side="bottom" className="h-auto max-h-[80vh]">
-                      <SheetHeader className="pb-4">
+                    <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
+                      <SheetHeader className="pb-6">
                         <SheetTitle>Opciones</SheetTitle>
                       </SheetHeader>
-                      <div className="grid grid-cols-2 gap-3 pb-6">
-                        <Button variant="outline" onClick={handleRefresh} className="h-12">
-                          <RefreshCw className="h-4 w-4 mr-2" />
+                      <div className="grid grid-cols-2 gap-4 pb-8">
+                        <Button variant="outline" onClick={handleRefresh} className="h-14 rounded-xl">
+                          <RefreshCw className="h-5 w-5 mr-2" />
                           Actualizar
                         </Button>
                         <Button
@@ -436,9 +427,9 @@ export default function MealHistory() {
                             router.push("/profile/settings")
                             setShowMobileFilters(false)
                           }}
-                          className="h-12"
+                          className="h-14 rounded-xl"
                         >
-                          <Settings className="h-4 w-4 mr-2" />
+                          <Settings className="h-5 w-5 mr-2" />
                           Configurar
                         </Button>
                         {storageType === "local" && user && (
@@ -448,9 +439,9 @@ export default function MealHistory() {
                               router.push("/migrate")
                               setShowMobileFilters(false)
                             }}
-                            className="h-12 text-teal-600 border-teal-600 hover:bg-teal-50"
+                            className="h-14 rounded-xl text-teal-600 border-teal-600 hover:bg-teal-50"
                           >
-                            <Database className="h-4 w-4 mr-2" />
+                            <Database className="h-5 w-5 mr-2" />
                             Migrar
                           </Button>
                         )}
@@ -463,22 +454,20 @@ export default function MealHistory() {
                 </div>
               </div>
 
-              {/* Desktop layout */}
+              {/* Desktop Controls */}
               <div className="hidden sm:flex flex-wrap gap-3 items-center">
-                <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
+                <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0 rounded-lg">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Actualizar
                 </Button>
 
-                <div className="flex bg-gray-100 rounded-lg p-1">
+                <div className="flex bg-gray-100 rounded-xl p-1">
                   <Button
                     variant={viewMode === "cycles" ? "default" : "ghost"}
                     size="sm"
                     onClick={() => setViewMode("cycles")}
-                    className={`flex items-center ${
-                      viewMode === "cycles"
-                        ? "bg-orange-500 hover:bg-orange-600 text-white shadow-sm"
-                        : "text-orange-600 hover:bg-orange-50"
+                    className={`flex items-center rounded-lg ${
+                      viewMode === "cycles" ? "bg-white shadow-sm text-teal-600" : "text-gray-600 hover:text-teal-600"
                     }`}
                   >
                     <LayoutGrid className="h-4 w-4 mr-2" />
@@ -488,10 +477,8 @@ export default function MealHistory() {
                     variant={viewMode === "days" ? "default" : "ghost"}
                     size="sm"
                     onClick={() => setViewMode("days")}
-                    className={`flex items-center ${
-                      viewMode === "days"
-                        ? "bg-green-500 hover:bg-green-600 text-white shadow-sm"
-                        : "text-green-600 hover:bg-green-50"
+                    className={`flex items-center rounded-lg ${
+                      viewMode === "days" ? "bg-white shadow-sm text-teal-600" : "text-gray-600 hover:text-teal-600"
                     }`}
                   >
                     <List className="h-4 w-4 mr-2" />
@@ -503,7 +490,7 @@ export default function MealHistory() {
                   variant="outline"
                   size="sm"
                   onClick={() => router.push("/profile/settings")}
-                  className="flex items-center"
+                  className="flex items-center rounded-lg"
                 >
                   <Settings className="h-4 w-4 mr-2" />
                   Configurar
@@ -517,7 +504,7 @@ export default function MealHistory() {
                       variant="outline"
                       size="sm"
                       onClick={() => router.push("/migrate")}
-                      className="text-teal-600 border-teal-600 hover:bg-teal-50 flex-shrink-0"
+                      className="text-teal-600 border-teal-600 hover:bg-teal-50 flex-shrink-0 rounded-lg"
                     >
                       <Database className="h-4 w-4 mr-2" />
                       Migrar
@@ -529,8 +516,21 @@ export default function MealHistory() {
             </CardContent>
           </Card>
 
-          {/* Content Section - Mobile optimized spacing */}
-          <div className="space-y-3 sm:space-y-4">
+          {/* Cycle Info Alert */}
+          {cycleSettingsLoaded && (
+            <Alert className="mb-6 border-teal-200 bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl">
+              <Calendar className="h-5 w-5 text-teal-600 flex-shrink-0" />
+              <AlertDescription className="text-teal-800 font-medium">
+                <span className="font-semibold">Ciclo actual:</span>
+                <span className="ml-2">
+                  Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Content Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {viewMode === "days"
               ? safeGroupedMeals.map((group) => (
                   <DaySection
@@ -559,15 +559,27 @@ export default function MealHistory() {
                 ))}
           </div>
 
-          {/* Empty State for View Mode */}
-          {viewMode === "cycles" && safeCycleGroups.length === 0 && safeMeals.length > 0 && (
-            <Card className="p-6 sm:p-8 text-center">
+          {/* Empty Search Results */}
+          {searchQuery && safeFilteredMeals.length === 0 && safeMeals.length > 0 && (
+            <Card className="p-8 text-center mt-8">
               <CardContent>
-                <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No hay ciclos con comidas</h3>
-                <p className="text-gray-600 text-sm sm:text-base">
-                  Tus comidas se agruparán por ciclos una vez que tengas registros
-                </p>
+                <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No se encontraron resultados</h3>
+                <p className="text-gray-600">No hay comidas que coincidan con "{searchQuery}"</p>
+                <Button variant="outline" onClick={() => setSearchQuery("")} className="mt-4 rounded-lg">
+                  Limpiar búsqueda
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Empty State for View Mode */}
+          {viewMode === "cycles" && safeCycleGroups.length === 0 && safeFilteredMeals.length > 0 && (
+            <Card className="p-8 text-center mt-8">
+              <CardContent>
+                <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay ciclos con comidas</h3>
+                <p className="text-gray-600">Tus comidas se agruparán por ciclos una vez que tengas registros</p>
               </CardContent>
             </Card>
           )}
@@ -575,17 +587,17 @@ export default function MealHistory() {
       </div>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
+        <AlertDialogContent className="mx-4 sm:mx-auto max-w-md rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base sm:text-lg">¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm sm:text-base">
+            <AlertDialogTitle className="text-xl">¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
               Esta acción no se puede deshacer. Esto eliminará permanentemente esta comida de tu historial.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto order-2 sm:order-1">Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-3 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto order-2 sm:order-1 rounded-xl">Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 order-1 sm:order-2"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 order-1 sm:order-2 rounded-xl"
               onClick={() => {
                 if (selectedMeal?.id) {
                   handleDeleteMeal(selectedMeal)
