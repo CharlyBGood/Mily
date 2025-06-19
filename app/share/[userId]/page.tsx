@@ -150,8 +150,12 @@ export default function SharePage() {
   }
 
   // Empty functions since we don't need these functionalities in share view
-  const handleDeleteClick = () => {}
-  const handleEditClick = () => {}
+  const handleDeleteClick = () => {
+    // Intentionally empty - no delete functionality on shared pages
+  }
+  const handleEditClick = () => {
+    // Intentionally empty - no edit functionality on shared pages
+  }
 
   // Filter cycles based on selection
   const filteredCycleGroups =
@@ -341,6 +345,7 @@ export default function SharePage() {
                       isExpanded={expandedSection === group.date}
                       showEditButton={false}
                       showDeleteButton={false}
+                      isSharedView={true}
                     />
                   ))
                 : // Display by cycles
@@ -354,6 +359,7 @@ export default function SharePage() {
                       isExpanded={expandedCycle === cycle.cycleNumber}
                       showEditButton={false}
                       showDeleteButton={false}
+                      isSharedView={true}
                     />
                   ))}
             </>

@@ -12,7 +12,7 @@ import { getSupabaseClient } from "@/lib/supabase-client"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProfilePage() {
-  const { user, signOut, refreshSession, ensureDbSetup } = useAuth()
+  const { user, signOut, refreshSession, ensureDbSetup, loading } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -24,7 +24,9 @@ export default function ProfilePage() {
   const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
-    // If no user, redirect to login
+    // Don't redirect immediately, wait for auth to load
+    if (loading) return
+
     if (!user) {
       router.push("/login")
       return
@@ -32,9 +34,7 @@ export default function ProfilePage() {
 
     // Load user profile to get username
     loadUserProfile()
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, router, retryCount]) // Only depend on user, router, and retryCount to prevent infinite loops
+  }, [user, loading, router, retryCount])
 
   const loadUserProfile = async () => {
     if (!user) return
@@ -142,6 +142,25 @@ export default function ProfilePage() {
 
   const handleRetry = () => {
     setRetryCount((prev) => prev + 1)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-neutral-50">
+        <header className="p-4 border-b bg-white flex items-center">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="mr-2">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1 flex justify-center">
+            <MilyLogo />
+          </div>
+          <div className="w-10"></div>
+        </header>
+        <main className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+        </main>
+      </div>
+    )
   }
 
   if (!user || isLoadingProfile) {

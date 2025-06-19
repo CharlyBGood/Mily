@@ -96,7 +96,9 @@ export async function getUserCycleSettings(userId: string): Promise<CycleSetting
 /**
  * Get cycle duration for a user
  */
-export async function getUserCycleDuration(userId: string): Promise<number> {
+export async function getUserCycleDuration(userId?: string): Promise<number> {
+  if (!userId) return 7 // Default for local storage users
+
   try {
     const settings = await getUserCycleSettings(userId)
     return settings.cycleDuration
@@ -109,7 +111,9 @@ export async function getUserCycleDuration(userId: string): Promise<number> {
 /**
  * Get sweet dessert limit for a user
  */
-export async function getUserSweetDessertLimit(userId: string): Promise<number> {
+export async function getUserSweetDessertLimit(userId?: string): Promise<number> {
+  if (!userId) return 3 // Default for local storage users
+
   try {
     const settings = await getUserCycleSettings(userId)
     return settings.sweetDessertLimit
@@ -322,4 +326,30 @@ export function groupMealsByCycle(meals: Meal[], cycleDuration = 7, cycleStartDa
 export function getDayOfWeekName(dayNumber: number): string {
   const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
   return days[dayNumber] || "Lunes"
+}
+
+// Improve getCurrentCycleInfo to handle real-time updates
+export function getCurrentCycleInfo(cycleDuration = 7, cycleStartDay = 1) {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  // Calculate cycle start date more accurately
+  const dayOfWeek = today.getDay()
+  const daysFromCycleStart = (dayOfWeek - cycleStartDay + 7) % 7
+  const currentCycleStart = new Date(today)
+  currentCycleStart.setDate(today.getDate() - daysFromCycleStart)
+
+  // Calculate current day in cycle (1-based)
+  const dayInCycle = Math.floor((today.getTime() - currentCycleStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
+
+  // Calculate cycle end date
+  const currentCycleEnd = new Date(currentCycleStart)
+  currentCycleEnd.setDate(currentCycleStart.getDate() + cycleDuration - 1)
+
+  return {
+    cycleStart: currentCycleStart,
+    cycleEnd: currentCycleEnd,
+    dayInCycle: Math.min(dayInCycle, cycleDuration),
+    isComplete: dayInCycle > cycleDuration,
+  }
 }
