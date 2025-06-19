@@ -341,7 +341,8 @@ export default function MealHistory() {
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Full-width container without max-width constraints */}
+        <div className="w-full px-4 py-6">
           {/* Header */}
           <div className="mb-6">
             <Card className="bg-gradient-to-r from-teal-500 to-blue-500 border-0 shadow-xl text-white">
@@ -529,8 +530,8 @@ export default function MealHistory() {
             </Alert>
           )}
 
-          {/* Content Section */}
-          <div className="space-y-4">
+          {/* Content Section - Full Width */}
+          <div className="space-y-6">
             {viewMode === "days"
               ? safeGroupedMeals.map((group) => (
                   <DaySection

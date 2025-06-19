@@ -1,18 +1,23 @@
 "use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { ChevronDown, ChevronRight, Calendar, Clock } from "lucide-react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import MealCard from "./meal-card"
-import type { Meal } from "@/lib/types"
+import { ChevronDown, ChevronUp, Calendar, TrendingUp } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import DaySection from "./day-section"
 import type { CycleGroup } from "@/lib/cycle-utils"
+import type { Meal } from "@/lib/types"
+import { format, parseISO } from "date-fns"
+import { es } from "date-fns/locale"
 
 interface CycleSectionProps {
   cycle: CycleGroup
-  onDeleteMeal: (meal: Meal) => void
-  onEditMeal: (meal: Meal) => void
-  onExpand: (cycleNumber: number) => void
-  isExpanded: boolean
+  onDeleteMeal?: (meal: Meal) => void
+  onEditMeal?: (meal: Meal) => void
+  onExpand?: (cycleNumber: number) => void
+  isExpanded?: boolean
   showEditButton?: boolean
   showDeleteButton?: boolean
   isSharedView?: boolean
@@ -23,140 +28,168 @@ export default function CycleSection({
   onDeleteMeal,
   onEditMeal,
   onExpand,
-  isExpanded,
+  isExpanded = false,
   showEditButton = true,
   showDeleteButton = true,
   isSharedView = false,
 }: CycleSectionProps) {
-  const handleExpand = () => {
-    onExpand(cycle.cycleNumber)
+  const [mounted, setMounted] = useState(false)
+  const [formattedDateRange, setFormattedDateRange] = useState(cycle.displayDateRange)
+  const [expandedDay, setExpandedDay] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+
+    // Enhanced date range formatting with real-time updates
+    try {
+      const startDate = parseISO(cycle.startDate)
+      const endDate = parseISO(cycle.endDate)
+
+      const startFormatted = format(startDate, "d MMM", { locale: es })
+      const endFormatted = format(endDate, "d MMM", { locale: es })
+      const year = format(endDate, "yyyy", { locale: es })
+
+      setFormattedDateRange(`Ciclo ${cycle.cycleNumber}: ${startFormatted} - ${endFormatted} ${year}`)
+    } catch (error) {
+      console.error("Error formatting cycle date range:", error)
+      setFormattedDateRange(cycle.displayDateRange)
+    }
+  }, [cycle.startDate, cycle.endDate, cycle.cycleNumber, cycle.displayDateRange])
+
+  const handleToggle = () => {
+    if (onExpand) {
+      onExpand(cycle.cycleNumber)
+    }
   }
 
-  // Filter out days with no meals - this is the key fix
-  const daysWithMeals = cycle.days.filter((day) => day.meals && day.meals.length > 0)
-
-  // Get all meals from days that have meals
-  const allMeals = daysWithMeals.flatMap((day) => day.meals)
-  const totalMeals = allMeals.length
-
-  // If no meals in this cycle, don't render the cycle at all
-  if (totalMeals === 0) {
-    return null
+  const handleDayExpand = (date: string) => {
+    setExpandedDay(date === expandedDay ? null : date)
   }
 
-  // Get meal thumbnails for preview
-  const mealThumbnails = allMeals
-    .filter((meal) => meal.photo_url)
-    .slice(0, 3)
-    .map((meal) => meal.photo_url)
+  const getTotalMeals = () => {
+    return cycle.days.reduce((total, day) => total + day.meals.length, 0)
+  }
+
+  const getMealTypeStats = () => {
+    const allMeals = cycle.days.flatMap((day) => day.meals)
+    const stats = allMeals.reduce(
+      (acc, meal) => {
+        const type = meal.meal_type || "other"
+        acc[type] = (acc[type] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>,
+    )
+
+    return Object.entries(stats).map(([type, count]) => ({ type, count }))
+  }
+
+  const getActiveDays = () => {
+    return cycle.days.filter((day) => day.meals.length > 0).length
+  }
+
+  const getCycleProgress = () => {
+    const totalDays = cycle.days.length
+    const activeDays = getActiveDays()
+    return Math.round((activeDays / totalDays) * 100)
+  }
+
+  if (!mounted) {
+    return (
+      <Card className="w-full shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  const totalMeals = getTotalMeals()
+  const mealStats = getMealTypeStats()
+  const activeDays = getActiveDays()
+  const progress = getCycleProgress()
 
   return (
-    <Card className="cycle-section mb-3 sm:mb-6 overflow-hidden border-0 shadow-md sm:shadow-lg bg-gradient-to-br from-orange-50 to-amber-50">
-      <Collapsible open={isExpanded} onOpenChange={handleExpand}>
+    <Card className="w-full shadow-lg border-0 bg-gradient-to-r from-white to-gray-50 overflow-hidden">
+      <Collapsible open={isExpanded} onOpenChange={handleToggle}>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-gradient-to-br hover:from-orange-100 hover:to-amber-100 transition-all duration-200 p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                <div className="flex-shrink-0 p-1.5 sm:p-2 bg-orange-500 rounded-full">
-                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+          <CardHeader className="cursor-pointer hover:bg-gradient-to-r hover:from-teal-50 hover:to-blue-50 transition-all duration-200 pb-4">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <TrendingUp className="h-5 w-5 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 truncate">{formattedDateRange}</h3>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 sm:space-x-3 mb-1 sm:mb-2">
-                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Ciclo {cycle.cycleNumber}</h3>
-                    <Badge
-                      variant="secondary"
-                      className="bg-orange-100 text-orange-800 border-orange-200 text-xs sm:text-sm flex-shrink-0"
-                    >
-                      {daysWithMeals.length} día{daysWithMeals.length !== 1 ? "s" : ""}
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="secondary" className="bg-teal-50 text-teal-700 border border-teal-200">
+                      {totalMeals} comidas
                     </Badge>
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-600 mb-1 sm:mb-2 truncate">
-                    {cycle.displayDateRange.replace(`Ciclo ${cycle.cycleNumber}: `, "")}
-                  </p>
-                  <div className="flex items-center space-x-3 sm:space-x-4 text-xs sm:text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                      <span>
-                        {totalMeals} comida{totalMeals !== 1 ? "s" : ""}
-                      </span>
-                    </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium text-gray-600">
+                      {activeDays}/{cycle.days.length} días
+                    </span>
                   </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-                {!isExpanded && mealThumbnails.length > 0 && (
-                  <div className="meal-thumbnails flex -space-x-1 sm:-space-x-2">
-                    {mealThumbnails.map((photoUrl, index) => (
-                      <div
-                        key={index}
-                        className="w-8 h-8 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-white border-2 border-white shadow-md"
-                        style={{ zIndex: mealThumbnails.length - index }}
-                      >
-                        <img
-                          src={photoUrl || "/placeholder.svg?height=48&width=48"}
-                          alt="Meal thumbnail"
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.src = "/placeholder.svg?height=48&width=48"
-                          }}
-                        />
-                      </div>
+
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
+                    <span className="font-medium text-gray-600">{progress}% completado</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {mealStats.slice(0, 2).map(({ type, count }) => (
+                      <Badge key={type} variant="outline" className="text-xs">
+                        {type}: {count}
+                      </Badge>
                     ))}
-                    {allMeals.filter((meal) => meal.photo_url).length > 3 && (
-                      <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-orange-500 border-2 border-white shadow-md flex items-center justify-center text-xs text-white font-semibold">
-                        +{allMeals.filter((meal) => meal.photo_url).length - 3}
-                      </div>
-                    )}
                   </div>
-                )}
-                <div className="flex-shrink-0 p-1.5 sm:p-2 rounded-full bg-white/50">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-                  )}
                 </div>
               </div>
+
+              <Button variant="ghost" size="sm" className="ml-4 flex-shrink-0">
+                {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </Button>
             </div>
           </CardHeader>
         </CollapsibleTrigger>
+
         <CollapsibleContent>
-          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            <div className="space-y-4 sm:space-y-6">
-              {daysWithMeals.map((day, dayIndex) => (
-                <div key={day.date} className="relative">
-                  {dayIndex > 0 && (
-                    <div className="absolute left-4 sm:left-6 -top-2 sm:-top-3 w-0.5 h-4 sm:h-6 bg-gradient-to-b from-orange-200 to-transparent"></div>
-                  )}
-                  <div className="flex items-start space-x-3 sm:space-x-4">
-                    <div className="flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 bg-white rounded-full shadow-md flex items-center justify-center border-2 border-orange-200">
-                      <div className="w-2 h-2 sm:w-3 sm:h-3 bg-orange-500 rounded-full"></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="mb-2 sm:mb-3">
-                        <h4 className="font-semibold text-gray-900 text-base sm:text-lg">{day.displayDate}</h4>
-                        <p className="text-xs sm:text-sm text-gray-500">
-                          {day.meals.length} comida{day.meals.length !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <div className="space-y-2 sm:space-y-3">
-                        {day.meals.map((meal) => (
-                          <div key={meal.id} className="ml-2 sm:ml-4">
-                            <MealCard
-                              meal={meal}
-                              onDelete={showDeleteButton && !isSharedView ? onDeleteMeal : undefined}
-                              onEdit={showEditButton && !isSharedView ? onEditMeal : undefined}
-                              isSharedView={isSharedView}
-                              showTime={true}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+          <CardContent className="pt-0 pb-6">
+            <div className="space-y-4">
+              {cycle.days
+                .filter((day) => day.meals.length > 0)
+                .map((day) => (
+                  <DaySection
+                    key={day.date}
+                    date={day.date}
+                    displayDate={day.displayDate}
+                    meals={day.meals}
+                    onDeleteMeal={onDeleteMeal}
+                    onEditMeal={onEditMeal}
+                    onExpand={handleDayExpand}
+                    isExpanded={expandedDay === day.date}
+                    showEditButton={showEditButton}
+                    showDeleteButton={showDeleteButton}
+                    isSharedView={isSharedView}
+                  />
+                ))}
+
+              {cycle.days.every((day) => day.meals.length === 0) && (
+                <div className="text-center py-12 text-gray-500">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                  <h4 className="text-lg font-semibold mb-2">No hay comidas en este ciclo</h4>
+                  <p>Las comidas aparecerán aquí una vez que las registres</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </CollapsibleContent>

@@ -23,6 +23,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Alert } from "@/components/ui/alert"
+import { format, parseISO } from "date-fns"
+import { es } from "date-fns/locale"
 
 export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -40,6 +42,7 @@ export default function SharePage() {
   })
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
@@ -58,6 +61,16 @@ export default function SharePage() {
     loadUserInfo()
     loadMeals()
   }, [userId, cycleParam])
+
+  // Auto-refresh data every 30 seconds for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadMeals()
+      setLastUpdated(new Date())
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [userId])
 
   const loadUserInfo = async () => {
     try {
@@ -167,6 +180,41 @@ export default function SharePage() {
           : []
         : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
 
+  // Enhanced date range formatting with real-time updates
+  const getFormattedDateRange = () => {
+    if (cycleGroups.length === 0) return "Historial de comidas compartido"
+
+    if (selectedCycle !== "all") {
+      if (selectedCycle === "current" && cycleGroups.length > 0) {
+        return `Ciclo actual: ${cycleGroups[0].displayDateRange.split(": ")[1]}`
+      } else {
+        const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
+        if (selectedCycleGroup) {
+          return selectedCycleGroup.displayDateRange
+        }
+      }
+    } else {
+      // Get overall date range with enhanced formatting
+      const firstCycle = [...cycleGroups].sort((a, b) => a.cycleNumber - b.cycleNumber)[0]
+      const lastCycle = [...cycleGroups].sort((a, b) => b.cycleNumber - a.cycleNumber)[0]
+
+      if (firstCycle && lastCycle) {
+        try {
+          const startDate = parseISO(firstCycle.startDate)
+          const endDate = parseISO(lastCycle.endDate)
+          const startFormatted = format(startDate, "d 'de' MMMM", { locale: es })
+          const endFormatted = format(endDate, "d 'de' MMMM 'de' yyyy", { locale: es })
+          return `Historial del ${startFormatted} al ${endFormatted}`
+        } catch (error) {
+          console.error("Error formatting date range:", error)
+          return "Historial de comidas compartido"
+        }
+      }
+    }
+
+    return "Historial de comidas compartido"
+  }
+
   if (!mounted) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
@@ -211,34 +259,11 @@ export default function SharePage() {
     )
   }
 
-  // Get date range for title
-  let titleDateRange = "Historial de comidas compartido"
-  if (cycleGroups.length > 0) {
-    if (selectedCycle !== "all") {
-      if (selectedCycle === "current" && cycleGroups.length > 0) {
-        titleDateRange = `Ciclo actual: ${cycleGroups[0].displayDateRange.split(": ")[1]}`
-      } else {
-        const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
-        if (selectedCycleGroup) {
-          titleDateRange = `${selectedCycleGroup.displayDateRange}`
-        }
-      }
-    } else {
-      // Get overall date range
-      const firstCycle = [...cycleGroups].sort((a, b) => a.cycleNumber - b.cycleNumber)[0]
-      const lastCycle = [...cycleGroups].sort((a, b) => b.cycleNumber - a.cycleNumber)[0]
-
-      if (firstCycle && lastCycle) {
-        const startDate = new Date(firstCycle.startDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })
-        const endDate = new Date(lastCycle.endDate).toLocaleDateString("es-ES", { day: "numeric", month: "long" })
-        titleDateRange = `Historial del ${startDate} al ${endDate}`
-      }
-    }
-  }
+  const titleDateRange = getFormattedDateRange()
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex items-center">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      <header className="p-4 border-b bg-white/95 backdrop-blur-sm shadow-sm flex items-center">
         <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -249,25 +274,29 @@ export default function SharePage() {
       </header>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 pb-40 max-w-full overflow-x-hidden">
+        {/* Full-width container without constraints */}
+        <div className="w-full px-4 py-6 pb-40">
           {groupedMeals.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <p className="text-neutral-500">No hay comidas compartidas</p>
             </div>
           ) : (
             <>
-              <div className="bg-white p-4 rounded-lg shadow-sm mb-6 text-center">
-                <h1 className="text-xl font-bold mb-2">{titleDateRange}</h1>
-                <p className="text-neutral-500">
+              <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white p-6 rounded-xl shadow-xl mb-6 text-center">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2">{titleDateRange}</h1>
+                <p className="text-teal-100">
                   {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
                 </p>
+                <div className="mt-3 text-sm text-teal-100">
+                  Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
+                </div>
               </div>
 
               {cycleSettings && (
-                <Alert className="mb-4">
+                <Alert className="mb-6 border-teal-200 bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl">
                   <div className="flex items-center">
-                    <span className="font-medium">Configuración de ciclo:</span>
-                    <span className="ml-2">
+                    <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
+                    <span className="ml-2 text-teal-700">
                       Inicia cada {getDayOfWeekName(cycleSettings.cycleStartDay)}, duración{" "}
                       {cycleSettings.cycleDuration} días
                     </span>
@@ -275,13 +304,13 @@ export default function SharePage() {
                 </Alert>
               )}
 
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-3 mb-6">
                 <div className="flex-shrink-0">
                   <Button
                     variant={viewMode === "cycles" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setViewMode("cycles")}
-                    className="flex items-center"
+                    className="flex items-center bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl"
                     aria-label="Ver por ciclos"
                   >
                     <LayoutGrid className="h-4 w-4 mr-2" />
@@ -305,7 +334,7 @@ export default function SharePage() {
                 {viewMode === "cycles" && cycleGroups.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-shrink-0">
+                      <Button variant="outline" size="sm" className="flex-shrink-0 rounded-xl">
                         {selectedCycle === "all"
                           ? "Todos los ciclos"
                           : selectedCycle === "current"
@@ -331,37 +360,40 @@ export default function SharePage() {
                 )}
               </div>
 
-              {viewMode === "days"
-                ? // Display by days
-                  groupedMeals.map((group) => (
-                    <DaySection
-                      key={group.date}
-                      date={group.date}
-                      displayDate={group.displayDate}
-                      meals={group.meals}
-                      onDeleteMeal={handleDeleteClick}
-                      onEditMeal={handleEditClick}
-                      onExpand={handleSectionExpand}
-                      isExpanded={expandedSection === group.date}
-                      showEditButton={false}
-                      showDeleteButton={false}
-                      isSharedView={true}
-                    />
-                  ))
-                : // Display by cycles
-                  filteredCycleGroups.map((cycle) => (
-                    <CycleSection
-                      key={cycle.cycleNumber}
-                      cycle={cycle}
-                      onDeleteMeal={handleDeleteClick}
-                      onEditMeal={handleEditClick}
-                      onExpand={handleCycleExpand}
-                      isExpanded={expandedCycle === cycle.cycleNumber}
-                      showEditButton={false}
-                      showDeleteButton={false}
-                      isSharedView={true}
-                    />
-                  ))}
+              {/* Full-width content section */}
+              <div className="space-y-6">
+                {viewMode === "days"
+                  ? // Display by days
+                    groupedMeals.map((group) => (
+                      <DaySection
+                        key={group.date}
+                        date={group.date}
+                        displayDate={group.displayDate}
+                        meals={group.meals}
+                        onDeleteMeal={handleDeleteClick}
+                        onEditMeal={handleEditClick}
+                        onExpand={handleSectionExpand}
+                        isExpanded={expandedSection === group.date}
+                        showEditButton={false}
+                        showDeleteButton={false}
+                        isSharedView={true}
+                      />
+                    ))
+                  : // Display by cycles
+                    filteredCycleGroups.map((cycle) => (
+                      <CycleSection
+                        key={cycle.cycleNumber}
+                        cycle={cycle}
+                        onDeleteMeal={handleDeleteClick}
+                        onEditMeal={handleEditClick}
+                        onExpand={handleCycleExpand}
+                        isExpanded={expandedCycle === cycle.cycleNumber}
+                        showEditButton={false}
+                        showDeleteButton={false}
+                        isSharedView={true}
+                      />
+                    ))}
+              </div>
             </>
           )}
         </div>
