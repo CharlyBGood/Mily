@@ -74,7 +74,7 @@ export default function MealCard({
     console.error("Error loading image:", meal.photo_url)
   }
 
-  // Direct photo click handler - no SVG overlay needed
+  // Direct photo click handler
   const handlePhotoClick = () => {
     if (meal.photo_url && !isPdfMode) {
       setShowPhotoViewer(true)
@@ -84,15 +84,15 @@ export default function MealCard({
   const getMealTypeColor = (mealType: string) => {
     switch (mealType) {
       case "breakfast":
-        return "bg-amber-100 text-amber-800 border-amber-200"
+        return "bg-amber-50 text-amber-700 border border-amber-200"
       case "lunch":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200"
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200"
       case "dinner":
-        return "bg-purple-100 text-purple-800 border-purple-200"
+        return "bg-purple-50 text-purple-700 border border-purple-200"
       case "snack":
-        return "bg-pink-100 text-pink-800 border-pink-200"
+        return "bg-pink-50 text-pink-700 border border-pink-200"
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200"
+        return "bg-gray-50 text-gray-700 border border-gray-200"
     }
   }
 
@@ -114,7 +114,7 @@ export default function MealCard({
   return (
     <>
       <Card
-        className={`group overflow-hidden bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 w-full max-w-sm mx-auto ${isPdfMode ? "pdf-meal-card" : ""}`}
+        className={`group overflow-hidden bg-white border border-gray-200 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 w-full ${isPdfMode ? "pdf-meal-card" : ""}`}
       >
         {/* Photo Section */}
         {meal.photo_url && !imageError && (
@@ -136,22 +136,24 @@ export default function MealCard({
               />
             </div>
 
-            {/* Gradient overlay for better text readability */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Meal type badge overlay */}
+            {/* Meal type badge */}
             <div className="absolute top-3 left-3">
-              <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-xs px-2 py-1 shadow-sm`}>
+              <Badge
+                className={`${getMealTypeColor(meal.meal_type)} font-medium text-xs px-2.5 py-1 shadow-sm backdrop-blur-sm`}
+              >
                 {getMealTypeLabel(meal.meal_type)}
               </Badge>
             </div>
 
-            {/* Time badge overlay */}
+            {/* Time badge */}
             {showTime && formattedTime && (
               <div className="absolute top-3 right-3">
                 <Badge
                   variant="secondary"
-                  className="bg-white/90 text-gray-700 font-medium text-xs px-2 py-1 shadow-sm backdrop-blur-sm"
+                  className="bg-white/90 text-gray-700 font-medium text-xs px-2.5 py-1 shadow-sm backdrop-blur-sm border border-white/20"
                 >
                   <Clock className="w-3 h-3 mr-1" />
                   {formattedTime}
@@ -163,7 +165,7 @@ export default function MealCard({
 
         {/* Content Section */}
         <CardContent className="p-4 space-y-3">
-          {/* Title */}
+          {/* Title and Date */}
           <div className="space-y-2">
             <h3 className="font-semibold text-lg text-gray-900 leading-tight line-clamp-2">{meal.description}</h3>
 
@@ -171,7 +173,7 @@ export default function MealCard({
             {showTime && formattedDate && (
               <div className="flex items-center text-sm text-gray-600">
                 <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                <span>{formattedDate}</span>
+                <span className="font-medium">{formattedDate}</span>
               </div>
             )}
           </div>
@@ -216,7 +218,7 @@ export default function MealCard({
         )}
       </Card>
 
-      {/* Direct Photo Viewer - No SVG intermediary */}
+      {/* Photo Viewer */}
       {meal.photo_url && (
         <PhotoViewer
           src={meal.photo_url}

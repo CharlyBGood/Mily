@@ -20,7 +20,7 @@ interface ShareDropdownProps {
   disabled?: boolean
 }
 
-export default function ShareDropdown({ meals, disabled = false }: ShareDropdownProps) {
+export function ShareDropdown({ meals, disabled = false }: ShareDropdownProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const buttonDisabled = disabled || meals.length === 0
 
@@ -55,3 +55,5 @@ export default function ShareDropdown({ meals, disabled = false }: ShareDropdown
     </DropdownMenu>
   )
 }
+
+export default ShareDropdown

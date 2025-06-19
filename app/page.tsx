@@ -36,9 +36,11 @@ export default function HomePage() {
   if (!mounted) {
     return (
       <div className="flex flex-col h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
-        <header className="p-4 border-b bg-white/80 backdrop-blur-sm">
-          <div className="flex justify-center">
-            <div className="w-20 h-8 bg-gray-200 animate-pulse rounded"></div>
+        <header className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+          <div className="px-4 py-4 sm:px-6">
+            <div className="flex justify-center">
+              <div className="w-24 h-8 bg-gray-200 animate-pulse rounded-lg"></div>
+            </div>
           </div>
         </header>
         <main className="flex-1 flex items-center justify-center">
@@ -51,35 +53,39 @@ export default function HomePage() {
   if (!user) {
     return (
       <div className="flex flex-col min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
-        <header className="p-4 sm:p-6 border-b bg-white/90 backdrop-blur-sm shadow-sm">
-          <div className="flex justify-center">
-            <MilyLogo />
+        <header className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+          <div className="px-4 py-4 sm:px-6">
+            <div className="flex justify-center">
+              <MilyLogo className="w-24 h-auto" />
+            </div>
           </div>
         </header>
-        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
-          <div className="max-w-md mx-auto space-y-8">
-            <div className="space-y-4">
-              <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
+          <div className="w-full max-w-sm mx-auto space-y-8">
+            <div className="text-center space-y-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
                 <Camera className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
-                Bienvenido a <span className="text-teal-600">Mily</span>
-              </h1>
-              <p className="text-gray-600 text-lg leading-relaxed">
-                Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla y moderna.
-              </p>
+              <div className="space-y-3">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+                  Bienvenido a <span className="text-teal-600">Mily</span>
+                </h1>
+                <p className="text-gray-600 text-base leading-relaxed">
+                  Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
+                </p>
+              </div>
             </div>
-            <div className="space-y-4 w-full">
+            <div className="space-y-3 w-full">
               <Button
                 onClick={() => router.push("/login")}
-                className="w-full h-14 text-lg bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full h-12 text-base bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-medium"
               >
                 Iniciar sesión
               </Button>
               <Button
                 variant="outline"
                 onClick={() => router.push("/login?tab=register")}
-                className="w-full h-14 text-lg border-2 border-teal-600 text-teal-600 hover:bg-teal-50 rounded-xl transition-all duration-300"
+                className="w-full h-12 text-base border-2 border-teal-600 text-teal-600 hover:bg-teal-50 rounded-xl transition-all duration-300 font-medium"
               >
                 Crear cuenta nueva
               </Button>
@@ -92,42 +98,40 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 overflow-hidden">
-      {/* Mobile Header */}
+      {/* Production Header - Mobile First */}
       <header className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm z-40">
         <div className="px-4 py-3 sm:px-6 sm:py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <MilyLogo />
-              <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-gray-900">Mily</h1>
-                <p className="text-sm text-gray-600">Tu diario de comidas</p>
-              </div>
+          <div className="flex justify-between items-center max-w-7xl mx-auto">
+            {/* Logo - Centered on mobile, left on desktop */}
+            <div className="flex items-center justify-center flex-1 sm:flex-none sm:justify-start">
+              <MilyLogo className="w-20 h-auto sm:w-24" />
+              {/* Removed desktop h1 and p elements as requested */}
             </div>
 
             {/* Mobile Menu */}
             <div className="sm:hidden">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-10 w-10">
+                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-80">
+                <SheetContent side="right" className="w-80 bg-white">
                   <div className="flex flex-col h-full pt-6">
-                    <div className="flex items-center space-x-3 mb-8">
-                      <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <div className="flex items-center space-x-3 mb-8 p-4 bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl">
+                      <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
                         <User className="w-6 h-6 text-white" />
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{user.email?.split("@")[0]}</p>
-                        <p className="text-sm text-gray-600">{user.email}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{user.email?.split("@")[0]}</p>
+                        <p className="text-sm text-gray-600 truncate">{user.email}</p>
                       </div>
                     </div>
 
                     <nav className="space-y-2">
                       <Button
                         variant="ghost"
-                        className="w-full justify-start h-12"
+                        className="w-full justify-start h-12 rounded-xl hover:bg-teal-50 hover:text-teal-700 transition-colors"
                         onClick={() => router.push("/profile")}
                       >
                         <User className="h-5 w-5 mr-3" />
@@ -140,17 +144,17 @@ export default function HomePage() {
             </div>
 
             {/* Desktop User Menu */}
-            <div className="hidden sm:flex items-center space-x-4">
+            <div className="hidden sm:flex items-center">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/profile")}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 h-10 px-4 rounded-xl hover:bg-teal-50 hover:text-teal-700 transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center shadow-sm">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="hidden md:inline">{user.email?.split("@")[0]}</span>
+                <span className="font-medium">{user.email?.split("@")[0]}</span>
               </Button>
             </div>
           </div>
@@ -197,17 +201,17 @@ export default function HomePage() {
         {/* Desktop Tab Navigation */}
         <footer className="hidden sm:block flex-shrink-0 border-t bg-white/95 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto px-6 py-4">
-            <TabsList className="bg-gray-100 p-1 rounded-xl">
+            <TabsList className="bg-gray-100 p-1 rounded-xl shadow-sm">
               <TabsTrigger
                 value="logger"
-                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200"
+                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 font-medium"
               >
                 <Camera className="h-5 w-5" />
                 <span>Registrar Comida</span>
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200"
+                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 font-medium"
               >
                 <History className="h-5 w-5" />
                 <span>Ver Historial</span>

@@ -66,10 +66,25 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+        "fade-in": {
+          from: { opacity: 0, transform: "translateY(8px)" },
+          to: { opacity: 1, transform: "translateY(0)" },
+        },
+        "slide-up": {
+          from: { opacity: 0, transform: "translateY(16px)" },
+          to: { opacity: 1, transform: "translateY(0)" },
+        },
+        "scale-in": {
+          from: { opacity: 0, transform: "scale(0.96)" },
+          to: { opacity: 1, transform: "scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        "slide-up": "slide-up 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        "scale-in": "scale-in 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
       },
       spacing: {
         safe: "env(safe-area-inset-bottom)",
@@ -79,6 +94,21 @@ module.exports = {
       },
       minWidth: {
         touch: "44px",
+      },
+      fontFamily: {
+        sans: [
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          '"Helvetica Neue"',
+          "Arial",
+          "sans-serif",
+        ],
+      },
+      screens: {
+        xs: "475px",
       },
     },
   },
