@@ -1,9 +1,3 @@
-export default function SocialLoading() {
-  // This is a minimal implementation to satisfy the dependency
-  // This component is scheduled for removal once all references are identified
-  return (
-    <div className="hidden">
-      <p>Loading...</p>
-    </div>
-  )
+export default function Loading() {
+  return <div className="flex h-full w-full items-center justify-center p-8 text-muted-foreground">Loading…</div>
 }

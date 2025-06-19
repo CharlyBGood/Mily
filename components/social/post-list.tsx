@@ -1,17 +1,10 @@
-import Post from "./post"
+"use client"
 
-interface PostListProps {
-  posts?: any[]
-}
-
-export default function PostList({ posts = [] }: PostListProps) {
-  // This is a minimal implementation to satisfy the dependency
-  // This component is scheduled for removal once all references are identified
-  return (
-    <div className="hidden">
-      {posts.map((post) => (
-        <Post key={post.id} {...post} />
-      ))}
-    </div>
-  )
+/**
+ * Minimal PostList stub.
+ * Some legacy code still imports this component, so we export
+ * an inert version to avoid build-time errors.
+ */
+export default function PostList() {
+  return null
 }

@@ -41,7 +41,6 @@ export default function MealLogger() {
   const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
   const [photoRequired, setPhotoRequired] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -51,15 +50,11 @@ export default function MealLogger() {
 
   useEffect(() => {
     setMounted(true)
-    // Only format dates on the client side
     setCurrentDate(format(new Date(), "EEEE, d 'de' MMMM", { locale: es }))
     setCurrentTime(format(new Date(), "HH:mm"))
-
-    // Load user settings and dessert count
     loadUserSettings()
   }, [])
 
-  // Update dessert limit warning
   useEffect(() => {
     if (sweetDessertsCount >= sweetDessertLimit) {
       setIsDessertLimitReached(true)
@@ -72,18 +67,15 @@ export default function MealLogger() {
     if (!user && storageType !== "local") return
 
     try {
-      // Load cycle duration and sweet dessert limit
       const duration = await getUserCycleDuration(user?.id)
       const limit = await getUserSweetDessertLimit(user?.id)
 
       setCycleDuration(duration)
       setSweetDessertLimit(limit)
 
-      // Load meals to count sweet desserts in current cycle
       const { success, data } = await getUserMeals()
 
       if (success && data && data.length > 0) {
-        // Sort meals by date (oldest first)
         const sortedMeals = [...data].sort((a, b) => {
           return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
         })
@@ -91,11 +83,9 @@ export default function MealLogger() {
         const firstMealDate = new Date(sortedMeals[0].created_at || "")
         const today = new Date()
 
-        // Calculate current cycle info
         const cycleInfo = calculateCycleInfo(today, firstMealDate, duration)
         setDaysLeftInCycle(cycleInfo.daysLeft)
 
-        // Count sweet desserts in current cycle
         const count = countSweetDessertsInCurrentCycle(data, duration)
         setSweetDessertsCount(count)
       }
@@ -107,7 +97,6 @@ export default function MealLogger() {
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Check file size - warn if over 5MB
       if (file.size > 5 * 1024 * 1024) {
         setStorageWarning(
           "La imagen es grande y podría causar problemas de almacenamiento. Considera usar una imagen más pequeña.",
@@ -139,7 +128,6 @@ export default function MealLogger() {
     setStorageWarning(null)
     setPhotoRequired(null)
 
-    // Reset the file input
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -148,7 +136,6 @@ export default function MealLogger() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Check if photo is provided
     if (!photo) {
       setPhotoRequired("Por favor agrega una foto de tu comida")
       toast({
@@ -168,7 +155,6 @@ export default function MealLogger() {
       return
     }
 
-    // If using Supabase storage, we need to be logged in
     if (storageType === "supabase" && !user) {
       toast({
         title: "No autenticado",
@@ -178,7 +164,6 @@ export default function MealLogger() {
       return
     }
 
-    // Check dessert limit for sweet desserts
     const isSweetDessert = mealType === "postre_dulce"
 
     if (isSweetDessert && sweetDessertsCount >= sweetDessertLimit) {
@@ -193,32 +178,24 @@ export default function MealLogger() {
     setIsSubmitting(true)
 
     try {
-      console.log("Saving meal...")
-
-      // Upload photo if provided
       let photoUrl = undefined
       if (photo) {
         photoUrl = await uploadImage(photo)
-        console.log("Photo uploaded")
       }
 
-      // Map the new dessert types to the original ones for backward compatibility
       let finalMealType = mealType
       if (mealType === "postre_dulce") finalMealType = "postre1"
       if (mealType === "postre_fruta") finalMealType = "postre2"
 
-      // Save meal
       const meal: Meal = {
-        description: description || "Sin descripción", // Make description optional
+        description: description || "Sin descripción",
         meal_type: finalMealType as MealType,
         photo_url: photoUrl,
         notes: notes || undefined,
-        // Add metadata for dessert type
         metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
       }
 
-      const { success, data, error } = await saveMeal(meal)
-      console.log("Meal save result:", success)
+      const { success, error } = await saveMeal(meal)
 
       if (!success) {
         toast({
@@ -230,10 +207,8 @@ export default function MealLogger() {
         return
       }
 
-      // Reset form
       resetForm()
 
-      // Update sweet desserts count if this was a sweet dessert
       if (mealType === "postre_dulce") {
         setSweetDessertsCount((prev) => prev + 1)
       }
@@ -243,109 +218,7 @@ export default function MealLogger() {
         description: "Tu comida ha sido registrada exitosamente",
       })
 
-      // Force a refresh of the router to update the history tab
       router.refresh()
-
-      // Navigate to history tab
-      router.push("?tab=history")
-    } catch (error) {
-      console.error("Error saving meal:", error)
-      toast({
-        title: "Error",
-        description: "Ocurrió un error al guardar la comida",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleSave = async () => {
-    // Check if photo is required but missing
-    if (!photo) {
-      setError("Photo is required")
-      return
-    }
-
-    // If using Supabase storage, we need to be logged in
-    if (storageType === "supabase" && !user) {
-      toast({
-        title: "No autenticado",
-        description: "Debes iniciar sesión para guardar comidas",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Check dessert limit for sweet desserts
-    const isSweetDessert = mealType === "postre_dulce"
-
-    if (isSweetDessert && sweetDessertsCount >= sweetDessertLimit) {
-      toast({
-        title: "Límite de postres alcanzado",
-        description: `Has alcanzado el límite de ${sweetDessertLimit} postres dulces para este ciclo. Nuevo ciclo en ${daysLeftInCycle} días.`,
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      console.log("Saving meal...")
-
-      // Upload photo if provided
-      let photoUrl = undefined
-      if (photo) {
-        photoUrl = await uploadImage(photo)
-        console.log("Photo uploaded")
-      }
-
-      // Map the new dessert types to the original ones for backward compatibility
-      let finalMealType = mealType
-      if (mealType === "postre_dulce") finalMealType = "postre1"
-      if (mealType === "postre_fruta") finalMealType = "postre2"
-
-      // Save meal
-      const meal: Meal = {
-        description: description || "Sin descripción", // Make description optional
-        meal_type: finalMealType as MealType,
-        photo_url: photoUrl,
-        notes: notes || undefined,
-        // Add metadata for dessert type
-        metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
-      }
-
-      const { success, data, error } = await saveMeal(meal)
-      console.log("Meal save result:", success)
-
-      if (!success) {
-        toast({
-          title: "Error",
-          description: error?.message || "Error al guardar la comida",
-          variant: "destructive",
-        })
-        setIsSubmitting(false)
-        return
-      }
-
-      // Reset form
-      resetForm()
-
-      // Update sweet desserts count if this was a sweet dessert
-      if (mealType === "postre_dulce") {
-        setSweetDessertsCount((prev) => prev + 1)
-      }
-
-      toast({
-        title: "Comida guardada",
-        description: "Tu comida ha sido registrada exitosamente",
-      })
-
-      // Force a refresh of the router to update the history tab
-      router.refresh()
-
-      // Navigate to history tab
       router.push("?tab=history")
     } catch (error) {
       console.error("Error saving meal:", error)
@@ -403,7 +276,6 @@ export default function MealLogger() {
             />
           </CardContent>
         </Card>
-        {error && !photo && <p className="text-red-500 text-sm mt-1">Photo is required</p>}
       </div>
 
       {storageWarning && (

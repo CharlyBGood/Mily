@@ -19,12 +19,10 @@ export default function HomePage() {
   useEffect(() => {
     setMounted(true)
 
-    // Check if we should switch to history tab after adding a meal
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
       if (params.get("tab") === "history") {
         setActiveTab("history")
-        // Clean up the URL
         window.history.replaceState({}, document.title, window.location.pathname)
       }
     }
@@ -35,7 +33,6 @@ export default function HomePage() {
   }
 
   if (!mounted) {
-    // Return a placeholder with minimal content to prevent hydration mismatch
     return (
       <div className="flex flex-col h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white">
@@ -79,7 +76,7 @@ export default function HomePage() {
   return (
     <div className="flex flex-col h-screen bg-neutral-50">
       <header className="p-4 border-b bg-white flex justify-between items-center">
-        <div className="w-10"></div> {/* Spacer for centering */}
+        <div className="w-10"></div>
         <MilyLogo />
         <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
           <User className="h-5 w-5" />

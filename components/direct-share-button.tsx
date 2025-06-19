@@ -39,11 +39,9 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
     }
 
     try {
-      // Create share URL with the user ID
       const baseUrl = window.location.origin
       let shareUrl = `${baseUrl}/share/${user.id}`
 
-      // Add cycle parameter if a specific cycle is selected
       if (selectedCycle !== "all") {
         shareUrl += `?cycle=${selectedCycle}`
       }
@@ -67,7 +65,6 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
       description: "El enlace ha sido copiado al portapapeles",
     })
 
-    // Reset copied state after 3 seconds
     setTimeout(() => {
       setCopied(false)
     }, 3000)
@@ -102,7 +99,6 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
               value={selectedCycle}
               onValueChange={(value) => {
                 setSelectedCycle(value)
-                // Regenerate share URL when selection changes
                 setTimeout(handleShare, 0)
               }}
             >

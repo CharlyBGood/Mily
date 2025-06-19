@@ -28,13 +28,10 @@ export default function MealCard({
   showTime = true,
   isPdfMode = false,
 }: MealCardProps) {
-  // Format time
   let formattedDate = ""
   let formattedTime = ""
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [imageNaturalWidth, setImageNaturalWidth] = useState(0)
-  const [imageNaturalHeight, setImageNaturalHeight] = useState(0)
   const [imageDimensions, setImageDimensions] = useState({ width: "auto", height: "auto" })
   const imageRef = useRef<HTMLImageElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -65,14 +62,8 @@ export default function MealCard({
 
   const handleImageLoad = () => {
     if (imageRef.current) {
-      // Store the natural dimensions of the image
-      setImageNaturalWidth(imageRef.current.naturalWidth)
-      setImageNaturalHeight(imageRef.current.naturalHeight)
-
-      // Calculate appropriate dimensions based on container width
       calculateImageDimensions()
     }
-
     setImageLoaded(true)
     setImageError(false)
   }
@@ -83,7 +74,6 @@ export default function MealCard({
     console.error("Error loading image:", meal.photo_url)
   }
 
-  // Calculate appropriate image dimensions based on container width
   const calculateImageDimensions = () => {
     if (!imageRef.current || !containerRef.current) return
 
@@ -91,14 +81,12 @@ export default function MealCard({
     const naturalWidth = imageRef.current.naturalWidth
     const naturalHeight = imageRef.current.naturalHeight
 
-    // If image is smaller than container, display at original size
     if (naturalWidth <= containerWidth) {
       setImageDimensions({
         width: `${naturalWidth}px`,
         height: `${naturalHeight}px`,
       })
     } else {
-      // Otherwise, scale down to fit container width while maintaining aspect ratio
       const aspectRatio = naturalWidth / naturalHeight
       const scaledHeight = containerWidth / aspectRatio
 
@@ -109,7 +97,6 @@ export default function MealCard({
     }
   }
 
-  // Recalculate dimensions on window resize
   useEffect(() => {
     const handleResize = () => {
       calculateImageDimensions()
@@ -117,7 +104,6 @@ export default function MealCard({
 
     window.addEventListener("resize", handleResize)
 
-    // Initial calculation
     if (imageLoaded && imageRef.current) {
       calculateImageDimensions()
     }
@@ -127,10 +113,8 @@ export default function MealCard({
     }
   }, [imageLoaded])
 
-  // For PDF mode, preload and optimize images
   useEffect(() => {
     if (isPdfMode && meal.photo_url && imageRef.current) {
-      // Force image reload
       const img = new Image()
       img.crossOrigin = "anonymous"
       img.onload = () => {

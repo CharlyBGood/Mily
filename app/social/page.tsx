@@ -1,10 +1,10 @@
+"use client"
+
+/**
+ * Temporary stub for the retired Social page.
+ * It renders nothing visible but satisfies Next.js’s requirement
+ * for a default export in every `page.tsx`.
+ */
 export default function SocialPage() {
-  // This is a minimal implementation to satisfy the dependency
-  // This page is scheduled for removal once all references are identified
-  return (
-    <div className="hidden">
-      <h1>Social Page</h1>
-      <p>This page is scheduled for removal.</p>
-    </div>
-  )
+  return <div className="hidden">{/* Social features are deprecated; this page is a placeholder. */}</div>
 }

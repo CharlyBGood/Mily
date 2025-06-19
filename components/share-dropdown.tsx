@@ -31,11 +31,9 @@ export default function ShareDropdown({
 
     setIsGeneratingPdf(true)
     try {
-      // Generate filename with current date
       const currentDate = format(new Date(), "yyyy-MM-dd", { locale: es })
       const filename = `Mily_Historial_${currentDate}.pdf`
 
-      // If there's a preparation callback, call it
       if (onBeforePdfExport) {
         const content = await onBeforePdfExport()
         if (!content) {
@@ -43,14 +41,11 @@ export default function ShareDropdown({
         }
       }
 
-      // Here would be the PDF generation code
-      // For now, we'll just show a success message
       toast({
         title: "PDF generado",
         description: "El historial ha sido exportado exitosamente",
       })
 
-      // Call the cleanup callback if provided
       if (onAfterPdfExport) {
         onAfterPdfExport()
       }
