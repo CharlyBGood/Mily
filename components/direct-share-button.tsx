@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Share, Copy, Check, ExternalLink } from "lucide-react"
+import { Share, Copy, Check, ExternalLink, Globe, Lock } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 interface DirectShareButtonProps {
   compact?: boolean
@@ -25,28 +27,28 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
   const [shareUrl, setShareUrl] = useState<string>("")
   const [copied, setCopied] = useState(false)
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
+  const [isOpen, setIsOpen] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const handleShare = () => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "Debes iniciar sesión para compartir tu historial",
-        variant: "destructive",
-      })
-      return
+  useEffect(() => {
+    if (isOpen && user) {
+      generateShareUrl()
     }
+  }, [isOpen, user, selectedCycle])
+
+  const generateShareUrl = () => {
+    if (!user) return
 
     try {
       const baseUrl = window.location.origin
-      let shareUrl = `${baseUrl}/share/${user.id}`
+      let url = `${baseUrl}/share/${user.id}`
 
       if (selectedCycle !== "all") {
-        shareUrl += `?cycle=${selectedCycle}`
+        url += `?cycle=${selectedCycle}`
       }
 
-      setShareUrl(shareUrl)
+      setShareUrl(url)
     } catch (error) {
       console.error("Error generating share URL:", error)
       toast({
@@ -57,81 +59,180 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
     }
   }
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(shareUrl)
-    setCopied(true)
-    toast({
-      title: "Enlace copiado",
-      description: "El enlace ha sido copiado al portapapeles",
-    })
-
-    setTimeout(() => {
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+    if (!open) {
       setCopied(false)
-    }, 3000)
+    }
+  }
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      toast({
+        title: "¡Enlace copiado!",
+        description: "El enlace ha sido copiado al portapapeles",
+      })
+
+      setTimeout(() => {
+        setCopied(false)
+      }, 3000)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo copiar el enlace",
+        variant: "destructive",
+      })
+    }
   }
 
   const openShareLink = () => {
-    window.open(shareUrl, "_blank")
+    if (shareUrl) {
+      window.open(shareUrl, "_blank")
+    }
+  }
+
+  const handleTriggerClick = () => {
+    if (!user) {
+      toast({
+        title: "Inicia sesión",
+        description: "Debes iniciar sesión para compartir tu historial",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsOpen(true)
   }
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
           size={compact ? "sm" : "default"}
-          onClick={handleShare}
-          className="w-full justify-start"
+          onClick={handleTriggerClick}
+          className="w-full justify-start hover:bg-gray-50"
         >
           <Share className="h-4 w-4 mr-2" />
           <span>Compartir enlace</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Compartir historial</DialogTitle>
-          <DialogDescription>Comparte tu historial de comidas con quien quieras mediante este enlace</DialogDescription>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center text-xl">
+            <Globe className="h-5 w-5 mr-2 text-teal-600" />
+            Compartir historial
+          </DialogTitle>
+          <DialogDescription className="text-base">
+            Comparte tu historial de comidas con quien quieras mediante este enlace público
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">¿Qué quieres compartir?</label>
-            <Select
-              value={selectedCycle}
-              onValueChange={(value) => {
-                setSelectedCycle(value)
-                setTimeout(handleShare, 0)
-              }}
-            >
-              <SelectTrigger className="w-full">
+
+        <div className="space-y-6 py-4">
+          {/* Privacy Notice */}
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-start space-x-3">
+                <Lock className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-800">Enlace público</p>
+                  <p className="text-sm text-amber-700">
+                    Cualquier persona con este enlace podrá ver tu historial seleccionado
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cycle Selection */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-700">¿Qué quieres compartir?</label>
+            <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+              <SelectTrigger className="w-full h-11">
                 <SelectValue placeholder="Selecciona qué compartir" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todo el historial</SelectItem>
-                <SelectItem value="current">Ciclo actual</SelectItem>
-                <SelectItem value="1">Ciclo 1</SelectItem>
-                <SelectItem value="2">Ciclo 2</SelectItem>
-                <SelectItem value="3">Ciclo 3</SelectItem>
-                <SelectItem value="4">Ciclo 4</SelectItem>
-                <SelectItem value="5">Ciclo 5</SelectItem>
+                <SelectItem value="all">
+                  <div className="flex items-center space-x-2">
+                    <span>📊</span>
+                    <span>Todo el historial</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="current">
+                  <div className="flex items-center space-x-2">
+                    <span>🔄</span>
+                    <span>Ciclo actual</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="1">
+                  <div className="flex items-center space-x-2">
+                    <span>1️⃣</span>
+                    <span>Ciclo 1</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="2">
+                  <div className="flex items-center space-x-2">
+                    <span>2️⃣</span>
+                    <span>Ciclo 2</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="3">
+                  <div className="flex items-center space-x-2">
+                    <span>3️⃣</span>
+                    <span>Ciclo 3</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="4">
+                  <div className="flex items-center space-x-2">
+                    <span>4️⃣</span>
+                    <span>Ciclo 4</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="5">
+                  <div className="flex items-center space-x-2">
+                    <span>5️⃣</span>
+                    <span>Ciclo 5</span>
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Enlace para compartir</label>
-            <div className="flex items-center space-x-2">
-              <Input value={shareUrl} readOnly className="font-mono text-sm flex-1" />
-              <Button size="icon" className="h-10 w-10" onClick={copyToClipboard}>
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
+          {/* Share URL */}
+          {shareUrl && (
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-700">Enlace para compartir</label>
+              <div className="flex items-center space-x-2">
+                <Input value={shareUrl} readOnly className="font-mono text-sm flex-1 bg-gray-50 border-gray-200" />
+                <Button
+                  size="icon"
+                  className="h-11 w-11 flex-shrink-0"
+                  onClick={copyToClipboard}
+                  variant={copied ? "default" : "outline"}
+                >
+                  {copied ? <Check className="h-4 w-4 text-white" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+              {copied && (
+                <Badge variant="secondary" className="text-green-700 bg-green-100">
+                  ✓ Copiado al portapapeles
+                </Badge>
+              )}
             </div>
-          </div>
+          )}
         </div>
-        <DialogFooter className="sm:justify-between">
-          <Button type="button" variant="secondary">
+
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button type="button" variant="outline" onClick={() => setIsOpen(false)} className="w-full sm:w-auto">
             Cerrar
           </Button>
-          <Button type="button" onClick={openShareLink} className="flex items-center">
+          <Button
+            type="button"
+            onClick={openShareLink}
+            className="w-full sm:w-auto bg-teal-600 hover:bg-teal-700"
+            disabled={!shareUrl}
+          >
             <ExternalLink className="h-4 w-4 mr-2" />
             Abrir enlace
           </Button>

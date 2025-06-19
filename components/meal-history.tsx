@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -37,15 +37,11 @@ export default function MealHistory() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
-  const [expandAllForPdf, setExpandAllForPdf] = useState(false)
-  const [isPdfMode, setIsPdfMode] = useState(false)
   const [cycleDuration, setCycleDuration] = useState(7)
   const [cycleStartDay, setCycleStartDay] = useState(1)
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const pdfContentRef = useRef<HTMLDivElement>(null)
   const { user } = useAuth()
   const router = useRouter()
   const { getUserMeals, deleteMeal, storageType } = useStorage()
@@ -219,8 +215,6 @@ export default function MealHistory() {
   }
 
   const handleSectionExpand = (date: string) => {
-    if (expandAllForPdf) return
-
     if (!date || date === expandedSection) {
       setExpandedSection(null)
     } else {
@@ -229,89 +223,10 @@ export default function MealHistory() {
   }
 
   const handleCycleExpand = (cycleNumber: number) => {
-    if (expandAllForPdf) return
-
     if (cycleNumber === expandedCycle) {
       setExpandedCycle(null)
     } else {
       setExpandedCycle(cycleNumber)
-    }
-  }
-
-  const prepareForPdfExport = async (): Promise<HTMLElement | null> => {
-    try {
-      setIsPdfMode(true)
-      setExpandAllForPdf(true)
-
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      if (!contentRef.current || !pdfContentRef.current) {
-        return null
-      }
-
-      pdfContentRef.current.innerHTML = ""
-      const clone = contentRef.current.cloneNode(true) as HTMLElement
-      pdfContentRef.current.appendChild(clone)
-
-      const sections = pdfContentRef.current.querySelectorAll(".day-section, .cycle-section")
-
-      sections.forEach((section) => {
-        const collapsible = section.querySelector("[data-state]")
-        if (collapsible) {
-          collapsible.setAttribute("data-state", "open")
-        }
-
-        const thumbnails = section.querySelector(".meal-thumbnails")
-        if (thumbnails) {
-          ;(thumbnails as HTMLElement).style.display = "none"
-        }
-
-        const buttons = section.querySelectorAll("button")
-        buttons.forEach((button) => {
-          ;(button as HTMLElement).style.display = "none"
-        })
-
-        const collapsibleContent = section.querySelector('[data-state="closed"]')
-        if (collapsibleContent) {
-          collapsibleContent.setAttribute("data-state", "open")
-          ;(collapsibleContent as HTMLElement).style.display = "block"
-        }
-      })
-
-      const images = pdfContentRef.current.querySelectorAll("img")
-      const imagePromises = Array.from(images).map((img) => {
-        return new Promise<void>((resolve) => {
-          if (img.complete) {
-            resolve()
-          } else {
-            img.onload = () => resolve()
-            img.onerror = () => resolve()
-          }
-
-          if (img.src && !img.src.includes("placeholder")) {
-            const originalSrc = img.src
-            img.crossOrigin = "anonymous"
-            img.src = originalSrc
-          }
-        })
-      })
-
-      await Promise.all(imagePromises)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      return pdfContentRef.current
-    } catch (error) {
-      console.error("Error preparing content for PDF export:", error)
-      return null
-    }
-  }
-
-  const cleanupAfterPdfExport = () => {
-    setExpandAllForPdf(false)
-    setIsPdfMode(false)
-
-    if (pdfContentRef.current) {
-      pdfContentRef.current.innerHTML = ""
     }
   }
 
@@ -481,15 +396,11 @@ export default function MealHistory() {
                   <span className="hidden sm:inline">Migrar</span>
                 </Button>
               )}
-              <ShareDropdown
-                meals={meals}
-                onBeforePdfExport={prepareForPdfExport}
-                onAfterPdfExport={cleanupAfterPdfExport}
-              />
+              <ShareDropdown meals={meals} />
             </div>
           </div>
 
-          <div id="pdf-content" ref={contentRef} className="pdf-content">
+          <div className="pdf-content">
             {viewMode === "days"
               ? (groupedMeals || []).map((group) => (
                   <DaySection
@@ -500,8 +411,7 @@ export default function MealHistory() {
                     onDeleteMeal={handleDeleteClick}
                     onEditMeal={handleEditClick}
                     onExpand={handleSectionExpand}
-                    isExpanded={expandAllForPdf || expandedSection === group.date}
-                    isPdfMode={isPdfMode}
+                    isExpanded={expandedSection === group.date}
                   />
                 ))
               : (cycleGroups || []).map((cycle) => (
@@ -514,15 +424,12 @@ export default function MealHistory() {
                     onDeleteMeal={handleDeleteClick}
                     onEditMeal={handleEditClick}
                     onExpand={handleCycleExpand}
-                    isExpanded={expandAllForPdf || expandedCycle === cycle.cycleNumber}
-                    isPdfMode={isPdfMode}
+                    isExpanded={expandedCycle === cycle.cycleNumber}
                   />
                 ))}
           </div>
         </div>
       </ScrollArea>
-
-      <div ref={pdfContentRef} className="hidden pdf-render-container"></div>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
