@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,9 +23,10 @@ import { Badge } from "@/components/ui/badge"
 
 interface DirectShareButtonProps {
   compact?: boolean
+  onModalOpen?: () => void
 }
 
-export default function DirectShareButton({ compact = false }: DirectShareButtonProps) {
+export default function DirectShareButton({ compact = false, onModalOpen }: DirectShareButtonProps) {
   const [shareUrl, setShareUrl] = useState<string>("")
   const [copied, setCopied] = useState(false)
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
@@ -61,6 +64,10 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open)
+    if (open && onModalOpen) {
+      // Notify parent component that modal is opening
+      onModalOpen()
+    }
     if (!open) {
       setCopied(false)
     }
@@ -93,7 +100,11 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
     }
   }
 
-  const handleTriggerClick = () => {
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    // Prevent event propagation to parent elements
+    e.preventDefault()
+    e.stopPropagation()
+
     if (!user) {
       toast({
         title: "Inicia sesión",
@@ -102,7 +113,11 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
       })
       return
     }
-    setIsOpen(true)
+
+    // Small delay to ensure dropdown state is handled first
+    setTimeout(() => {
+      setIsOpen(true)
+    }, 50)
   }
 
   return (
@@ -118,7 +133,7 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
           <span>Compartir enlace</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader className="space-y-3">
           <DialogTitle className="flex items-center text-xl">
             <Globe className="h-5 w-5 mr-2 text-teal-600" />
@@ -204,7 +219,12 @@ export default function DirectShareButton({ compact = false }: DirectShareButton
             <div className="space-y-3">
               <label className="text-sm font-medium text-gray-700">Enlace para compartir</label>
               <div className="flex items-center space-x-2">
-                <Input value={shareUrl} readOnly className="font-mono text-sm flex-1 bg-gray-50 border-gray-200" />
+                <Input
+                  value={shareUrl}
+                  readOnly
+                  className="font-mono text-sm flex-1 bg-gray-50 border-gray-200"
+                  onClick={(e) => e.target.select()}
+                />
                 <Button
                   size="icon"
                   className="h-11 w-11 flex-shrink-0"
