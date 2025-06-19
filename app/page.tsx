@@ -34,8 +34,8 @@ export default function HomePage() {
 
   if (!mounted) {
     return (
-      <div className="flex flex-col h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white">
+      <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <header className="p-4 border-b bg-white/80 backdrop-blur-sm">
           <div className="flex justify-center">
             <div className="w-20 h-8 bg-gray-200 animate-pulse rounded"></div>
           </div>
@@ -51,66 +51,94 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white">
+      <div className="flex flex-col min-h-screen bg-gradient-to-br from-teal-50 via-white to-cyan-50">
+        <header className="p-4 sm:p-6 border-b bg-white/80 backdrop-blur-sm">
           <div className="flex justify-center">
             <MilyLogo />
           </div>
         </header>
-        <main className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-          <h1 className="text-2xl font-bold mb-4">Bienvenido a Mily</h1>
-          <p className="text-neutral-600 mb-8 max-w-md">
-            Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
-          </p>
-          <Button onClick={() => router.push("/login")} className="mb-4">
-            Iniciar sesión
-          </Button>
-          <Button variant="outline" onClick={() => router.push("/login?tab=register")}>
-            Crear cuenta
-          </Button>
+        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="space-y-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido a NutriApp</h1>
+              <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
+                Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
+              </p>
+            </div>
+            <div className="space-y-3 w-full">
+              <Button
+                onClick={() => router.push("/login")}
+                className="w-full h-12 text-base bg-teal-600 hover:bg-teal-700"
+              >
+                Iniciar sesión
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/login?tab=register")}
+                className="w-full h-12 text-base border-teal-600 text-teal-600 hover:bg-teal-50"
+              >
+                Crear cuenta
+              </Button>
+            </div>
+          </div>
         </main>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex justify-between items-center">
-        <div className="w-10"></div>
-        <MilyLogo />
-        <Button variant="ghost" size="icon" onClick={() => router.push("/profile")}>
-          <User className="h-5 w-5" />
-        </Button>
+    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Mobile-optimized header */}
+      <header className="p-3 sm:p-4 border-b bg-white/90 backdrop-blur-sm shadow-sm">
+        <div className="flex justify-between items-center max-w-7xl mx-auto">
+          <div className="w-8 sm:w-10"></div>
+          <MilyLogo />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/profile")}
+            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full"
+          >
+            <User className="h-4 w-4 sm:h-5 sm:w-5" />
+          </Button>
+        </div>
       </header>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-        <main className="flex-1 overflow-auto pb-32">
-          <TabsContent value="logger" className="h-full p-0 m-0">
-            <MealLogger />
+        {/* Main content area */}
+        <main className="flex-1 overflow-hidden">
+          <TabsContent value="logger" className="h-full p-0 m-0 overflow-auto">
+            <div className="pb-20 sm:pb-24">
+              <MealLogger />
+            </div>
           </TabsContent>
-          <TabsContent value="history" className="h-full p-0 m-0">
-            <MealHistory />
+          <TabsContent value="history" className="h-full p-0 m-0 overflow-auto">
+            <div className="pb-20 sm:pb-24">
+              <MealHistory />
+            </div>
           </TabsContent>
         </main>
 
-        <footer className="border-t bg-white fixed bottom-0 left-0 right-0 z-10 shadow-md pt-2 pb-3">
-          <TabsList className="w-full grid grid-cols-2 bg-transparent h-auto">
-            <TabsTrigger
-              value="logger"
-              className="flex flex-col items-center justify-center py-2 px-2 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto"
-            >
-              <Camera className="h-6 w-6 mb-2" />
-              <span className="text-sm font-medium leading-tight">Registrar</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="flex flex-col items-center justify-center py-2 px-2 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto"
-            >
-              <History className="h-6 w-6 mb-2" />
-              <span className="text-sm font-medium leading-tight">Historial</span>
-            </TabsTrigger>
-          </TabsList>
-          <div className="h-safe-area w-full bg-white"></div>
+        {/* Mobile-first bottom navigation */}
+        <footer className="border-t bg-white/95 backdrop-blur-sm fixed bottom-0 left-0 right-0 z-50 shadow-lg">
+          <div className="safe-area-inset-bottom">
+            <TabsList className="w-full grid grid-cols-2 bg-transparent h-auto p-2 sm:p-3">
+              <TabsTrigger
+                value="logger"
+                className="flex flex-col items-center justify-center py-2 sm:py-3 px-2 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto rounded-lg transition-all duration-200"
+              >
+                <Camera className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
+                <span className="text-xs sm:text-sm font-medium leading-tight">Registrar</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="history"
+                className="flex flex-col items-center justify-center py-2 sm:py-3 px-2 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto rounded-lg transition-all duration-200"
+              >
+                <History className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
+                <span className="text-xs sm:text-sm font-medium leading-tight">Historial</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
         </footer>
       </Tabs>
     </div>

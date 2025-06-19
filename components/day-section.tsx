@@ -37,7 +37,7 @@ export default function DaySection({
 
   const mealThumbnails = meals
     .filter((meal) => meal.photo_url)
-    .slice(0, 4)
+    .slice(0, 3)
     .map((meal) => meal.photo_url)
 
   // Get today's date for comparison
@@ -47,7 +47,7 @@ export default function DaySection({
 
   return (
     <Card
-      className={`day-section mb-4 overflow-hidden border-0 shadow-md transition-all duration-200 hover:shadow-lg ${
+      className={`day-section mb-3 sm:mb-4 overflow-hidden border-0 shadow-md transition-all duration-200 hover:shadow-lg ${
         isToday
           ? "bg-gradient-to-br from-teal-50 to-cyan-50 border-l-4 border-l-teal-500"
           : isPast
@@ -58,7 +58,7 @@ export default function DaySection({
       <Collapsible open={isExpanded} onOpenChange={handleExpand}>
         <CollapsibleTrigger asChild>
           <CardHeader
-            className={`cursor-pointer transition-all duration-200 p-5 ${
+            className={`cursor-pointer transition-all duration-200 p-4 sm:p-5 ${
               isToday
                 ? "hover:bg-gradient-to-br hover:from-teal-100 hover:to-cyan-100"
                 : isPast
@@ -67,34 +67,36 @@ export default function DaySection({
             }`}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                 <div
-                  className={`flex-shrink-0 p-2 rounded-full ${
+                  className={`flex-shrink-0 p-1.5 sm:p-2 rounded-full ${
                     isToday ? "bg-teal-500" : isPast ? "bg-gray-500" : "bg-blue-500"
                   }`}
                 >
-                  <Calendar className="h-5 w-5 text-white" />
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <div>
-                  <div className="flex items-center space-x-3 mb-1">
-                    <h3 className="text-lg font-bold text-gray-900">{displayDate}</h3>
-                    {isToday && <Badge className="bg-teal-500 hover:bg-teal-600 text-white">Hoy</Badge>}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-1">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate">{displayDate}</h3>
+                    {isToday && (
+                      <Badge className="bg-teal-500 hover:bg-teal-600 text-white text-xs flex-shrink-0">Hoy</Badge>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-1 text-sm text-gray-600">
-                    <Clock className="h-4 w-4" />
+                  <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
+                    <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span>
                       {meals.length} comida{meals.length !== 1 ? "s" : ""}
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                 {!isExpanded && mealThumbnails.length > 0 && (
-                  <div className="meal-thumbnails flex -space-x-2">
+                  <div className="meal-thumbnails flex -space-x-1 sm:-space-x-2">
                     {mealThumbnails.map((photoUrl, index) => (
                       <div
                         key={index}
-                        className="w-10 h-10 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden bg-white border-2 border-white shadow-sm"
                         style={{ zIndex: mealThumbnails.length - index }}
                       >
                         <img
@@ -108,22 +110,22 @@ export default function DaySection({
                         />
                       </div>
                     ))}
-                    {meals.filter((meal) => meal.photo_url).length > 4 && (
+                    {meals.filter((meal) => meal.photo_url).length > 3 && (
                       <div
-                        className={`w-10 h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs text-white font-semibold ${
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs text-white font-semibold ${
                           isToday ? "bg-teal-500" : isPast ? "bg-gray-500" : "bg-blue-500"
                         }`}
                       >
-                        +{meals.filter((meal) => meal.photo_url).length - 4}
+                        +{meals.filter((meal) => meal.photo_url).length - 3}
                       </div>
                     )}
                   </div>
                 )}
-                <div className="flex-shrink-0 p-2 rounded-full bg-white/50">
+                <div className="flex-shrink-0 p-1.5 sm:p-2 rounded-full bg-white/50">
                   {isExpanded ? (
-                    <ChevronDown className="h-5 w-5 text-gray-600" />
+                    <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-gray-600" />
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
                   )}
                 </div>
               </div>
@@ -131,8 +133,8 @@ export default function DaySection({
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="px-5 pb-5">
-            <div className="space-y-3">
+          <CardContent className="px-4 sm:px-5 pb-4 sm:pb-5">
+            <div className="space-y-2 sm:space-y-3">
               {meals.map((meal) => (
                 <MealCard
                   key={meal.id}

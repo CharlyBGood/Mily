@@ -233,20 +233,25 @@ export default function MealLogger() {
   }
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <div className="mb-4">
-        <Label className="block text-sm font-medium text-gray-700 mb-1">
-          Photo <span className="text-red-500">*</span>
+    <div className="max-w-md mx-auto p-3 sm:p-4">
+      {/* Mobile-optimized photo section */}
+      <div className="mb-4 sm:mb-6">
+        <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+          Foto <span className="text-red-500">*</span>
         </Label>
-        <Card className={`mb-4 overflow-hidden w-full max-w-md mx-auto ${photoRequired ? "border-red-500" : ""}`}>
+        <Card className={`mb-4 overflow-hidden w-full ${photoRequired ? "border-red-500" : ""}`}>
           <CardContent className="p-0">
             {photoPreview ? (
               <div className="bg-white relative flex justify-center w-full">
-                <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
+                <img
+                  src={photoPreview || "/placeholder.svg"}
+                  alt="Foto de comida"
+                  className="w-auto max-w-full max-h-80 sm:max-h-96"
+                />
                 <Button
                   variant="outline"
                   size="sm"
-                  className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200"
+                  className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
                   onClick={triggerFileInput}
                 >
                   Cambiar
@@ -254,16 +259,18 @@ export default function MealLogger() {
               </div>
             ) : (
               <div
-                className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[200px] p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
+                className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[180px] sm:min-h-[200px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
                 onClick={triggerFileInput}
               >
-                <Camera className={`h-12 w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`} />
+                <Camera
+                  className={`h-10 w-10 sm:h-12 sm:w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`}
+                />
                 <p
-                  className={`text-center text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
+                  className={`text-center text-sm sm:text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
                 >
                   {photoRequired || "Toca para tomar una foto de tu comida"}
                 </p>
-                {photoRequired && <p className="text-red-500 text-sm mt-1">Este campo es obligatorio</p>}
+                {photoRequired && <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>}
               </div>
             )}
             <input
@@ -281,23 +288,24 @@ export default function MealLogger() {
       {storageWarning && (
         <Alert variant="warning" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{storageWarning}</AlertDescription>
+          <AlertDescription className="text-sm">{storageWarning}</AlertDescription>
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         {mounted && (
-          <div className="text-base text-neutral-500 mb-2 font-medium">
+          <div className="text-sm sm:text-base text-neutral-500 mb-3 sm:mb-4 font-medium">
             {currentDate} • {currentTime}
           </div>
         )}
 
+        {/* Mobile-optimized form fields */}
         <div className="space-y-2">
-          <Label htmlFor="meal-type" className="text-base">
+          <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
             Tipo de comida
           </Label>
           <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
-            <SelectTrigger id="meal-type" className="text-base">
+            <SelectTrigger id="meal-type" className="text-sm sm:text-base h-11 sm:h-12">
               <SelectValue placeholder="Selecciona el tipo de comida" />
             </SelectTrigger>
             <SelectContent>
@@ -315,7 +323,7 @@ export default function MealLogger() {
           </Select>
 
           {mealType === "postre_dulce" && (
-            <div className="flex items-center justify-between text-sm mt-1">
+            <div className="flex items-center justify-between text-xs sm:text-sm mt-1">
               <span>
                 Postres dulces: {sweetDessertsCount}/{sweetDessertLimit} en este ciclo
               </span>
@@ -325,7 +333,7 @@ export default function MealLogger() {
           {isDessertLimitReached && mealType === "postre_dulce" && (
             <Alert variant="warning" className="mt-2">
               <Info className="h-4 w-4" />
-              <AlertDescription>
+              <AlertDescription className="text-xs sm:text-sm">
                 Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
                 <span className="block mt-1 font-medium">Puedes seleccionar "Postre (fruta)" que no tiene límite.</span>
               </AlertDescription>
@@ -334,7 +342,7 @@ export default function MealLogger() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+          <Label htmlFor="description" className="block text-sm sm:text-base font-medium text-gray-700">
             Descripción <span className="text-gray-400">(opcional)</span>
           </Label>
           <Input
@@ -342,12 +350,12 @@ export default function MealLogger() {
             placeholder="¿Qué comiste?"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="text-base"
+            className="text-sm sm:text-base h-11 sm:h-12"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="notes" className="text-base">
+          <Label htmlFor="notes" className="text-sm sm:text-base font-medium">
             Notas adicionales (opcional)
           </Label>
           <Textarea
@@ -355,14 +363,14 @@ export default function MealLogger() {
             placeholder="Agrega cualquier nota adicional aquí..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="resize-none text-base"
+            className="resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px]"
             rows={3}
           />
         </div>
 
         <Button
           type="submit"
-          className="w-full bg-teal-600 hover:bg-teal-700 text-base py-6"
+          className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium"
           disabled={!mealType || isSubmitting || (isDessertLimitReached && mealType === "postre_dulce")}
         >
           {isSubmitting ? "Guardando..." : "Guardar comida"}
