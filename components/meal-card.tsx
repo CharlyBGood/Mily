@@ -79,7 +79,6 @@ export default function MealCard({
     console.error("Error loading image:", meal.photo_url)
   }
 
-  // Direct photo click handler
   const handlePhotoClick = () => {
     if (meal.photo_url && !isPdfMode) {
       setShowPhotoViewer(true)
@@ -89,15 +88,15 @@ export default function MealCard({
   const getMealTypeColor = (mealType: string) => {
     switch (mealType) {
       case "breakfast":
-        return "bg-amber-50 text-amber-700 border border-amber-200"
+        return "bg-amber-100 text-amber-800 border-amber-200"
       case "lunch":
-        return "bg-emerald-50 text-emerald-700 border border-emerald-200"
+        return "bg-emerald-100 text-emerald-800 border-emerald-200"
       case "dinner":
-        return "bg-purple-50 text-purple-700 border border-purple-200"
+        return "bg-purple-100 text-purple-800 border-purple-200"
       case "snack":
-        return "bg-pink-50 text-pink-700 border border-pink-200"
+        return "bg-pink-100 text-pink-800 border-pink-200"
       default:
-        return "bg-gray-50 text-gray-700 border border-gray-200"
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
@@ -116,7 +115,6 @@ export default function MealCard({
     }
   }, [isPdfMode, meal.photo_url])
 
-  // Calculate optimal card width based on image dimensions and screen size
   const getCardStyle = () => {
     if (!imageLoaded || !imageDimensions.width || isPdfMode) {
       return {}
@@ -124,12 +122,10 @@ export default function MealCard({
 
     const screenWidth = typeof window !== "undefined" ? window.innerWidth : 400
 
-    // For mobile: use full width minus padding
     if (screenWidth < 640) {
       return { width: "100%" }
     }
 
-    // For tablet and desktop: use image width as base, with responsive constraints
     const maxWidth = screenWidth < 1024 ? Math.min(screenWidth * 0.45, 500) : Math.min(screenWidth * 0.3, 400)
     const optimalWidth = Math.min(imageDimensions.width, maxWidth)
 
@@ -143,22 +139,19 @@ export default function MealCard({
   return (
     <>
       <Card
-        className={`group overflow-hidden bg-white border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 ${isPdfMode ? "pdf-meal-card" : ""}`}
+        className={`group overflow-hidden bg-white border border-gray-200 hover:border-teal-300 hover:shadow-lg transition-all duration-200 ${isPdfMode ? "pdf-meal-card" : ""}`}
         style={getCardStyle()}
       >
         {/* Photo Section */}
         {meal.photo_url && !imageError && (
-          <div
-            className="relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 cursor-pointer"
-            onClick={handlePhotoClick}
-          >
+          <div className="relative overflow-hidden bg-gray-50 cursor-pointer" onClick={handlePhotoClick}>
             <div className="w-full">
               <img
                 ref={imageRef}
                 src={meal.photo_url || "/placeholder.svg"}
                 alt={meal.description}
-                className={`w-full h-auto object-contain transition-all duration-500 ${
-                  isPdfMode ? "pdf-image" : "group-hover:scale-[1.02]"
+                className={`w-full h-auto object-contain transition-transform duration-200 ${
+                  isPdfMode ? "pdf-image" : "group-hover:scale-105"
                 }`}
                 style={{
                   display: "block",
@@ -171,85 +164,63 @@ export default function MealCard({
               />
             </div>
 
-            {/* Enhanced gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
             {/* Meal type badge */}
-            <div className="absolute top-4 left-4">
-              <Badge
-                className={`${getMealTypeColor(meal.meal_type)} font-semibold text-sm px-3 py-1.5 shadow-lg backdrop-blur-sm`}
-              >
+            <div className="absolute top-3 left-3">
+              <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-sm px-3 py-1 border`}>
                 {getMealTypeLabel(meal.meal_type)}
               </Badge>
             </div>
 
             {/* Time badge */}
             {showTime && formattedTime && (
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-3 right-3">
                 <Badge
                   variant="secondary"
-                  className="bg-white/95 text-gray-700 font-semibold text-sm px-3 py-1.5 shadow-lg backdrop-blur-sm border border-white/30"
+                  className="bg-white text-gray-700 font-medium text-sm px-3 py-1 border border-gray-200"
                 >
-                  <Clock className="w-4 h-4 mr-1.5" />
+                  <Clock className="w-3 h-3 mr-1" />
                   {formattedTime}
                 </Badge>
-              </div>
-            )}
-
-            {/* Hover indicator */}
-            {!isPdfMode && (
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="bg-white/95 rounded-full p-4 shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-200">
-                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
-                    />
-                  </svg>
-                </div>
               </div>
             )}
           </div>
         )}
 
         {/* Content Section */}
-        <CardContent className="p-6 space-y-4">
-          {/* Title and Date */}
+        <CardContent className="p-4">
           <div className="space-y-3">
-            <h3 className="font-bold text-xl text-gray-900 leading-tight line-clamp-2">{meal.description}</h3>
+            <h3 className="font-semibold text-lg text-gray-900 leading-tight line-clamp-2">{meal.description}</h3>
 
             {/* Date info */}
             {showTime && formattedDate && (
-              <div className="flex items-center text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-                <Calendar className="w-5 h-5 mr-3 text-gray-400" />
-                <span className="font-semibold">{formattedDate}</span>
+              <div className="flex items-center text-sm text-gray-600 bg-gray-50 rounded-lg p-2">
+                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+                <span className="font-medium">{formattedDate}</span>
+              </div>
+            )}
+
+            {/* Notes */}
+            {meal.notes && (
+              <div className="bg-teal-50 rounded-lg p-3 border-l-4 border-teal-500">
+                <p className="text-sm text-gray-700 leading-relaxed">{meal.notes}</p>
               </div>
             )}
           </div>
-
-          {/* Notes */}
-          {meal.notes && (
-            <div className="bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl p-4 border-l-4 border-teal-400">
-              <p className="text-sm text-gray-700 leading-relaxed">{meal.notes}</p>
-            </div>
-          )}
         </CardContent>
 
         {/* Actions Footer */}
         {!isPdfMode && (showDeleteButton || showEditButton) && (onDelete || onEdit) && (
-          <CardFooter className="px-6 py-4 bg-gray-50/80 border-t border-gray-100">
-            <div className="flex justify-end space-x-3 w-full">
+          <CardFooter className="px-4 py-3 bg-gray-50 border-t">
+            <div className="flex justify-end space-x-2 w-full">
               {showEditButton && onEdit && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 h-10 px-5 rounded-xl font-semibold transition-all duration-200 flex items-center"
+                  className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 h-8 px-3 font-medium"
                   onClick={handleEdit}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
-                  <span>Editar</span>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Editar
                 </Button>
               )}
 
@@ -257,11 +228,11 @@ export default function MealCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-10 px-5 rounded-xl font-semibold transition-all duration-200 flex items-center"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 font-medium"
                   onClick={handleDelete}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  <span>Eliminar</span>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Eliminar
                 </Button>
               )}
             </div>

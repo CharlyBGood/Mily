@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ChevronDown, ChevronUp, Calendar, TrendingUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Calendar, BarChart3 } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import DaySection from "./day-section"
 import type { CycleGroup } from "@/lib/cycle-utils"
@@ -40,7 +40,7 @@ export default function CycleSection({
   useEffect(() => {
     setMounted(true)
 
-    // Enhanced date range formatting with real-time updates
+    // Real-time date range formatting
     try {
       const startDate = parseISO(cycle.startDate)
       const endDate = parseISO(cycle.endDate)
@@ -70,33 +70,13 @@ export default function CycleSection({
     return cycle.days.reduce((total, day) => total + day.meals.length, 0)
   }
 
-  const getMealTypeStats = () => {
-    const allMeals = cycle.days.flatMap((day) => day.meals)
-    const stats = allMeals.reduce(
-      (acc, meal) => {
-        const type = meal.meal_type || "other"
-        acc[type] = (acc[type] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-
-    return Object.entries(stats).map(([type, count]) => ({ type, count }))
-  }
-
   const getActiveDays = () => {
     return cycle.days.filter((day) => day.meals.length > 0).length
   }
 
-  const getCycleProgress = () => {
-    const totalDays = cycle.days.length
-    const activeDays = getActiveDays()
-    return Math.round((activeDays / totalDays) * 100)
-  }
-
   if (!mounted) {
     return (
-      <Card className="w-full shadow-sm">
+      <Card className="w-full">
         <CardHeader className="pb-4">
           <div className="animate-pulse">
             <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -108,49 +88,32 @@ export default function CycleSection({
   }
 
   const totalMeals = getTotalMeals()
-  const mealStats = getMealTypeStats()
   const activeDays = getActiveDays()
-  const progress = getCycleProgress()
 
   return (
-    <Card className="w-full shadow-lg border-0 bg-gradient-to-r from-white to-gray-50 overflow-hidden">
+    <Card className="w-full bg-white border border-gray-200 overflow-hidden">
       <Collapsible open={isExpanded} onOpenChange={handleToggle}>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-gradient-to-r hover:from-teal-50 hover:to-blue-50 transition-all duration-200 pb-4">
+          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 pb-4">
             <div className="flex items-center justify-between w-full">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <TrendingUp className="h-5 w-5 text-white" />
+                  <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="h-4 w-4 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 truncate">{formattedDateRange}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">{formattedDateRange}</h3>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="bg-teal-50 text-teal-700 border border-teal-200">
-                      {totalMeals} comidas
-                    </Badge>
-                  </div>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 ml-11">
+                  <Badge variant="secondary" className="bg-teal-50 text-teal-700 border-teal-200">
+                    {totalMeals} comidas
+                  </Badge>
 
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-gray-500" />
-                    <span className="font-medium text-gray-600">
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>
                       {activeDays}/{cycle.days.length} días
                     </span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 bg-gradient-to-r from-teal-400 to-blue-400 rounded-full"></div>
-                    <span className="font-medium text-gray-600">{progress}% completado</span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    {mealStats.slice(0, 2).map(({ type, count }) => (
-                      <Badge key={type} variant="outline" className="text-xs">
-                        {type}: {count}
-                      </Badge>
-                    ))}
                   </div>
                 </div>
               </div>
@@ -163,7 +126,7 @@ export default function CycleSection({
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-6">
+          <CardContent className="pt-0 pb-4">
             <div className="space-y-4">
               {cycle.days
                 .filter((day) => day.meals.length > 0)
@@ -186,7 +149,7 @@ export default function CycleSection({
               {cycle.days.every((day) => day.meals.length === 0) && (
                 <div className="text-center py-12 text-gray-500">
                   <Calendar className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                  <h4 className="text-lg font-semibold mb-2">No hay comidas en este ciclo</h4>
+                  <h4 className="text-lg font-medium mb-2">No hay comidas en este ciclo</h4>
                   <p>Las comidas aparecerán aquí una vez que las registres</p>
                 </div>
               )}

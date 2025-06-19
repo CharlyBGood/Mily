@@ -42,7 +42,7 @@ export default function DaySection({
   useEffect(() => {
     setMounted(true)
 
-    // Enhanced date formatting with real-time updates
+    // Real-time date formatting
     try {
       const dateObj = parseISO(date)
       const formatted = format(dateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
@@ -57,19 +57,6 @@ export default function DaySection({
     if (onExpand) {
       onExpand(date)
     }
-  }
-
-  const getMealTypeStats = () => {
-    const stats = meals.reduce(
-      (acc, meal) => {
-        const type = meal.meal_type || "other"
-        acc[type] = (acc[type] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-
-    return Object.entries(stats).map(([type, count]) => ({ type, count }))
   }
 
   const getTimeRange = () => {
@@ -91,7 +78,7 @@ export default function DaySection({
 
   if (!mounted) {
     return (
-      <Card className="w-full shadow-sm">
+      <Card className="w-full">
         <CardHeader className="pb-4">
           <div className="animate-pulse">
             <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -103,37 +90,36 @@ export default function DaySection({
   }
 
   const timeRange = getTimeRange()
-  const mealStats = getMealTypeStats()
+  const today = new Date().toISOString().split("T")[0]
+  const isToday = date === today
 
   return (
-    <Card className="w-full shadow-lg border-0 bg-white overflow-hidden">
+    <Card className="w-full bg-white border border-gray-200 overflow-hidden">
       <Collapsible open={isExpanded} onOpenChange={handleToggle}>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-200 pb-4">
+          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 pb-4">
             <div className="flex items-center justify-between w-full">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-2">
-                  <Calendar className="h-5 w-5 text-teal-600 flex-shrink-0" />
-                  <h3 className="text-lg font-bold text-gray-900 truncate">{formattedDate}</h3>
+                  <div className={`w-3 h-3 rounded-full ${isToday ? "bg-teal-500" : "bg-gray-400"}`}></div>
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">{formattedDate}</h3>
+                  {isToday && <Badge className="bg-teal-500 text-white text-xs">Hoy</Badge>}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                  <Badge variant="secondary" className="bg-teal-50 text-teal-700 border border-teal-200">
-                    {meals.length} comida{meals.length !== 1 ? "s" : ""}
-                  </Badge>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 ml-6">
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      {meals.length} comida{meals.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
 
                   {timeRange && (
                     <div className="flex items-center space-x-1">
                       <Clock className="h-4 w-4" />
-                      <span className="font-medium">{timeRange}</span>
+                      <span>{timeRange}</span>
                     </div>
                   )}
-
-                  {mealStats.map(({ type, count }) => (
-                    <Badge key={type} variant="outline" className="text-xs">
-                      {type}: {count}
-                    </Badge>
-                  ))}
                 </div>
               </div>
 
@@ -145,9 +131,9 @@ export default function DaySection({
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-6">
+          <CardContent className="pt-0 pb-4">
             {meals.length > 0 ? (
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {meals.map((meal) => (
                   <div key={meal.id} className="w-full">
                     <MealCard

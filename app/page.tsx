@@ -35,8 +35,8 @@ export default function HomePage() {
 
   if (!mounted) {
     return (
-      <div className="flex flex-col h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
-        <header className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="flex flex-col h-screen bg-gray-50">
+        <header className="flex-shrink-0 bg-white border-b border-gray-200">
           <div className="px-4 py-4 sm:px-6">
             <div className="flex justify-center">
               <div className="w-24 h-8 bg-gray-200 animate-pulse rounded-lg"></div>
@@ -52,8 +52,8 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col min-h-screen bg-gradient-to-br from-teal-50 via-white to-blue-50">
-        <header className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+      <div className="flex flex-col min-h-screen bg-gray-50">
+        <header className="flex-shrink-0 bg-white border-b border-gray-200">
           <div className="px-4 py-4 sm:px-6">
             <div className="flex justify-center">
               <MilyLogo className="w-24 h-auto" />
@@ -63,7 +63,7 @@ export default function HomePage() {
         <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
           <div className="w-full max-w-sm mx-auto space-y-8">
             <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-gradient-to-br from-teal-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+              <div className="w-20 h-20 bg-teal-500 rounded-2xl flex items-center justify-center mx-auto">
                 <Camera className="w-10 h-10 text-white" />
               </div>
               <div className="space-y-3">
@@ -78,14 +78,14 @@ export default function HomePage() {
             <div className="space-y-3 w-full">
               <Button
                 onClick={() => router.push("/login")}
-                className="w-full h-12 text-base bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-medium"
+                className="w-full h-12 text-base bg-teal-600 hover:bg-teal-700 text-white font-medium"
               >
                 Iniciar sesión
               </Button>
               <Button
                 variant="outline"
                 onClick={() => router.push("/login?tab=register")}
-                className="w-full h-12 text-base border-2 border-teal-600 text-teal-600 hover:bg-teal-50 rounded-xl transition-all duration-300 font-medium"
+                className="w-full h-12 text-base border-2 border-teal-600 text-teal-600 hover:bg-teal-50 font-medium"
               >
                 Crear cuenta nueva
               </Button>
@@ -97,29 +97,27 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 overflow-hidden">
-      {/* Production Header - Mobile First */}
-      <header className="flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm z-40">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      {/* Header */}
+      <header className="flex-shrink-0 bg-white border-b border-gray-200 z-40">
         <div className="px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex justify-between items-center max-w-7xl mx-auto">
-            {/* Logo - Centered on mobile, left on desktop */}
             <div className="flex items-center justify-center flex-1 sm:flex-none sm:justify-start">
               <MilyLogo className="w-20 h-auto sm:w-24" />
-              {/* Removed desktop h1 and p elements as requested */}
             </div>
 
             {/* Mobile Menu */}
             <div className="sm:hidden">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
+                  <Button variant="ghost" size="icon" className="h-10 w-10">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80 bg-white">
                   <div className="flex flex-col h-full pt-6">
-                    <div className="flex items-center space-x-3 mb-8 p-4 bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl">
-                      <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                    <div className="flex items-center space-x-3 mb-8 p-4 bg-teal-50 rounded-xl">
+                      <div className="w-12 h-12 bg-teal-500 rounded-xl flex items-center justify-center">
                         <User className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -131,7 +129,7 @@ export default function HomePage() {
                     <nav className="space-y-2">
                       <Button
                         variant="ghost"
-                        className="w-full justify-start h-12 rounded-xl hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                        className="w-full justify-start h-12 hover:bg-teal-50 hover:text-teal-700"
                         onClick={() => router.push("/profile")}
                       >
                         <User className="h-5 w-5 mr-3" />
@@ -149,9 +147,9 @@ export default function HomePage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/profile")}
-                className="flex items-center space-x-2 h-10 px-4 rounded-xl hover:bg-teal-50 hover:text-teal-700 transition-colors"
+                className="flex items-center space-x-2 h-10 px-4 hover:bg-teal-50 hover:text-teal-700"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-blue-500 rounded-lg flex items-center justify-center shadow-sm">
+                <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <span className="font-medium">{user.email?.split("@")[0]}</span>
@@ -177,19 +175,19 @@ export default function HomePage() {
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <footer className="flex-shrink-0 sm:hidden border-t bg-white/95 backdrop-blur-sm fixed bottom-0 left-0 right-0 z-50 shadow-lg">
+        <footer className="flex-shrink-0 sm:hidden border-t bg-white fixed bottom-0 left-0 right-0 z-50">
           <div className="pb-safe">
             <TabsList className="w-full grid grid-cols-2 bg-transparent h-auto p-2">
               <TabsTrigger
                 value="logger"
-                className="flex flex-col items-center justify-center py-3 px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-50 data-[state=active]:to-blue-50 data-[state=active]:text-teal-700 h-auto rounded-xl transition-all duration-200 space-y-1"
+                className="flex flex-col items-center justify-center py-3 px-4 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto transition-all duration-200 space-y-1"
               >
                 <Camera className="h-6 w-6" />
                 <span className="text-xs font-medium">Registrar</span>
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                className="flex flex-col items-center justify-center py-3 px-4 data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-50 data-[state=active]:to-blue-50 data-[state=active]:text-teal-700 h-auto rounded-xl transition-all duration-200 space-y-1"
+                className="flex flex-col items-center justify-center py-3 px-4 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto transition-all duration-200 space-y-1"
               >
                 <History className="h-6 w-6" />
                 <span className="text-xs font-medium">Historial</span>
@@ -199,19 +197,19 @@ export default function HomePage() {
         </footer>
 
         {/* Desktop Tab Navigation */}
-        <footer className="hidden sm:block flex-shrink-0 border-t bg-white/95 backdrop-blur-sm">
+        <footer className="hidden sm:block flex-shrink-0 border-t bg-white">
           <div className="max-w-7xl mx-auto px-6 py-4">
-            <TabsList className="bg-gray-100 p-1 rounded-xl shadow-sm">
+            <TabsList className="bg-gray-100 p-1">
               <TabsTrigger
                 value="logger"
-                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 font-medium"
               >
                 <Camera className="h-5 w-5" />
                 <span>Registrar Comida</span>
               </TabsTrigger>
               <TabsTrigger
                 value="history"
-                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all duration-200 font-medium"
+                className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 font-medium"
               >
                 <History className="h-5 w-5" />
                 <span>Ver Historial</span>

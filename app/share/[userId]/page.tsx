@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Alert } from "@/components/ui/alert"
+import { Card, CardContent } from "@/components/ui/card"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -53,7 +54,6 @@ export default function SharePage() {
   useEffect(() => {
     setMounted(true)
 
-    // Set the selected cycle from URL parameter
     if (cycleParam) {
       setSelectedCycle(cycleParam)
     }
@@ -62,7 +62,7 @@ export default function SharePage() {
     loadMeals()
   }, [userId, cycleParam])
 
-  // Auto-refresh data every 30 seconds for real-time updates
+  // Auto-refresh for real-time updates
   useEffect(() => {
     const interval = setInterval(() => {
       loadMeals()
@@ -77,7 +77,6 @@ export default function SharePage() {
       console.log("Loading user info for userId:", userId)
       const supabase = getSupabaseClient()
 
-      // Get user's username and cycle settings
       const { data, error } = await supabase
         .from("user_settings")
         .select("username, cycle_duration, cycle_start_day, sweet_dessert_limit")
@@ -86,7 +85,6 @@ export default function SharePage() {
 
       if (error) {
         console.error("Error loading user settings:", error)
-        // Continue with default settings
       }
 
       if (data) {
@@ -100,7 +98,6 @@ export default function SharePage() {
       }
     } catch (error) {
       console.error("Error in loadUserInfo:", error)
-      // Continue with default settings
     }
   }
 
@@ -110,7 +107,6 @@ export default function SharePage() {
       console.log("Loading meals for userId:", userId)
       const supabase = getSupabaseClient()
 
-      // Directly fetch meals for the specified user
       const { data, error } = await supabase
         .from("meals")
         .select("*")
@@ -125,18 +121,11 @@ export default function SharePage() {
       console.log(`Loaded ${data?.length || 0} meals`)
 
       if (data && data.length > 0) {
-        // Group meals by day
         const grouped = groupMealsByDay(data as Meal[])
         setGroupedMeals(grouped)
 
-        // Group meals by cycle using user's cycle settings
         const cycles = groupMealsByCycle(data as Meal[], cycleSettings.cycleDuration, cycleSettings.cycleStartDay)
         setCycleGroups(cycles)
-
-        // If a specific cycle is selected in the URL, filter the data
-        if (cycleParam && cycleParam !== "all") {
-          // No need to auto-expand any section initially
-        }
       } else {
         setGroupedMeals([])
         setCycleGroups([])
@@ -162,25 +151,18 @@ export default function SharePage() {
     setExpandedCycle(cycleNumber === expandedCycle ? null : cycleNumber)
   }
 
-  // Empty functions since we don't need these functionalities in share view
-  const handleDeleteClick = () => {
-    // Intentionally empty - no delete functionality on shared pages
-  }
-  const handleEditClick = () => {
-    // Intentionally empty - no edit functionality on shared pages
-  }
+  const handleDeleteClick = () => {}
+  const handleEditClick = () => {}
 
-  // Filter cycles based on selection
   const filteredCycleGroups =
     selectedCycle === "all"
       ? cycleGroups
       : selectedCycle === "current"
         ? cycleGroups.length > 0
-          ? [cycleGroups[0]] // First cycle is the current one
+          ? [cycleGroups[0]]
           : []
         : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
 
-  // Enhanced date range formatting with real-time updates
   const getFormattedDateRange = () => {
     if (cycleGroups.length === 0) return "Historial de comidas compartido"
 
@@ -194,7 +176,6 @@ export default function SharePage() {
         }
       }
     } else {
-      // Get overall date range with enhanced formatting
       const firstCycle = [...cycleGroups].sort((a, b) => a.cycleNumber - b.cycleNumber)[0]
       const lastCycle = [...cycleGroups].sort((a, b) => b.cycleNumber - a.cycleNumber)[0]
 
@@ -219,7 +200,7 @@ export default function SharePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando...</p>
+        <p className="text-gray-500">Cargando...</p>
       </div>
     )
   }
@@ -228,14 +209,14 @@ export default function SharePage() {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando contenido compartido...</p>
+        <p className="text-gray-500">Cargando contenido compartido...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex flex-col h-screen bg-neutral-50">
+      <div className="flex flex-col h-screen bg-gray-50">
         <header className="p-4 border-b bg-white flex items-center">
           <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
@@ -247,13 +228,15 @@ export default function SharePage() {
         </header>
 
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
-            <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
-            <p className="text-red-600">{error}</p>
-            <Button variant="outline" className="mt-4" onClick={handleBack}>
-              Volver al inicio
-            </Button>
-          </div>
+          <Card className="p-6 max-w-md">
+            <CardContent>
+              <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button variant="outline" onClick={handleBack}>
+                Volver al inicio
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
@@ -262,8 +245,8 @@ export default function SharePage() {
   const titleDateRange = getFormattedDateRange()
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      <header className="p-4 border-b bg-white/95 backdrop-blur-sm shadow-sm flex items-center">
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="p-4 border-b bg-white flex items-center">
         <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -274,15 +257,14 @@ export default function SharePage() {
       </header>
 
       <ScrollArea className="flex-1">
-        {/* Full-width container without constraints */}
         <div className="w-full px-4 py-6 pb-40">
           {groupedMeals.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
-              <p className="text-neutral-500">No hay comidas compartidas</p>
+              <p className="text-gray-500">No hay comidas compartidas</p>
             </div>
           ) : (
             <>
-              <div className="bg-gradient-to-r from-teal-500 to-blue-500 text-white p-6 rounded-xl shadow-xl mb-6 text-center">
+              <Card className="bg-teal-500 text-white p-6 mb-6 text-center border-0">
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2">{titleDateRange}</h1>
                 <p className="text-teal-100">
                   {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
@@ -290,10 +272,10 @@ export default function SharePage() {
                 <div className="mt-3 text-sm text-teal-100">
                   Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
                 </div>
-              </div>
+              </Card>
 
               {cycleSettings && (
-                <Alert className="mb-6 border-teal-200 bg-gradient-to-r from-teal-50 to-blue-50 rounded-xl">
+                <Alert className="mb-6 border-teal-200 bg-teal-50">
                   <div className="flex items-center">
                     <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
                     <span className="ml-2 text-teal-700">
@@ -310,7 +292,7 @@ export default function SharePage() {
                     variant={viewMode === "cycles" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setViewMode("cycles")}
-                    className="flex items-center bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-700 hover:to-blue-700 text-white rounded-xl"
+                    className={`flex items-center ${viewMode === "cycles" ? "bg-teal-500 text-white" : ""}`}
                     aria-label="Ver por ciclos"
                   >
                     <LayoutGrid className="h-4 w-4 mr-2" />
@@ -323,7 +305,7 @@ export default function SharePage() {
                     variant={viewMode === "days" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setViewMode("days")}
-                    className="flex items-center"
+                    className={`flex items-center ${viewMode === "days" ? "bg-teal-500 text-white" : ""}`}
                     aria-label="Ver por días"
                   >
                     <List className="h-4 w-4 mr-2" />
@@ -334,7 +316,7 @@ export default function SharePage() {
                 {viewMode === "cycles" && cycleGroups.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-shrink-0 rounded-xl">
+                      <Button variant="outline" size="sm" className="flex-shrink-0">
                         {selectedCycle === "all"
                           ? "Todos los ciclos"
                           : selectedCycle === "current"
@@ -360,11 +342,10 @@ export default function SharePage() {
                 )}
               </div>
 
-              {/* Full-width content section */}
-              <div className="space-y-6">
+              {/* Content Section */}
+              <div className="space-y-4">
                 {viewMode === "days"
-                  ? // Display by days
-                    groupedMeals.map((group) => (
+                  ? groupedMeals.map((group) => (
                       <DaySection
                         key={group.date}
                         date={group.date}
@@ -379,8 +360,7 @@ export default function SharePage() {
                         isSharedView={true}
                       />
                     ))
-                  : // Display by cycles
-                    filteredCycleGroups.map((cycle) => (
+                  : filteredCycleGroups.map((cycle) => (
                       <CycleSection
                         key={cycle.cycleNumber}
                         cycle={cycle}
