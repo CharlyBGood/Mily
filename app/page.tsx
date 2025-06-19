@@ -60,7 +60,7 @@ export default function HomePage() {
         <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
           <div className="max-w-md mx-auto space-y-6">
             <div className="space-y-4">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido a NutriApp</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bienvenido a Mily</h1>
               <p className="text-gray-600 text-base sm:text-lg leading-relaxed">
                 Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
               </p>
@@ -87,9 +87,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Mobile-optimized header */}
-      <header className="p-3 sm:p-4 border-b bg-white/90 backdrop-blur-sm shadow-sm">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+      {/* Fixed mobile header */}
+      <header className="flex-shrink-0 p-3 sm:p-4 border-b bg-white/95 backdrop-blur-sm shadow-sm z-40">
         <div className="flex justify-between items-center max-w-7xl mx-auto">
           <div className="w-8 sm:w-10"></div>
           <MilyLogo />
@@ -104,24 +104,24 @@ export default function HomePage() {
         </div>
       </header>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-        {/* Main content area */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col overflow-hidden">
+        {/* Main content area with proper mobile handling */}
         <main className="flex-1 overflow-hidden">
-          <TabsContent value="logger" className="h-full p-0 m-0 overflow-auto">
-            <div className="pb-20 sm:pb-24">
+          <TabsContent value="logger" className="h-full p-0 m-0 overflow-y-auto">
+            <div className="pb-20 sm:pb-24 min-h-full">
               <MealLogger />
             </div>
           </TabsContent>
-          <TabsContent value="history" className="h-full p-0 m-0 overflow-auto">
-            <div className="pb-20 sm:pb-24">
+          <TabsContent value="history" className="h-full p-0 m-0 overflow-y-auto">
+            <div className="pb-20 sm:pb-24 min-h-full">
               <MealHistory />
             </div>
           </TabsContent>
         </main>
 
-        {/* Mobile-first bottom navigation */}
-        <footer className="border-t bg-white/95 backdrop-blur-sm fixed bottom-0 left-0 right-0 z-50 shadow-lg">
-          <div className="safe-area-inset-bottom">
+        {/* Fixed bottom navigation with safe area */}
+        <footer className="flex-shrink-0 border-t bg-white/95 backdrop-blur-sm fixed bottom-0 left-0 right-0 z-50 shadow-lg">
+          <div className="pb-safe">
             <TabsList className="w-full grid grid-cols-2 bg-transparent h-auto p-2 sm:p-3">
               <TabsTrigger
                 value="logger"
