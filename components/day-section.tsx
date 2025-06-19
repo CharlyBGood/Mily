@@ -94,16 +94,16 @@ export default function DaySection({
   const isToday = date === today
 
   return (
-    <Card className="w-full bg-white border border-gray-200 overflow-hidden">
+    <Card className="w-full bg-white border border-gray-200">
       <Collapsible open={isExpanded} onOpenChange={handleToggle}>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 pb-4">
+          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 pb-3">
             <div className="flex items-center justify-between w-full">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-2">
                   <div className={`w-3 h-3 rounded-full ${isToday ? "bg-teal-500" : "bg-gray-400"}`}></div>
                   <h3 className="text-lg font-semibold text-gray-900 truncate">{formattedDate}</h3>
-                  {isToday && <Badge className="bg-teal-500 text-white text-xs">Hoy</Badge>}
+                  {isToday && <Badge className="bg-teal-500 text-white text-xs px-2 py-1">Hoy</Badge>}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 ml-6">
@@ -133,19 +133,18 @@ export default function DaySection({
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
             {meals.length > 0 ? (
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              // Direct grid layout without extra container divs
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {meals.map((meal) => (
-                  <div key={meal.id} className="w-full">
-                    <MealCard
-                      meal={meal}
-                      onDelete={onDeleteMeal}
-                      onEdit={onEditMeal}
-                      showDeleteButton={showDeleteButton}
-                      showEditButton={showEditButton}
-                      showTime={false}
-                      isSharedView={isSharedView}
-                    />
-                  </div>
+                  <MealCard
+                    key={meal.id}
+                    meal={meal}
+                    onDelete={onDeleteMeal}
+                    onEdit={onEditMeal}
+                    showDeleteButton={showDeleteButton}
+                    showEditButton={showEditButton}
+                    isSharedView={isSharedView}
+                  />
                 ))}
               </div>
             ) : (

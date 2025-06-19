@@ -254,20 +254,20 @@ export default function MealHistory() {
 
   if (storageType === "supabase" && !user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
-        <Card className="p-8 max-w-md mx-auto w-full bg-white border border-gray-200">
-          <CardContent className="space-y-6">
-            <div className="w-20 h-20 bg-teal-500 rounded-full flex items-center justify-center mx-auto">
-              <Database className="h-10 w-10 text-white" />
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
+        <Card className="p-6 max-w-sm mx-auto w-full bg-white border border-gray-200">
+          <CardContent className="space-y-4">
+            <div className="w-16 h-16 bg-teal-500 rounded-full flex items-center justify-center mx-auto">
+              <Database className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">Inicia sesión</h3>
-              <p className="text-gray-600 text-lg mb-6">Debes iniciar sesión para ver tu historial de comidas</p>
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Inicia sesión</h3>
+              <p className="text-gray-600 mb-4">Debes iniciar sesión para ver tu historial de comidas</p>
             </div>
             <Button
               variant="default"
               onClick={() => router.push("/login")}
-              className="w-full h-12 text-lg bg-teal-600 hover:bg-teal-700 text-white"
+              className="w-full h-10 bg-teal-600 hover:bg-teal-700 text-white"
             >
               Iniciar sesión
             </Button>
@@ -288,17 +288,17 @@ export default function MealHistory() {
 
   if (loadError) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
-        <Card className="p-8 max-w-md mx-auto w-full">
-          <CardContent className="space-y-6">
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
+        <Card className="p-6 max-w-sm mx-auto w-full">
+          <CardContent className="space-y-4">
             <div className="text-red-500">
-              <AlertCircle className="h-20 w-20 mx-auto" />
+              <AlertCircle className="h-16 w-16 mx-auto" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold mb-2">Error al cargar el historial</h3>
-              <p className="text-gray-600 mb-6">{loadError}</p>
+              <h3 className="text-lg font-semibold mb-2">Error al cargar el historial</h3>
+              <p className="text-gray-600 mb-4">{loadError}</p>
             </div>
-            <Button variant="default" onClick={handleRefresh} className="w-full h-12">
+            <Button variant="default" onClick={handleRefresh} className="w-full h-10">
               <RefreshCw className="h-4 w-4 mr-2" />
               Intentar nuevamente
             </Button>
@@ -316,19 +316,19 @@ export default function MealHistory() {
 
   if (safeMeals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
-        <Card className="p-8 max-w-md mx-auto w-full bg-white border border-gray-200">
-          <CardContent className="space-y-6">
-            <div className="w-20 h-20 bg-gray-400 rounded-full flex items-center justify-center mx-auto">
-              <Calendar className="h-10 w-10 text-white" />
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
+        <Card className="p-6 max-w-sm mx-auto w-full bg-white border border-gray-200">
+          <CardContent className="space-y-4">
+            <div className="w-16 h-16 bg-gray-400 rounded-full flex items-center justify-center mx-auto">
+              <Calendar className="h-8 w-8 text-white" />
             </div>
             <div>
-              <h3 className="text-2xl font-bold mb-3 text-gray-900">¡Comienza tu diario!</h3>
-              <p className="text-gray-600 text-lg mb-6">
+              <h3 className="text-xl font-bold mb-2 text-gray-900">¡Comienza tu diario!</h3>
+              <p className="text-gray-600 mb-4">
                 Aún no has registrado ninguna comida. ¡Agrega tu primera comida para comenzar!
               </p>
             </div>
-            <Button variant="outline" onClick={handleRefresh} className="w-full h-12">
+            <Button variant="outline" onClick={handleRefresh} className="w-full h-10">
               <RefreshCw className="h-4 w-4 mr-2" />
               Actualizar
             </Button>
@@ -341,18 +341,19 @@ export default function MealHistory() {
   return (
     <>
       <div className="min-h-screen bg-gray-50">
-        <div className="w-full px-4 py-6">
+        {/* Fixed container with proper mobile padding */}
+        <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <Card className="bg-teal-500 text-white border-0">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <CardHeader className="pb-3 sm:pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                   <div>
-                    <CardTitle className="text-2xl sm:text-3xl font-bold">Mi Historial</CardTitle>
-                    <p className="text-teal-100 mt-1">Revisa y gestiona tu registro alimentario</p>
+                    <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold">Mi Historial</CardTitle>
+                    <p className="text-teal-100 mt-1 text-sm sm:text-base">Revisa y gestiona tu registro alimentario</p>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs sm:text-sm">
                       {safeFilteredMeals.length} comidas
                     </Badge>
                   </div>
@@ -362,17 +363,17 @@ export default function MealHistory() {
           </div>
 
           {/* Search and Controls */}
-          <Card className="mb-6 border border-gray-200">
-            <CardContent className="p-4">
+          <Card className="mb-4 sm:mb-6 border border-gray-200">
+            <CardContent className="p-3 sm:p-4">
               {/* Search Bar */}
-              <div className="mb-4">
+              <div className="mb-3 sm:mb-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                   <Input
                     placeholder="Buscar comidas..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 border-gray-300 focus:border-teal-500 focus:ring-teal-500"
+                    className="pl-9 sm:pl-10 h-10 sm:h-12 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-sm sm:text-base"
                   />
                 </div>
               </div>
@@ -385,40 +386,40 @@ export default function MealHistory() {
                       variant={viewMode === "cycles" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("cycles")}
-                      className={`flex items-center text-sm px-3 py-2 h-10 ${
+                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${
                         viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
                       }`}
                     >
-                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      <LayoutGrid className="h-3 w-3 mr-1" />
                       Ciclos
                     </Button>
                     <Button
                       variant={viewMode === "days" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("days")}
-                      className={`flex items-center text-sm px-3 py-2 h-10 ${
+                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${
                         viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
                       }`}
                     >
-                      <List className="h-4 w-4 mr-2" />
+                      <List className="h-3 w-3 mr-1" />
                       Días
                     </Button>
                   </div>
 
                   <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="sm" className="px-4 h-10">
-                        <Filter className="h-4 w-4 mr-2" />
+                      <Button variant="outline" size="sm" className="px-3 h-8 text-xs">
+                        <Filter className="h-3 w-3 mr-1" />
                         Opciones
                       </Button>
                     </SheetTrigger>
                     <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
-                      <SheetHeader className="pb-6">
+                      <SheetHeader className="pb-4">
                         <SheetTitle>Opciones</SheetTitle>
                       </SheetHeader>
-                      <div className="grid grid-cols-2 gap-4 pb-8">
-                        <Button variant="outline" onClick={handleRefresh} className="h-14">
-                          <RefreshCw className="h-5 w-5 mr-2" />
+                      <div className="grid grid-cols-2 gap-3 pb-6">
+                        <Button variant="outline" onClick={handleRefresh} className="h-12 text-sm">
+                          <RefreshCw className="h-4 w-4 mr-2" />
                           Actualizar
                         </Button>
                         <Button
@@ -427,9 +428,9 @@ export default function MealHistory() {
                             router.push("/profile/settings")
                             setShowMobileFilters(false)
                           }}
-                          className="h-14"
+                          className="h-12 text-sm"
                         >
-                          <Settings className="h-5 w-5 mr-2" />
+                          <Settings className="h-4 w-4 mr-2" />
                           Configurar
                         </Button>
                         {storageType === "local" && user && (
@@ -439,9 +440,9 @@ export default function MealHistory() {
                               router.push("/migrate")
                               setShowMobileFilters(false)
                             }}
-                            className="h-14 text-teal-600 border-teal-600 hover:bg-teal-50"
+                            className="h-12 text-teal-600 border-teal-600 hover:bg-teal-50 text-sm"
                           >
-                            <Database className="h-5 w-5 mr-2" />
+                            <Database className="h-4 w-4 mr-2" />
                             Migrar
                           </Button>
                         )}
@@ -518,9 +519,9 @@ export default function MealHistory() {
 
           {/* Cycle Info Alert */}
           {cycleSettingsLoaded && (
-            <Alert className="mb-6 border-teal-200 bg-teal-50">
-              <Calendar className="h-5 w-5 text-teal-600 flex-shrink-0" />
-              <AlertDescription className="text-teal-800 font-medium">
+            <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
+              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 flex-shrink-0" />
+              <AlertDescription className="text-teal-800 font-medium text-sm sm:text-base">
                 <span className="font-semibold">Ciclo actual:</span>
                 <span className="ml-2">
                   Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
@@ -530,7 +531,7 @@ export default function MealHistory() {
           )}
 
           {/* Content Section */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {viewMode === "days"
               ? safeGroupedMeals.map((group) => (
                   <DaySection
@@ -561,12 +562,14 @@ export default function MealHistory() {
 
           {/* Empty Search Results */}
           {searchQuery && safeFilteredMeals.length === 0 && safeMeals.length > 0 && (
-            <Card className="p-8 text-center mt-8">
+            <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
               <CardContent>
-                <Search className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No se encontraron resultados</h3>
-                <p className="text-gray-600">No hay comidas que coincidan con "{searchQuery}"</p>
-                <Button variant="outline" onClick={() => setSearchQuery("")} className="mt-4">
+                <Search className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No se encontraron resultados</h3>
+                <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
+                  No hay comidas que coincidan con "{searchQuery}"
+                </p>
+                <Button variant="outline" onClick={() => setSearchQuery("")} className="text-sm sm:text-base">
                   Limpiar búsqueda
                 </Button>
               </CardContent>
@@ -575,11 +578,13 @@ export default function MealHistory() {
 
           {/* Empty State for View Mode */}
           {viewMode === "cycles" && safeCycleGroups.length === 0 && safeFilteredMeals.length > 0 && (
-            <Card className="p-8 text-center mt-8">
+            <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
               <CardContent>
-                <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No hay ciclos con comidas</h3>
-                <p className="text-gray-600">Tus comidas se agruparán por ciclos una vez que tengas registros</p>
+                <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No hay ciclos con comidas</h3>
+                <p className="text-sm sm:text-base text-gray-600">
+                  Tus comidas se agruparán por ciclos una vez que tengas registros
+                </p>
               </CardContent>
             </Card>
           )}
@@ -589,15 +594,17 @@ export default function MealHistory() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl">¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
+            <AlertDialogTitle className="text-lg sm:text-xl">¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm sm:text-base">
               Esta acción no se puede deshacer. Esto eliminará permanentemente esta comida de tu historial.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-3 sm:gap-0">
-            <AlertDialogCancel className="w-full sm:w-auto order-2 sm:order-1">Cancelar</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="w-full sm:w-auto order-2 sm:order-1 text-sm sm:text-base">
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
-              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 order-1 sm:order-2"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 order-1 sm:order-2 text-sm sm:text-base"
               onClick={() => {
                 if (selectedMeal?.id) {
                   handleDeleteMeal(selectedMeal)

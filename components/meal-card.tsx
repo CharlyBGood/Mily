@@ -17,7 +17,6 @@ interface MealCardProps {
   onEdit?: (meal: Meal) => void
   showDeleteButton?: boolean
   showEditButton?: boolean
-  showTime?: boolean
   isPdfMode?: boolean
   isSharedView?: boolean
 }
@@ -28,7 +27,6 @@ export default function MealCard({
   onEdit,
   showDeleteButton = true,
   showEditButton = true,
-  showTime = true,
   isPdfMode = false,
   isSharedView = false,
 }: MealCardProps) {
@@ -37,13 +35,13 @@ export default function MealCard({
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [showPhotoViewer, setShowPhotoViewer] = useState(false)
-  const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 })
   const imageRef = useRef<HTMLImageElement>(null)
 
-  if (showTime && meal.created_at) {
+  // Always format date and time for every card
+  if (meal.created_at) {
     try {
       const date = parseISO(meal.created_at)
-      formattedDate = format(date, "EEEE, d 'de' MMMM", { locale: es })
+      formattedDate = format(date, "d MMM yyyy", { locale: es })
       formattedTime = format(date, "HH:mm")
     } catch (error) {
       console.error("Error formatting date:", error)
@@ -65,10 +63,6 @@ export default function MealCard({
   }
 
   const handleImageLoad = () => {
-    if (imageRef.current) {
-      const { naturalWidth, naturalHeight } = imageRef.current
-      setImageDimensions({ width: naturalWidth, height: naturalHeight })
-    }
     setImageLoaded(true)
     setImageError(false)
   }
@@ -115,69 +109,37 @@ export default function MealCard({
     }
   }, [isPdfMode, meal.photo_url])
 
-  const getCardStyle = () => {
-    if (!imageLoaded || !imageDimensions.width || isPdfMode) {
-      return {}
-    }
-
-    const screenWidth = typeof window !== "undefined" ? window.innerWidth : 400
-
-    if (screenWidth < 640) {
-      return { width: "100%" }
-    }
-
-    const maxWidth = screenWidth < 1024 ? Math.min(screenWidth * 0.45, 500) : Math.min(screenWidth * 0.3, 400)
-    const optimalWidth = Math.min(imageDimensions.width, maxWidth)
-
-    return {
-      width: `${optimalWidth}px`,
-      minWidth: "280px",
-      maxWidth: "100%",
-    }
-  }
-
   return (
     <>
       <Card
-        className={`group overflow-hidden bg-white border border-gray-200 hover:border-teal-300 hover:shadow-lg transition-all duration-200 ${isPdfMode ? "pdf-meal-card" : ""}`}
-        style={getCardStyle()}
+        className={`overflow-hidden bg-white border border-gray-200 hover:border-teal-300 hover:shadow-md transition-all duration-200 ${isPdfMode ? "pdf-meal-card" : ""}`}
       >
         {/* Photo Section */}
         {meal.photo_url && !imageError && (
-          <div className="relative overflow-hidden bg-gray-50 cursor-pointer" onClick={handlePhotoClick}>
-            <div className="w-full">
-              <img
-                ref={imageRef}
-                src={meal.photo_url || "/placeholder.svg"}
-                alt={meal.description}
-                className={`w-full h-auto object-contain transition-transform duration-200 ${
-                  isPdfMode ? "pdf-image" : "group-hover:scale-105"
-                }`}
-                style={{
-                  display: "block",
-                  maxWidth: "100%",
-                  height: "auto",
-                }}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-                crossOrigin="anonymous"
-              />
-            </div>
+          <div className="relative overflow-hidden bg-gray-50 cursor-pointer aspect-square" onClick={handlePhotoClick}>
+            <img
+              ref={imageRef}
+              src={meal.photo_url || "/placeholder.svg"}
+              alt={meal.description}
+              className={`w-full h-full object-cover transition-transform duration-200 ${
+                isPdfMode ? "pdf-image" : "hover:scale-105"
+              }`}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              crossOrigin="anonymous"
+            />
 
             {/* Meal type badge */}
-            <div className="absolute top-3 left-3">
-              <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-sm px-3 py-1 border`}>
+            <div className="absolute top-2 left-2">
+              <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-xs px-2 py-1 border`}>
                 {getMealTypeLabel(meal.meal_type)}
               </Badge>
             </div>
 
-            {/* Time badge */}
-            {showTime && formattedTime && (
-              <div className="absolute top-3 right-3">
-                <Badge
-                  variant="secondary"
-                  className="bg-white text-gray-700 font-medium text-sm px-3 py-1 border border-gray-200"
-                >
+            {/* Time badge - Always visible */}
+            {formattedTime && (
+              <div className="absolute top-2 right-2">
+                <Badge className="bg-white/90 text-gray-700 font-medium text-xs px-2 py-1 border border-gray-200">
                   <Clock className="w-3 h-3 mr-1" />
                   {formattedTime}
                 </Badge>
@@ -187,22 +149,22 @@ export default function MealCard({
         )}
 
         {/* Content Section */}
-        <CardContent className="p-4">
-          <div className="space-y-3">
-            <h3 className="font-semibold text-lg text-gray-900 leading-tight line-clamp-2">{meal.description}</h3>
+        <CardContent className="p-3">
+          <div className="space-y-2">
+            <h3 className="font-semibold text-base text-gray-900 leading-tight line-clamp-2">{meal.description}</h3>
 
-            {/* Date info */}
-            {showTime && formattedDate && (
-              <div className="flex items-center text-sm text-gray-600 bg-gray-50 rounded-lg p-2">
-                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
+            {/* Date info - Always visible */}
+            {formattedDate && (
+              <div className="flex items-center text-xs text-gray-600 bg-gray-50 rounded px-2 py-1">
+                <Calendar className="w-3 h-3 mr-1 text-gray-500" />
                 <span className="font-medium">{formattedDate}</span>
               </div>
             )}
 
             {/* Notes */}
             {meal.notes && (
-              <div className="bg-teal-50 rounded-lg p-3 border-l-4 border-teal-500">
-                <p className="text-sm text-gray-700 leading-relaxed">{meal.notes}</p>
+              <div className="bg-teal-50 rounded p-2 border-l-2 border-teal-500">
+                <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">{meal.notes}</p>
               </div>
             )}
           </div>
@@ -210,16 +172,16 @@ export default function MealCard({
 
         {/* Actions Footer */}
         {!isPdfMode && (showDeleteButton || showEditButton) && (onDelete || onEdit) && (
-          <CardFooter className="px-4 py-3 bg-gray-50 border-t">
-            <div className="flex justify-end space-x-2 w-full">
+          <CardFooter className="px-3 py-2 bg-gray-50 border-t">
+            <div className="flex justify-end space-x-1 w-full">
               {showEditButton && onEdit && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 h-8 px-3 font-medium"
+                  className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 h-7 px-2 text-xs font-medium"
                   onClick={handleEdit}
                 >
-                  <Edit className="h-4 w-4 mr-1" />
+                  <Edit className="h-3 w-3 mr-1" />
                   Editar
                 </Button>
               )}
@@ -228,10 +190,10 @@ export default function MealCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 px-3 font-medium"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 px-2 text-xs font-medium"
                   onClick={handleDelete}
                 >
-                  <Trash2 className="h-4 w-4 mr-1" />
+                  <Trash2 className="h-3 w-3 mr-1" />
                   Eliminar
                 </Button>
               )}

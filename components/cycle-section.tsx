@@ -91,10 +91,10 @@ export default function CycleSection({
   const activeDays = getActiveDays()
 
   return (
-    <Card className="w-full bg-white border border-gray-200 overflow-hidden">
+    <Card className="w-full bg-white border border-gray-200">
       <Collapsible open={isExpanded} onOpenChange={handleToggle}>
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 pb-4">
+          <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 pb-3">
             <div className="flex items-center justify-between w-full">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-3">
@@ -105,7 +105,7 @@ export default function CycleSection({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 ml-11">
-                  <Badge variant="secondary" className="bg-teal-50 text-teal-700 border-teal-200">
+                  <Badge variant="secondary" className="bg-teal-50 text-teal-700 border-teal-200 px-2 py-1">
                     {totalMeals} comidas
                   </Badge>
 
@@ -127,7 +127,7 @@ export default function CycleSection({
 
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4">
-            <div className="space-y-4">
+            <div className="space-y-3">
               {cycle.days
                 .filter((day) => day.meals.length > 0)
                 .map((day) => (

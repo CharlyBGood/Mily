@@ -246,7 +246,7 @@ export default function SharePage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="p-4 border-b bg-white flex items-center">
+      <header className="p-3 sm:p-4 border-b bg-white flex items-center">
         <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -257,26 +257,27 @@ export default function SharePage() {
       </header>
 
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 py-6 pb-40">
+        {/* Fixed container with proper mobile padding */}
+        <div className="w-full px-3 sm:px-4 py-4 sm:py-6 pb-20 max-w-7xl mx-auto">
           {groupedMeals.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <p className="text-gray-500">No hay comidas compartidas</p>
             </div>
           ) : (
             <>
-              <Card className="bg-teal-500 text-white p-6 mb-6 text-center border-0">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2">{titleDateRange}</h1>
-                <p className="text-teal-100">
+              <Card className="bg-teal-500 text-white p-4 sm:p-6 mb-4 sm:mb-6 text-center border-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{titleDateRange}</h1>
+                <p className="text-teal-100 text-sm sm:text-base">
                   {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
                 </p>
-                <div className="mt-3 text-sm text-teal-100">
+                <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-teal-100">
                   Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
                 </div>
               </Card>
 
               {cycleSettings && (
-                <Alert className="mb-6 border-teal-200 bg-teal-50">
-                  <div className="flex items-center">
+                <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
+                  <div className="flex items-center text-sm sm:text-base">
                     <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
                     <span className="ml-2 text-teal-700">
                       Inicia cada {getDayOfWeekName(cycleSettings.cycleStartDay)}, duración{" "}
@@ -286,17 +287,18 @@ export default function SharePage() {
                 </Alert>
               )}
 
-              <div className="flex flex-wrap gap-3 mb-6">
+              <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <div className="flex-shrink-0">
                   <Button
                     variant={viewMode === "cycles" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setViewMode("cycles")}
-                    className={`flex items-center ${viewMode === "cycles" ? "bg-teal-500 text-white" : ""}`}
+                    className={`flex items-center text-xs sm:text-sm ${viewMode === "cycles" ? "bg-teal-500 text-white" : ""}`}
                     aria-label="Ver por ciclos"
                   >
-                    <LayoutGrid className="h-4 w-4 mr-2" />
+                    <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Ciclos</span>
+                    <span className="sm:hidden">C</span>
                   </Button>
                 </div>
 
@@ -305,24 +307,34 @@ export default function SharePage() {
                     variant={viewMode === "days" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setViewMode("days")}
-                    className={`flex items-center ${viewMode === "days" ? "bg-teal-500 text-white" : ""}`}
+                    className={`flex items-center text-xs sm:text-sm ${viewMode === "days" ? "bg-teal-500 text-white" : ""}`}
                     aria-label="Ver por días"
                   >
-                    <List className="h-4 w-4 mr-2" />
+                    <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     <span className="hidden sm:inline">Días</span>
+                    <span className="sm:hidden">D</span>
                   </Button>
                 </div>
 
                 {viewMode === "cycles" && cycleGroups.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-shrink-0">
-                        {selectedCycle === "all"
-                          ? "Todos los ciclos"
-                          : selectedCycle === "current"
-                            ? "Ciclo actual"
-                            : `Ciclo ${selectedCycle}`}
-                        <ChevronDown className="ml-2 h-4 w-4" />
+                      <Button variant="outline" size="sm" className="flex-shrink-0 text-xs sm:text-sm">
+                        <span className="hidden sm:inline">
+                          {selectedCycle === "all"
+                            ? "Todos los ciclos"
+                            : selectedCycle === "current"
+                              ? "Ciclo actual"
+                              : `Ciclo ${selectedCycle}`}
+                        </span>
+                        <span className="sm:hidden">
+                          {selectedCycle === "all"
+                            ? "Todos"
+                            : selectedCycle === "current"
+                              ? "Actual"
+                              : `C${selectedCycle}`}
+                        </span>
+                        <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -343,7 +355,7 @@ export default function SharePage() {
               </div>
 
               {/* Content Section */}
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {viewMode === "days"
                   ? groupedMeals.map((group) => (
                       <DaySection
