@@ -223,7 +223,7 @@ export default function DirectShareButton({ compact = false, onModalOpen }: Dire
                   value={shareUrl}
                   readOnly
                   className="font-mono text-sm flex-1 bg-gray-50 border-gray-200"
-                  onClick={(e) => e.target.select()}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
                 />
                 <Button
                   size="icon"

@@ -50,10 +50,22 @@ function toDisplayDate(date: Date) {
   })
 }
 
+// Helper: get the last cycle start date before or equal to a given date, based on cycleStartDay
+function getLastCycleStart(date: Date, cycleStartDay: number) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay()
+  const diff = (day - cycleStartDay + 7) % 7
+  d.setDate(d.getDate() - diff)
+  return d
+}
+
 // ---------- Exported helpers ---------------------------------------------------------------------
 
 export function getDayOfWeekName(day: number) {
-  return DAYS_ES[day] ?? "Lunes"
+  // Normaliza a 0-6 para evitar valores fuera de rango
+  const normalized = ((Math.round(day) % 7) + 7) % 7
+  return DAYS_ES[normalized]
 }
 
 // Cached settings (5 min TTL) — keeps client fast without extra network
@@ -65,10 +77,26 @@ export async function getUserCycleSettings(userId: string): Promise<CycleSetting
   const cache = settingsCache[userId]
   if (cache && Date.now() - cache.ts < TTL) return cache.data
 
-  // 2. Future: fetch from Supabase
-  // const supabase = getSupabaseClient()
-  // const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", userId).single()
-  // if (!error && data) { … }
+  // 2. Fetch from Supabase
+  try {
+    const supabase = (await import("@/lib/supabase-client")).getSupabaseClient()
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("cycle_duration, cycle_start_day, sweet_dessert_limit")
+      .eq("user_id", userId)
+      .single()
+    if (!error && data) {
+      const settings: CycleSettings = {
+        cycleDuration: Number(data.cycle_duration) || 7,
+        cycleStartDay: Number(data.cycle_start_day) || 1,
+        sweetDessertLimit: Number(data.sweet_dessert_limit) || 3,
+      }
+      settingsCache[userId] = { ts: Date.now(), data: settings }
+      return settings
+    }
+  } catch (err) {
+    console.error("Error fetching user cycle settings from Supabase:", err)
+  }
 
   // 3. Fallback defaults
   const defaults: CycleSettings = { cycleDuration: 7, cycleStartDay: 1, sweetDessertLimit: 3 }
@@ -101,10 +129,13 @@ export function countSweetDessertsInCurrentCycle(meals: Meal[] = [], cycleDurati
 
 // ------------------ Cycle maths ------------------------------------------------------------------
 
-export function calculateCycleInfo(today: Date, firstMealDate: Date, cycleDuration: number) {
-  const dayDiff = Math.floor((today.getTime() - firstMealDate.getTime()) / 86400000)
+export function calculateCycleInfo(today: Date, firstMealDate: Date, cycleDuration: number, cycleStartDay: number = 1) {
+  // Find the most recent cycle start before or equal to today
+  const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay)
+  const dayDiff = Math.floor((mostRecentCycleStart.getTime() - firstMealDate.getTime()) / 86400000)
   const cycleNumber = Math.floor(dayDiff / cycleDuration) + 1
-  const daysLeft = cycleDuration - (dayDiff % cycleDuration)
+  const daysSinceCycleStart = Math.floor((today.getTime() - mostRecentCycleStart.getTime()) / 86400000)
+  const daysLeft = cycleDuration - daysSinceCycleStart
   return { cycleNumber, daysLeft }
 }
 
@@ -125,14 +156,11 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
     (a, b) => new Date(a.date ?? a.created_at ?? 0).getTime() - new Date(b.date ?? b.created_at ?? 0).getTime(),
   )
 
-  const newest = new Date(sorted[sorted.length - 1].date ?? sorted[sorted.length - 1].created_at ?? Date.now())
-  const oldest = new Date(sorted[0].date ?? sorted[0].created_at ?? Date.now())
+  // CAMBIO: El ciclo más reciente se alinea al último cycleStartDay anterior o igual a HOY
+  const today = new Date()
+  const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay)
 
-  // Align newest to the most-recent cycle start
-  const newestDOW = newest.getDay()
-  const offset = (newestDOW - cycleStartDay + 7) % 7
-  const mostRecentCycleStart = new Date(newest)
-  mostRecentCycleStart.setDate(newest.getDate() - offset)
+  const oldest = new Date(sorted[0].date ?? sorted[0].created_at ?? Date.now())
 
   // How many cycles do we need to walk back to cover everything?
   const totalDays = Math.ceil((mostRecentCycleStart.getTime() - oldest.getTime()) / 86400000)

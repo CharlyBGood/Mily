@@ -1,51 +1,63 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { v4 as uuidv4 } from "uuid"
-import { getSupabaseClient } from "./supabase-client"
-import { useStorage } from "./storage-provider"
-import type { Meal } from "./types"
+import { useState, useEffect, useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
+import { getSupabaseClient } from "./supabase-client";
+import { useStorage } from "./storage-provider";
+import type { Meal } from "./types";
 
 // Helper function to upload an image to Supabase Storage
 export async function uploadImage(file: File): Promise<string> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = getSupabaseClient();
 
     // Generate a unique file name
-    const fileName = `${uuidv4()}-${file.name.replace(/\s+/g, "_")}`
-
+    const fileName = `${uuidv4()}-${file.name.replace(/\s+/g, "_")}`;
+    if (!supabase) {
+      console.error("Supabase storage client is not initialized");
+      throw new Error("Supabase storage client is not initialized");
+    }
     // Upload the file to Supabase Storage
-    const { data, error } = await supabase.storage.from("meal-images").upload(fileName, file)
+    const { data, error } = await supabase.storage
+      .from("meal-images")
+      .upload(fileName, file);
 
     if (error) {
-      console.error("Error uploading image:", error)
-      throw error
+      console.error("Error uploading image:", error);
+      throw error;
     }
 
     // Get the public URL for the uploaded file
+    if (!supabase) {
+      throw new Error("Supabase storage client is not initialized");
+    }
     const {
       data: { publicUrl },
-    } = supabase.storage.from("meal-images").getPublicUrl(data.path)
+    } = supabase.storage.from("meal-images").getPublicUrl(data.path);
 
-    return publicUrl
+    return publicUrl;
   } catch (error) {
-    console.error("Error in uploadImage:", error)
-    throw error
+    console.error("Error in uploadImage:", error);
+    throw error;
   }
 }
 
 // Helper function to save a meal to Supabase
-export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: Meal; error?: any }> {
+export async function saveMeal(
+  meal: Meal
+): Promise<{ success: boolean; data?: Meal; error?: any }> {
   try {
-    const supabase = getSupabaseClient()
-
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return { success: false, error: "Supabase client is not initialized" };
+    }
     // Get the current user
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "User not authenticated" }
+      return { success: false, error: "User not authenticated" };
     }
 
     // Create new meal with unique ID and timestamp if not provided
@@ -54,7 +66,7 @@ export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: M
       id: meal.id || uuidv4(),
       user_id: user.id,
       created_at: meal.created_at || new Date().toISOString(),
-    }
+    };
 
     // If updating an existing meal
     if (meal.id) {
@@ -68,14 +80,14 @@ export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: M
         })
         .eq("id", meal.id)
         .eq("user_id", user.id)
-        .select()
+        .select();
 
       if (error) {
-        console.error("Error updating meal:", error)
-        return { success: false, error }
+        console.error("Error updating meal:", error);
+        return { success: false, error };
       }
 
-      return { success: true, data: data[0] as Meal }
+      return { success: true, data: data[0] as unknown as Meal };
     }
 
     // Add new meal
@@ -92,32 +104,38 @@ export async function saveMeal(meal: Meal): Promise<{ success: boolean; data?: M
           created_at: newMeal.created_at,
         },
       ])
-      .select()
+      .select();
 
     if (error) {
-      console.error("Error saving meal:", error)
-      return { success: false, error }
+      console.error("Error saving meal:", error);
+      return { success: false, error };
     }
 
-    return { success: true, data: data[0] as Meal }
+    return { success: true, data: data[0] as unknown as Meal };
   } catch (error) {
-    console.error("Error in saveMeal:", error)
-    return { success: false, error }
+    console.error("Error in saveMeal:", error);
+    return { success: false, error };
   }
 }
 
 // Helper function to get all meals for the current user
-export async function getUserMeals(): Promise<{ success: boolean; data?: Meal[]; error?: any }> {
+export async function getUserMeals(): Promise<{
+  success: boolean;
+  data?: Meal[];
+  error?: any;
+}> {
   try {
-    const supabase = getSupabaseClient()
-
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return { success: false, error: "Supabase client is not initialized" };
+    }
     // Get the current user
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "User not authenticated" }
+      return { success: false, error: "User not authenticated" };
     }
 
     // Get all meals for the current user, ordered by creation date (newest first)
@@ -125,75 +143,95 @@ export async function getUserMeals(): Promise<{ success: boolean; data?: Meal[];
       .from("meals")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error getting meals:", error)
-      return { success: false, error }
+      console.error("Error getting meals:", error);
+      return { success: false, error };
     }
 
-    return { success: true, data: data as Meal[] }
+    return { success: true, data: data as unknown as Meal[] };
   } catch (error) {
-    console.error("Error in getUserMeals:", error)
-    return { success: false, error }
+    console.error("Error in getUserMeals:", error);
+    return { success: false, error };
   }
 }
 
 // Helper function to get a single meal by ID
-export async function getMealById(mealId: string): Promise<{ success: boolean; data?: Meal; error?: any }> {
+export async function getMealById(
+  mealId: string
+): Promise<{ success: boolean; data?: Meal; error?: any }> {
   try {
-    const supabase = getSupabaseClient()
+    const supabase = getSupabaseClient();
 
     // Get the current user
+    if (!supabase) {
+      return { success: false, error: "Supabase client is not initialized" };
+    }
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "User not authenticated" }
+      return { success: false, error: "User not authenticated" };
     }
 
     // Get the meal by ID
-    const { data, error } = await supabase.from("meals").select("*").eq("id", mealId).eq("user_id", user.id).single()
+    const { data, error } = await supabase
+      .from("meals")
+      .select("*")
+      .eq("id", mealId)
+      .eq("user_id", user.id)
+      .single();
 
     if (error) {
-      console.error("Error getting meal:", error)
-      return { success: false, error }
+      console.error("Error getting meal:", error);
+      return { success: false, error };
     }
 
-    return { success: true, data: data as Meal }
+    return { success: true, data: data as unknown as Meal };
   } catch (error) {
-    console.error("Error in getMealById:", error)
-    return { success: false, error }
+    console.error("Error in getMealById:", error);
+    return { success: false, error };
   }
 }
 
 // Helper function to delete a meal
-export async function deleteMeal(mealId: string): Promise<{ success: boolean; error?: any }> {
+export async function deleteMeal(
+  mealId: string
+): Promise<{ success: boolean; error?: any }> {
   try {
-    const supabase = getSupabaseClient()
-
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return { success: false, error: "Supabase client is not initialized" };
+    }
     // Get the current user
     const {
       data: { user },
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser();
 
     if (!user) {
-      return { success: false, error: "User not authenticated" }
+      return { success: false, error: "User not authenticated" };
     }
-
+    if (!supabase) {
+      return { success: false, error: "Supabase client is not initialized" };
+    }
     // Delete the meal
-    const { error } = await supabase.from("meals").delete().eq("id", mealId).eq("user_id", user.id)
+    const { error } = await supabase
+      .from("meals")
+      .delete()
+      .eq("id", mealId)
+      .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error deleting meal:", error)
-      return { success: false, error }
+      console.error("Error deleting meal:", error);
+      return { success: false, error };
     }
 
-    return { success: true }
+    return { success: true };
   } catch (error) {
-    console.error("Error in deleteMeal:", error)
-    return { success: false, error }
+    console.error("Error in deleteMeal:", error);
+    return { success: false, error };
   }
 }
 
@@ -204,44 +242,44 @@ export async function deleteMeal(mealId: string): Promise<{ success: boolean; er
 // ---------------------------------------------
 export function useMealService() {
   // Grab the storage-aware helpers (local or Supabase)
-  const { getUserMeals, deleteMeal, saveMeal } = useStorage()
+  const { getUserMeals, deleteMeal, saveMeal } = useStorage();
 
-  const [meals, setMeals] = useState<Meal[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [meals, setMeals] = useState<Meal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch / refresh meals
   const refresh = useCallback(async () => {
-    setLoading(true)
-    const { success, data, error } = await getUserMeals()
+    setLoading(true);
+    const { success, data, error } = await getUserMeals();
 
     if (success && data) {
-      setMeals(data)
-      setError(null)
+      setMeals(data);
+      setError(null);
     } else {
-      setError(error?.message || "Error al cargar comidas")
+      setError(error?.message || "Error al cargar comidas");
     }
-    setLoading(false)
-  }, [getUserMeals])
+    setLoading(false);
+  }, [getUserMeals]);
 
   // Initial fetch
   useEffect(() => {
-    refresh()
-  }, [refresh])
+    refresh();
+  }, [refresh]);
 
   // Delete a meal and refresh state
   const removeMeal = async (id: string) => {
-    const { success, error } = await deleteMeal(id)
-    if (!success) throw error
-    setMeals((prev) => prev.filter((m) => m.id !== id))
-  }
+    const { success, error } = await deleteMeal(id);
+    if (!success) throw error;
+    setMeals((prev) => prev.filter((m) => m.id !== id));
+  };
 
   // Update / save a meal, then refresh state
   const updateMeal = async (id: string, updated: Meal) => {
-    const { success, error } = await saveMeal({ ...updated, id })
-    if (!success) throw error
-    await refresh()
-  }
+    const { success, error } = await saveMeal({ ...updated, id });
+    if (!success) throw error;
+    await refresh();
+  };
 
-  return { meals, loading, error, deleteMeal: removeMeal, updateMeal, refresh }
+  return { meals, loading, error, deleteMeal: removeMeal, updateMeal, refresh };
 }

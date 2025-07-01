@@ -29,8 +29,10 @@ import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import ShareDropdown from "./share-dropdown"
+import { useCycleSettings } from "@/lib/cycle-settings-context"
 
 export default function MealHistory() {
+  const { cycleStartDay, cycleDuration, setCycleDuration, setCycleStartDay, loaded } = useCycleSettings()
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
   const [cycleGroups, setCycleGroups] = useState<CycleGroup[]>([])
   const [meals, setMeals] = useState<Meal[]>([])
@@ -41,8 +43,6 @@ export default function MealHistory() {
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
-  const [cycleDuration, setCycleDuration] = useState(7)
-  const [cycleStartDay, setCycleStartDay] = useState(1)
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const [showMobileFilters, setShowMobileFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -115,19 +115,11 @@ export default function MealHistory() {
     try {
       if (user) {
         try {
-          const settings = await getUserCycleSettings(user.id)
-          if (settings && typeof settings.cycleDuration === "number" && typeof settings.cycleStartDay === "number") {
-            setCycleDuration(settings.cycleDuration)
-            setCycleStartDay(settings.cycleStartDay)
-          } else {
-            setCycleDuration(7)
-            setCycleStartDay(1)
-          }
+          // Do not setCycleDuration or setCycleStartDay here!
+          await getUserCycleSettings(user.id) // Just to ensure settings are loaded/cached if needed
           setCycleSettingsLoaded(true)
         } catch (error) {
           console.error("Error loading cycle settings:", error)
-          setCycleDuration(7)
-          setCycleStartDay(1)
           setCycleSettingsLoaded(true)
         }
       } else {
@@ -239,6 +231,48 @@ export default function MealHistory() {
     }
   }
 
+  // Ref: Recarga ciclos si settings cambian en otra pestaña o tras guardar settings
+  useEffect(() => {
+    function handleStorageChange(e: StorageEvent) {
+      if (e.key === "cycleSettingsUpdated") {
+        loadMeals()
+      }
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadMeals()
+      }
+    }
+    function handleMessage(e: MessageEvent) {
+      if (e.data && e.data.type === "cycleSettingsUpdated") {
+        loadMeals()
+      }
+    }
+    window.addEventListener("storage", handleStorageChange)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("message", handleMessage)
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("message", handleMessage)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (cycleSettingsLoaded) {
+      loadMeals()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cycleStartDay, cycleDuration, cycleSettingsLoaded])
+
+  // Helper para el parámetro 'from'
+  const getCurrentPathWithQuery = () => {
+    if (typeof window !== "undefined") {
+      return window.location.pathname + window.location.search;
+    }
+    return "/history";
+  };
+
   if (editingMeal) {
     return <MealEditor meal={editingMeal} onCancel={handleEditCancel} onSaved={handleEditSaved} />
   }
@@ -248,6 +282,15 @@ export default function MealHistory() {
       <div className="flex flex-col items-center justify-center h-full p-8">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-6"></div>
         <p className="text-gray-600 text-lg">Cargando historial...</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
+        <p className="text-neutral-500">Cargando...</p>
       </div>
     )
   }
@@ -273,15 +316,6 @@ export default function MealHistory() {
             </Button>
           </CardContent>
         </Card>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mb-6"></div>
-        <p className="text-gray-600 text-lg">Cargando historial...</p>
       </div>
     )
   }
@@ -339,201 +373,178 @@ export default function MealHistory() {
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-gray-50">
-        {/* Fixed container with proper mobile padding */}
-        <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-4 sm:mb-6">
-            <Card className="bg-teal-500 text-white border-0">
-              <CardHeader className="pb-3 sm:pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                  <div>
-                    <CardTitle className="text-xl sm:text-2xl md:text-3xl font-bold">Mi Historial</CardTitle>
-                    <p className="text-teal-100 mt-1 text-sm sm:text-base">Revisa y gestiona tu registro alimentario</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs sm:text-sm">
-                      {safeFilteredMeals.length} comidas
-                    </Badge>
+    <div className="flex flex-col min-h-screen">
+      {/* Se eliminó el header con título y botón de settings para restaurar el diseño original */}
+      <main className="flex-1">
+        <div className="min-h-screen bg-gray-50">
+          {/* Fixed container with proper mobile padding */}
+          <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
+            {/* Header eliminado, el historial aparece directamente */}
+
+            {/* Search and Controls */}
+            <Card className="mb-4 sm:mb-6 border border-gray-200">
+              <CardContent className="p-3 sm:p-4">
+                {/* Mobile Controls */}
+                <div className="block sm:hidden space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <Button
+                        variant={viewMode === "cycles" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("cycles")}
+                        className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
+                          }`}
+                      >
+                        <LayoutGrid className="h-3 w-3 mr-1" />
+                        Ciclos
+                      </Button>
+                      <Button
+                        variant={viewMode === "days" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("days")}
+                        className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
+                          }`}
+                      >
+                        <List className="h-3 w-3 mr-1" />
+                        Días
+                      </Button>
+                    </div>
+
+                    <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
+                      <SheetTrigger asChild>
+                        <Button variant="outline" size="sm" className="px-3 h-8 text-xs">
+                          <Filter className="h-3 w-3 mr-1" />
+                          Opciones
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
+                        <SheetHeader className="pb-4">
+                          <SheetTitle>Opciones</SheetTitle>
+                        </SheetHeader>
+                        <div className="grid grid-cols-2 gap-3 pb-6">
+                          <Button variant="outline" onClick={handleRefresh} className="h-12 text-sm">
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Actualizar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              const from = getCurrentPathWithQuery();
+                              router.push(`/profile/settings?from=${encodeURIComponent(from)}`);
+                              setShowMobileFilters(false);
+                            }}
+                            className="h-12 text-sm"
+                          >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Configurar
+                          </Button>
+                          {storageType === "local" && user && (
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                router.push("/migrate")
+                                setShowMobileFilters(false)
+                              }}
+                              className="h-12 text-teal-600 border-teal-600 hover:bg-teal-50 text-sm"
+                            >
+                              <Database className="h-4 w-4 mr-2" />
+                              Migrar
+                            </Button>
+                          )}
+                          <div className="col-span-1">
+                            <ShareDropdown meals={safeMeals} />
+                          </div>
+                        </div>
+                      </SheetContent>
+                    </Sheet>
                   </div>
                 </div>
-              </CardHeader>
-            </Card>
-          </div>
 
-          {/* Search and Controls */}
-          <Card className="mb-4 sm:mb-6 border border-gray-200">
-            <CardContent className="p-3 sm:p-4">
-              {/* Search Bar */}
-              <div className="mb-3 sm:mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
-                  <Input
-                    placeholder="Buscar comidas..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 sm:pl-10 h-10 sm:h-12 border-gray-300 focus:border-teal-500 focus:ring-teal-500 text-sm sm:text-base"
-                  />
-                </div>
-              </div>
+                {/* Desktop Controls */}
+                <div className="hidden sm:flex flex-wrap gap-3 items-center">
+                  <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Actualizar
+                  </Button>
 
-              {/* Mobile Controls */}
-              <div className="block sm:hidden space-y-3">
-                <div className="flex items-center justify-between">
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <Button
                       variant={viewMode === "cycles" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("cycles")}
-                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${
-                        viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
-                      }`}
+                      className={`flex items-center ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
+                        }`}
                     >
-                      <LayoutGrid className="h-3 w-3 mr-1" />
+                      <LayoutGrid className="h-4 w-4 mr-2" />
                       Ciclos
                     </Button>
                     <Button
                       variant={viewMode === "days" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("days")}
-                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${
-                        viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
-                      }`}
+                      className={`flex items-center ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
+                        }`}
                     >
-                      <List className="h-3 w-3 mr-1" />
+                      <List className="h-4 w-4 mr-2" />
                       Días
                     </Button>
                   </div>
 
-                  <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
-                    <SheetTrigger asChild>
-                      <Button variant="outline" size="sm" className="px-3 h-8 text-xs">
-                        <Filter className="h-3 w-3 mr-1" />
-                        Opciones
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const from = getCurrentPathWithQuery();
+                      router.push(`/profile/settings?from=${encodeURIComponent(from)}`);
+                    }}
+                    className="flex items-center"
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configurar
+                  </Button>
+
+                  <div className="flex-grow"></div>
+
+                  <div className="flex space-x-2">
+                    {storageType === "local" && user && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push("/migrate")}
+                        className="text-teal-600 border-teal-600 hover:bg-teal-50 flex-shrink-0"
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        Migrar
                       </Button>
-                    </SheetTrigger>
-                    <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
-                      <SheetHeader className="pb-4">
-                        <SheetTitle>Opciones</SheetTitle>
-                      </SheetHeader>
-                      <div className="grid grid-cols-2 gap-3 pb-6">
-                        <Button variant="outline" onClick={handleRefresh} className="h-12 text-sm">
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Actualizar
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            router.push("/profile/settings")
-                            setShowMobileFilters(false)
-                          }}
-                          className="h-12 text-sm"
-                        >
-                          <Settings className="h-4 w-4 mr-2" />
-                          Configurar
-                        </Button>
-                        {storageType === "local" && user && (
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              router.push("/migrate")
-                              setShowMobileFilters(false)
-                            }}
-                            className="h-12 text-teal-600 border-teal-600 hover:bg-teal-50 text-sm"
-                          >
-                            <Database className="h-4 w-4 mr-2" />
-                            Migrar
-                          </Button>
-                        )}
-                        <div className="col-span-1">
-                          <ShareDropdown meals={safeMeals} />
-                        </div>
-                      </div>
-                    </SheetContent>
-                  </Sheet>
+                    )}
+                    <ShareDropdown meals={safeMeals} />
+                  </div>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Desktop Controls */}
-              <div className="hidden sm:flex flex-wrap gap-3 items-center">
-                <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Actualizar
-                </Button>
+            {/* Cycle Info Alert */}
+            {loaded && cycleSettingsLoaded && (
+              <>
+                {console.log(
+                  `[MealHistory] Renderizando ciclo: Inicia cada ${getDayOfWeekName(cycleStartDay)}, duración ${cycleDuration} días (cycleStartDay=${cycleStartDay}, cycleDuration=${cycleDuration})`
+                )}
+                <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 flex-shrink-0" />
+                  <AlertDescription className="text-teal-800 font-medium text-sm sm:text-base">
+                    <span className="font-semibold">Ciclo actual:</span>
+                    <span className="ml-2">
+                      Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              </>
+            )}
 
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <Button
-                    variant={viewMode === "cycles" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("cycles")}
-                    className={`flex items-center ${
-                      viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
-                    }`}
-                  >
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    Ciclos
-                  </Button>
-                  <Button
-                    variant={viewMode === "days" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("days")}
-                    className={`flex items-center ${
-                      viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
-                    }`}
-                  >
-                    <List className="h-4 w-4 mr-2" />
-                    Días
-                  </Button>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push("/profile/settings")}
-                  className="flex items-center"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configurar
-                </Button>
-
-                <div className="flex-grow"></div>
-
-                <div className="flex space-x-2">
-                  {storageType === "local" && user && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => router.push("/migrate")}
-                      className="text-teal-600 border-teal-600 hover:bg-teal-50 flex-shrink-0"
-                    >
-                      <Database className="h-4 w-4 mr-2" />
-                      Migrar
-                    </Button>
-                  )}
-                  <ShareDropdown meals={safeMeals} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Cycle Info Alert */}
-          {cycleSettingsLoaded && (
-            <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
-              <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 flex-shrink-0" />
-              <AlertDescription className="text-teal-800 font-medium text-sm sm:text-base">
-                <span className="font-semibold">Ciclo actual:</span>
-                <span className="ml-2">
-                  Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
-                </span>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Content Section */}
-          <div className="space-y-3 sm:space-y-4">
-            {viewMode === "days"
-              ? safeGroupedMeals.map((group) => (
+            {/* Content Section */}
+            <div className="space-y-3 sm:space-y-4">
+              {viewMode === "days"
+                ? safeGroupedMeals.map((group) => (
                   <DaySection
                     key={group.date}
                     date={group.date}
@@ -545,7 +556,7 @@ export default function MealHistory() {
                     isExpanded={expandedSection === group.date}
                   />
                 ))
-              : safeCycleGroups.map((cycle) => (
+                : safeCycleGroups.map((cycle) => (
                   <CycleSection
                     key={cycle.cycleNumber}
                     cycle={{
@@ -558,38 +569,39 @@ export default function MealHistory() {
                     isExpanded={expandedCycle === cycle.cycleNumber}
                   />
                 ))}
+            </div>
+
+            {/* Empty Search Results */}
+            {searchQuery && safeFilteredMeals.length === 0 && safeMeals.length > 0 && (
+              <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
+                <CardContent>
+                  <Search className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No se encontraron resultados</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
+                    No hay comidas que coincidan con "{searchQuery}"
+                  </p>
+                  <Button variant="outline" onClick={() => setSearchQuery("")} className="text-sm sm:text-base">
+                    Limpiar búsqueda
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Empty State for View Mode */}
+            {viewMode === "cycles" && safeCycleGroups.length === 0 && safeFilteredMeals.length > 0 && (
+              <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
+                <CardContent>
+                  <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No hay ciclos con comidas</h3>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Tus comidas se agruparán por ciclos una vez que tengas registros
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
-
-          {/* Empty Search Results */}
-          {searchQuery && safeFilteredMeals.length === 0 && safeMeals.length > 0 && (
-            <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
-              <CardContent>
-                <Search className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No se encontraron resultados</h3>
-                <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-                  No hay comidas que coincidan con "{searchQuery}"
-                </p>
-                <Button variant="outline" onClick={() => setSearchQuery("")} className="text-sm sm:text-base">
-                  Limpiar búsqueda
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Empty State for View Mode */}
-          {viewMode === "cycles" && safeCycleGroups.length === 0 && safeFilteredMeals.length > 0 && (
-            <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
-              <CardContent>
-                <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No hay ciclos con comidas</h3>
-                <p className="text-sm sm:text-base text-gray-600">
-                  Tus comidas se agruparán por ciclos una vez que tengas registros
-                </p>
-              </CardContent>
-            </Card>
-          )}
         </div>
-      </div>
+      </main>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
@@ -617,6 +629,6 @@ export default function MealHistory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   )
 }

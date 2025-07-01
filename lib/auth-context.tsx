@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [initialized, setInitialized] = useState(false)
+  const [firstSessionChecked, setFirstSessionChecked] = useState(false)
 
   // Function to refresh the session
   const refreshSession = useCallback(async () => {
@@ -164,6 +165,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state
   useEffect(() => {
+    let authListener: { subscription: { unsubscribe: () => void } } | null = null;
+    let isMounted = true;
+
     const initAuth = async () => {
       try {
         console.log("Initializing auth context")
@@ -171,6 +175,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Get initial session
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+
+        if (!isMounted) return;
 
         if (sessionError) {
           console.error("Error getting session:", sessionError)
@@ -183,9 +189,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log("No session found")
         }
 
-        // Set up auth state change listener
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+        setFirstSessionChecked(true)
+
+        // Set up auth state change listener only once
+        authListener = supabase.auth.onAuthStateChange(async (event, newSession) => {
           console.log("Auth state changed:", event, newSession?.user?.id)
+
+          if (!isMounted) return;
 
           if (newSession) {
             setSession(newSession)
@@ -196,15 +206,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           setLoading(false)
-        })
-
+        }).data;
+        
         setInitialized(true)
         setLoading(false)
-
-        // Clean up subscription
-        return () => {
-          authListener.subscription.unsubscribe()
-        }
       } catch (err) {
         console.error("Error in auth initialization:", err)
         setError(err instanceof Error ? err : new Error(String(err)))
@@ -213,6 +218,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initAuth()
+
+    return () => {
+      isMounted = false;
+      if (authListener?.subscription) {
+        authListener.subscription.unsubscribe();
+      }
+    }
   }, [])
 
   // Sign in with email and password
@@ -433,23 +445,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Cambia loading a false solo cuando la sesión inicial fue chequeada
+  const contextValue = {
+    user,
+    session,
+    loading: loading || !firstSessionChecked,
+    error,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+    updatePassword,
+    updateProfile,
+    refreshSession,
+    ensureDbSetup,
+  }
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        loading: loading && !initialized,
-        error,
-        signIn,
-        signUp,
-        signOut,
-        resetPassword,
-        updatePassword,
-        updateProfile,
-        refreshSession,
-        ensureDbSetup,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

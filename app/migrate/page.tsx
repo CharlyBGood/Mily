@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context"
 export default function MigratePage() {
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
 
   useEffect(() => {
     setMounted(true)
@@ -22,17 +22,12 @@ export default function MigratePage() {
   }
 
   if (!mounted) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-neutral-500">Cargando...</p>
-      </div>
-    )
+    return null
   }
 
-  if (!user) {
+  if (loading) {
     return (
-      <div className="flex flex-col h-screen bg-neutral-50">
+      <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
           <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
@@ -40,18 +35,18 @@ export default function MigratePage() {
           <div className="flex-1 flex justify-center">
             <MilyLogo />
           </div>
-          <div className="w-10"></div> {/* Spacer for centering */}
+          <div className="w-10"></div>
         </header>
-
         <main className="flex-1 flex flex-col items-center justify-center p-4 text-center">
-          <h1 className="text-2xl font-bold mb-4">Inicia sesión para continuar</h1>
-          <p className="text-neutral-600 mb-8 max-w-md">Debes iniciar sesión para migrar tus datos a la nube.</p>
-          <Button onClick={() => router.push("/login")} className="mb-4">
-            Iniciar sesión
-          </Button>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
+          <p className="text-neutral-500">Cargando...</p>
         </main>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (

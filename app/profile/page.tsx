@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { ArrowLeft, LogOut, Settings, AlertCircle, Database, RefreshCw } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const { user, signOut, refreshSession, ensureDbSetup, loading } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
@@ -26,6 +28,10 @@ export default function ProfilePage() {
   useEffect(() => {
     // Don't redirect immediately, wait for auth to load
     if (loading) return
+
+    if (!loading && !user) {
+      router.push("/login");
+    };
 
     if (!user) {
       router.push("/login")
@@ -55,13 +61,19 @@ export default function ProfilePage() {
 
       // Try to get from profiles table
       try {
+        if (!supabase) {
+          console.error("Supabase client is not initialized")
+          setError("Error al cargar el perfil. Por favor, intenta de nuevo.")
+          setIsLoadingProfile(false)
+          return
+        }
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("username")
           .eq("id", user.id)
           .maybeSingle()
 
-        if (!profileError && profileData?.username) {
+        if (!profileError && typeof profileData?.username === "string") {
           setUsername(profileData.username)
           setSetupNeeded(false)
           setIsLoadingProfile(false)
@@ -73,13 +85,22 @@ export default function ProfilePage() {
 
       // If no profile found, try user_settings
       try {
+        if (!supabase) {
+          console.error("Supabase client is not initialized")
+          setError("Error al cargar el perfil. Por favor, intenta de nuevo.")
+          setIsLoadingProfile(false)
+          return
+        }
         const { data: settingsData, error: settingsError } = await supabase
           .from("user_settings")
           .select("username")
           .eq("user_id", user.id)
           .maybeSingle()
 
-        if (!settingsError && settingsData?.username) {
+        if (
+          !settingsError &&
+          typeof settingsData?.username === "string"
+        ) {
           setUsername(settingsData.username)
           setSetupNeeded(false)
           setIsLoadingProfile(false)
@@ -144,11 +165,26 @@ export default function ProfilePage() {
     setRetryCount((prev) => prev + 1)
   }
 
-  if (loading) {
+  // Helper to get current path and query for 'from' param
+  const getCurrentPathWithQuery = () => {
+    if (typeof window !== "undefined") {
+      return window.location.pathname + window.location.search;
+    }
+    return "/profile";
+  };
+
+  if (typeof window !== "undefined" && (typeof loading === "undefined" || typeof isLoadingProfile === "undefined")) {
+    // fallback: si por alguna razón loading no está definido, muestra spinner
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="mr-2">
+          <Button variant="ghost" size="icon" onClick={() => {
+            if (from) {
+              router.replace(from);
+            } else {
+              router.push("/");
+            }
+          }} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 flex justify-center">
@@ -163,11 +199,17 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user || isLoadingProfile) {
+  if ((typeof loading !== "undefined" && loading) || (typeof isLoadingProfile !== "undefined" && isLoadingProfile)) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="mr-2">
+          <Button variant="ghost" size="icon" onClick={() => {
+            if (from) {
+              router.replace(from);
+            } else {
+              router.push("/");
+            }
+          }} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 flex justify-center">
@@ -180,12 +222,22 @@ export default function ProfilePage() {
         </main>
       </div>
     )
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
       <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/")} className="mr-2">
+        <Button variant="ghost" size="icon" onClick={() => {
+          if (from) {
+            router.replace(from);
+          } else {
+            router.push("/");
+          }
+        }} className="mr-2">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 flex justify-center">
@@ -240,7 +292,10 @@ export default function ProfilePage() {
 
             <Button
               variant={setupNeeded ? "default" : "outline"}
-              onClick={setupProfile}
+              onClick={() => {
+                const fromParam = getCurrentPathWithQuery();
+                router.push(`/profile/settings?from=${encodeURIComponent(fromParam)}`);
+              }}
               className="w-full"
               disabled={isSettingUpDatabase}
             >

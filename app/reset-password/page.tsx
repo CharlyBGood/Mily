@@ -92,6 +92,19 @@ export default function ResetPasswordPage() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-neutral-50">
+        <header className="p-4 border-b bg-white flex justify-center">
+          <MilyLogo />
+        </header>
+        <main className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+        </main>
+      </div>
+    )
+  }
+
   if (isTokenValid === null) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">

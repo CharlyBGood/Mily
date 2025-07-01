@@ -183,14 +183,14 @@ export default function HomePage() {
                 className="flex flex-col items-center justify-center py-3 px-4 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto transition-all duration-200 space-y-1"
               >
                 <Camera className="h-6 w-6" />
-                <span className="text-xs font-medium">Registrar</span>
+                <span className="text-xs font-medium">Registrar comida</span>
               </TabsTrigger>
               <TabsTrigger
                 value="history"
                 className="flex flex-col items-center justify-center py-3 px-4 data-[state=active]:bg-teal-50 data-[state=active]:text-teal-700 h-auto transition-all duration-200 space-y-1"
               >
                 <History className="h-6 w-6" />
-                <span className="text-xs font-medium">Historial</span>
+                <span className="text-xs font-medium">Ver historial</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -205,14 +205,14 @@ export default function HomePage() {
                 className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 font-medium"
               >
                 <Camera className="h-5 w-5" />
-                <span>Registrar Comida</span>
+                <span>Registrar comida</span>
               </TabsTrigger>
               <TabsTrigger
                 value="history"
                 className="flex items-center space-x-2 px-6 py-3 data-[state=active]:bg-white data-[state=active]:text-teal-700 font-medium"
               >
                 <History className="h-5 w-5" />
-                <span>Ver Historial</span>
+                <span>Ver historial</span>
               </TabsTrigger>
             </TabsList>
           </div>

@@ -50,6 +50,11 @@ export default function SharePage() {
     setExpandedSection(date)
   }
 
+  const handleSettingsClick = () => {
+    const from = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/share"
+    router.push(`/profile/settings?from=${encodeURIComponent(from)}`)
+  }
+
   if (!mounted) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">

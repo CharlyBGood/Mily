@@ -77,12 +77,15 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
   .pt-safe {
     padding-top: env(safe-area-inset-top);
   }
+
   .pl-safe {
     padding-left: env(safe-area-inset-left);
   }
+
   .pr-safe {
     padding-right: env(safe-area-inset-right);
   }
@@ -90,6 +93,7 @@
 
 /* Mobile-first utilities */
 @layer utilities {
+
   /* Touch-friendly scrolling */
   .scroll-smooth {
     scroll-behavior: smooth;
@@ -107,6 +111,7 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 1;
+    line-clamp: 1;
   }
 
   .line-clamp-2 {
@@ -114,6 +119,7 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
 
   .line-clamp-3 {
@@ -121,6 +127,7 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+    line-clamp: 2;
   }
 
   /* Image optimization */
@@ -161,6 +168,7 @@
 
 /* Mobile-first responsive design */
 @media (max-width: 640px) {
+
   /* Touch targets */
   button,
   [role="button"],
@@ -255,6 +263,7 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -271,6 +280,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -282,6 +292,7 @@
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -293,6 +304,7 @@
     opacity: 0;
     transform: scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -321,9 +333,11 @@
   .backdrop-blur-sm {
     backdrop-filter: blur(4px);
   }
+
   .backdrop-blur-md {
     backdrop-filter: blur(12px);
   }
+
   .backdrop-blur-lg {
     backdrop-filter: blur(16px);
   }
@@ -333,9 +347,11 @@
   .backdrop-blur-sm {
     background-color: rgba(255, 255, 255, 0.95);
   }
+
   .backdrop-blur-md {
     background-color: rgba(255, 255, 255, 0.9);
   }
+
   .backdrop-blur-lg {
     background-color: rgba(255, 255, 255, 0.85);
   }
@@ -352,6 +368,7 @@
   0% {
     background-position: 200% 0;
   }
+
   100% {
     background-position: -200% 0;
   }

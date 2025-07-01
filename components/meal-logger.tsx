@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Camera, AlertTriangle, Info } from "lucide-react"
+import { Camera, AlertTriangle, Info, Settings } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -17,26 +17,26 @@ import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
+import { useCycleSettings } from "@/lib/cycle-settings-context"
 import {
   countSweetDessertsInCurrentCycle,
-  getUserCycleDuration,
-  getUserSweetDessertLimit,
   calculateCycleInfo,
+  getDayOfWeekName,
 } from "@/lib/cycle-utils"
 
 export default function MealLogger() {
+  const { cycleStartDay, cycleDuration, sweetDessertLimit, loaded } = useCycleSettings()
+
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [description, setDescription] = useState("")
-  const [mealType, setMealType] = useState<MealType | "">("")
+  const [mealType, setMealType] = useState<MealType | "" | "postre_dulce" | "postre_fruta">("")
   const [notes, setNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [currentDate, setCurrentDate] = useState("")
   const [currentTime, setCurrentTime] = useState("")
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
-  const [cycleDuration, setCycleDuration] = useState(7)
-  const [sweetDessertLimit, setSweetDessertLimit] = useState(3)
   const [sweetDessertsCount, setSweetDessertsCount] = useState(0)
   const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
@@ -48,12 +48,39 @@ export default function MealLogger() {
   const { user } = useAuth()
   const { saveMeal, uploadImage, storageType, getUserMeals } = useStorage()
 
+  // Elimina la carga de settings desde loadUserSettings, solo usa el contexto
+  const loadUserStats = async () => {
+    if (!user && storageType !== "local") return
+    try {
+      const { success, data } = await getUserMeals()
+      if (success && data && data.length > 0) {
+        const sortedMeals = [...data].sort((a, b) => {
+          return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
+        })
+        const firstMealDate = new Date(sortedMeals[0].created_at || "")
+        const today = new Date()
+        // Usa SIEMPRE los valores del contexto
+        const cycleInfo = calculateCycleInfo(today, firstMealDate, cycleDuration, cycleStartDay)
+        setDaysLeftInCycle(cycleInfo.daysLeft)
+        const count = countSweetDessertsInCurrentCycle(data, cycleDuration)
+        setSweetDessertsCount(count)
+      }
+    } catch (error) {
+      console.error("Error loading user stats:", error)
+    }
+  }
+
   useEffect(() => {
     setMounted(true)
     setCurrentDate(format(new Date(), "EEEE, d 'de' MMMM", { locale: es }))
     setCurrentTime(format(new Date(), "HH:mm"))
-    loadUserSettings()
+    loadUserStats()
   }, [])
+
+  // Cuando cambian los settings de ciclo, recalcula los stats
+  useEffect(() => {
+    if (mounted) loadUserStats()
+  }, [cycleStartDay, cycleDuration, sweetDessertLimit, mounted])
 
   useEffect(() => {
     if (sweetDessertsCount >= sweetDessertLimit) {
@@ -62,37 +89,6 @@ export default function MealLogger() {
       setIsDessertLimitReached(false)
     }
   }, [sweetDessertsCount, sweetDessertLimit])
-
-  const loadUserSettings = async () => {
-    if (!user && storageType !== "local") return
-
-    try {
-      const duration = await getUserCycleDuration(user?.id)
-      const limit = await getUserSweetDessertLimit(user?.id)
-
-      setCycleDuration(duration)
-      setSweetDessertLimit(limit)
-
-      const { success, data } = await getUserMeals()
-
-      if (success && data && data.length > 0) {
-        const sortedMeals = [...data].sort((a, b) => {
-          return new Date(a.created_at || "").getTime() - new Date(b.created_at || "").getTime()
-        })
-
-        const firstMealDate = new Date(sortedMeals[0].created_at || "")
-        const today = new Date()
-
-        const cycleInfo = calculateCycleInfo(today, firstMealDate, duration)
-        setDaysLeftInCycle(cycleInfo.daysLeft)
-
-        const count = countSweetDessertsInCurrentCycle(data, duration)
-        setSweetDessertsCount(count)
-      }
-    } catch (error) {
-      console.error("Error loading user settings:", error)
-    }
-  }
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -164,7 +160,8 @@ export default function MealLogger() {
       return
     }
 
-    const isSweetDessert = mealType === "postre_dulce"
+    // Normaliza el tipo para la lógica interna
+    const isSweetDessert = mealType === "postre1" || mealType === "postre_dulce"
 
     if (isSweetDessert && sweetDessertsCount >= sweetDessertLimit) {
       toast({
@@ -183,13 +180,13 @@ export default function MealLogger() {
         photoUrl = await uploadImage(photo)
       }
 
-      let finalMealType = mealType
+      let finalMealType = mealType as MealType
       if (mealType === "postre_dulce") finalMealType = "postre1"
       if (mealType === "postre_fruta") finalMealType = "postre2"
 
       const meal: Meal = {
         description: description || "Sin descripción",
-        meal_type: finalMealType as MealType,
+        meal_type: finalMealType,
         photo_url: photoUrl,
         notes: notes || undefined,
         metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
@@ -209,7 +206,7 @@ export default function MealLogger() {
 
       resetForm()
 
-      if (mealType === "postre_dulce") {
+      if (mealType === "postre_dulce" || mealType === "postre1") {
         setSweetDessertsCount((prev) => prev + 1)
       }
 
@@ -232,150 +229,169 @@ export default function MealLogger() {
     }
   }
 
+  // Helper para el parámetro 'from'
+  const getCurrentPathWithQuery = () => {
+    if (typeof window !== "undefined") {
+      return window.location.pathname + window.location.search
+    }
+    return "/logger"
+  }
+
   return (
-    <div className="max-w-md mx-auto p-3 sm:p-4">
-      {/* Mobile-optimized photo section */}
-      <div className="mb-4 sm:mb-6">
-        <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-          Foto <span className="text-red-500">*</span>
-        </Label>
-        <Card className={`mb-4 overflow-hidden w-full ${photoRequired ? "border-red-500" : ""}`}>
-          <CardContent className="p-0">
-            {photoPreview ? (
-              <div className="bg-white relative flex justify-center w-full">
-                <img
-                  src={photoPreview || "/placeholder.svg"}
-                  alt="Foto de comida"
-                  className="w-auto max-w-full max-h-80 sm:max-h-96"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
-                  onClick={triggerFileInput}
-                >
-                  Cambiar
-                </Button>
-              </div>
-            ) : (
-              <div
-                className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[180px] sm:min-h-[200px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
-                onClick={triggerFileInput}
-              >
-                <Camera
-                  className={`h-10 w-10 sm:h-12 sm:w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`}
-                />
-                <p
-                  className={`text-center text-sm sm:text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
-                >
-                  {photoRequired || "Toca para tomar una foto de tu comida"}
-                </p>
-                {photoRequired && <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>}
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePhotoCapture}
-              ref={fileInputRef}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {storageWarning && (
-        <Alert variant="warning" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="text-sm">{storageWarning}</AlertDescription>
-        </Alert>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-        {mounted && (
-          <div className="text-sm sm:text-base text-neutral-500 mb-3 sm:mb-4 font-medium">
-            {currentDate} • {currentTime}
-          </div>
-        )}
-
-        {/* Mobile-optimized form fields */}
-        <div className="space-y-2">
-          <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
-            Tipo de comida
-          </Label>
-          <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
-            <SelectTrigger id="meal-type" className="text-sm sm:text-base h-11 sm:h-12">
-              <SelectValue placeholder="Selecciona el tipo de comida" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desayuno">Desayuno</SelectItem>
-              <SelectItem value="colacion1">Colación</SelectItem>
-              <SelectItem value="almuerzo">Almuerzo</SelectItem>
-              <SelectItem value="postre_dulce" disabled={isDessertLimitReached}>
-                Postre (dulce)
-              </SelectItem>
-              <SelectItem value="postre_fruta">Postre (fruta)</SelectItem>
-              <SelectItem value="merienda">Merienda</SelectItem>
-              <SelectItem value="colacion2">Colación</SelectItem>
-              <SelectItem value="cena">Cena</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {mealType === "postre_dulce" && (
-            <div className="flex items-center justify-between text-xs sm:text-sm mt-1">
-              <span>
-                Postres dulces: {sweetDessertsCount}/{sweetDessertLimit} en este ciclo
-              </span>
+    <div className="flex flex-col min-h-screen">
+      {/* Se eliminó el header con título y botón de settings para restaurar el diseño original */}
+      <main className="flex-1">
+        <div className="flex flex-col gap-4">
+          <div className="max-w-md mx-auto p-3 sm:p-4">
+            {/* Mobile-optimized photo section */}
+            <div className="mb-4 sm:mb-6">
+              <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+                Foto <span className="text-red-500">*</span>
+              </Label>
+              <Card className={`mb-4 overflow-hidden w-full ${photoRequired ? "border-red-500" : ""}`}>
+                <CardContent className="p-0">
+                  {photoPreview ? (
+                    <div className="bg-white relative flex justify-center w-full">
+                      <img
+                        src={photoPreview || "/placeholder.svg"}
+                        alt="Foto de comida"
+                        className="w-auto max-w-full max-h-80 sm:max-h-96"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
+                        onClick={triggerFileInput}
+                      >
+                        Cambiar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[180px] sm:min-h-[200px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
+                      onClick={triggerFileInput}
+                    >
+                      <Camera
+                        className={`h-10 w-10 sm:h-12 sm:w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`}
+                      />
+                      <p
+                        className={`text-center text-sm sm:text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
+                      >
+                        {photoRequired || "Toca para tomar una foto de tu comida"}
+                      </p>
+                      {photoRequired && <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handlePhotoCapture}
+                    ref={fileInputRef}
+                  />
+                </CardContent>
+              </Card>
             </div>
-          )}
 
-          {isDessertLimitReached && mealType === "postre_dulce" && (
-            <Alert variant="warning" className="mt-2">
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-xs sm:text-sm">
-                Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
-                <span className="block mt-1 font-medium">Puedes seleccionar "Postre (fruta)" que no tiene límite.</span>
-              </AlertDescription>
-            </Alert>
-          )}
+            {storageWarning && (
+              <Alert variant="default" className="mb-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-sm">{storageWarning}</AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+              {mounted && (
+                <div className="text-sm sm:text-base text-neutral-500 mb-3 sm:mb-4 font-medium">
+                  {currentDate} • {currentTime}
+                </div>
+              )}
+
+              {/* Mobile-optimized form fields */}
+              <div className="space-y-2">
+                <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
+                  Tipo de comida
+                </Label>
+                <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
+                  <SelectTrigger id="meal-type" className="text-sm sm:text-base h-11 sm:h-12">
+                    <SelectValue placeholder="Selecciona el tipo de comida" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="desayuno">Desayuno</SelectItem>
+                    <SelectItem value="colacion1">Colación</SelectItem>
+                    <SelectItem value="almuerzo">Almuerzo</SelectItem>
+                    <SelectItem value="postre_dulce" disabled={isDessertLimitReached}>
+                      Postre (dulce)
+                    </SelectItem>
+                    <SelectItem value="postre_fruta">Postre (fruta)</SelectItem>
+                    <SelectItem value="merienda">Merienda</SelectItem>
+                    <SelectItem value="colacion2">Colación</SelectItem>
+                    <SelectItem value="cena">Cena</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {mealType === "postre_dulce" || mealType === "postre1" ? (
+                  <div className="flex items-center justify-between text-xs sm:text-sm mt-1">
+                    <span>
+                      Postres dulces: {sweetDessertsCount}/{sweetDessertLimit} en este ciclo
+                    </span>
+                  </div>
+                ) : null}
+
+                {isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1") && (
+                  <Alert variant="default" className="mt-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs sm:text-sm">
+                      Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
+                      <br />
+                      <span className="block mt-1 font-medium">
+                        El ciclo inicia cada <b>{getDayOfWeekName(cycleStartDay)}</b>.
+                        Puedes seleccionar "Postre (fruta)" que no tiene límite.
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description" className="block text-sm sm:text-base font-medium text-gray-700">
+                  Descripción <span className="text-gray-400">(opcional)</span>
+                </Label>
+                <Input
+                  id="description"
+                  placeholder="¿Qué comiste?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="text-sm sm:text-base h-11 sm:h-12"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-sm sm:text-base font-medium">
+                  Notas adicionales (opcional)
+                </Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Agrega cualquier nota adicional aquí..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px]"
+                  rows={3}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium"
+                disabled={!mealType || isSubmitting || (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))}
+              >
+                {isSubmitting ? "Guardando..." : "Guardar comida"}
+              </Button>
+            </form>
+          </div>
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description" className="block text-sm sm:text-base font-medium text-gray-700">
-            Descripción <span className="text-gray-400">(opcional)</span>
-          </Label>
-          <Input
-            id="description"
-            placeholder="¿Qué comiste?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="text-sm sm:text-base h-11 sm:h-12"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes" className="text-sm sm:text-base font-medium">
-            Notas adicionales (opcional)
-          </Label>
-          <Textarea
-            id="notes"
-            placeholder="Agrega cualquier nota adicional aquí..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px]"
-            rows={3}
-          />
-        </div>
-
-        <Button
-          type="submit"
-          className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium"
-          disabled={!mealType || isSubmitting || (isDessertLimitReached && mealType === "postre_dulce")}
-        >
-          {isSubmitting ? "Guardando..." : "Guardar comida"}
-        </Button>
-      </form>
+      </main>
     </div>
   )
 }

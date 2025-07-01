@@ -197,7 +197,7 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
       </Card>
 
       {storageWarning && (
-        <Alert variant="warning" className="mb-4">
+        <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{storageWarning}</AlertDescription>
         </Alert>

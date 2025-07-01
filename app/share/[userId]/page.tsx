@@ -12,7 +12,7 @@ import { groupMealsByDay } from "@/lib/utils"
 import { groupMealsByCycle, type CycleGroup, getDayOfWeekName } from "@/lib/cycle-utils"
 import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabase-client"
-import type { Meal, UserCycleSettings } from "@/lib/types"
+import type { Meal } from "@/lib/types"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import { Alert } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import { useCycleSettings } from "@/lib/cycle-settings-context"
 
 export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -36,11 +37,6 @@ export default function SharePage() {
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
-  const [cycleSettings, setCycleSettings] = useState<UserCycleSettings>({
-    cycleDuration: 7,
-    cycleStartDay: 1,
-    sweetDessertLimit: 3,
-  })
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
   const [selectedCycle, setSelectedCycle] = useState<string>("all")
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
@@ -51,6 +47,9 @@ export default function SharePage() {
   const userId = params.userId as string
   const cycleParam = searchParams.get("cycle")
 
+  // Get cycle settings from context
+  const { cycleStartDay, cycleDuration, sweetDessertLimit, loaded: cycleSettingsLoaded } = useCycleSettings()
+
   useEffect(() => {
     setMounted(true)
 
@@ -58,55 +57,53 @@ export default function SharePage() {
       setSelectedCycle(cycleParam)
     }
 
-    loadUserInfo()
     loadMeals()
   }, [userId, cycleParam])
 
   // Auto-refresh for real-time updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadMeals()
-      setLastUpdated(new Date())
-    }, 30000)
+    let interval: NodeJS.Timeout | null = null
+    let lastHidden: number | null = null
 
-    return () => clearInterval(interval)
-  }, [userId])
-
-  const loadUserInfo = async () => {
-    try {
-      console.log("Loading user info for userId:", userId)
-      const supabase = getSupabaseClient()
-
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("username, cycle_duration, cycle_start_day, sweet_dessert_limit")
-        .eq("user_id", userId)
-        .single()
-
-      if (error) {
-        console.error("Error loading user settings:", error)
+    const refreshMeals = () => {
+      if ((window as any).__milyDialogOpen) return
+      if (document.visibilityState === "visible") {
+        // Only refresh if tab was hidden for more than 30 seconds
+        if (lastHidden && Date.now() - lastHidden > 30000) {
+          loadMeals()
+          setLastUpdated(new Date())
+        }
+        lastHidden = null
+      } else if (document.visibilityState === "hidden") {
+        lastHidden = Date.now()
       }
-
-      if (data) {
-        console.log("User settings loaded:", data)
-        setUsername(data.username || null)
-        setCycleSettings({
-          cycleDuration: data.cycle_duration || 7,
-          cycleStartDay: data.cycle_start_day || 1,
-          sweetDessertLimit: data.sweet_dessert_limit || 3,
-        })
-      }
-    } catch (error) {
-      console.error("Error in loadUserInfo:", error)
     }
-  }
+
+    interval = setInterval(() => {
+      if ((window as any).__milyDialogOpen) return
+      if (document.visibilityState === "visible") {
+        loadMeals()
+        setLastUpdated(new Date())
+      }
+    }, 60000) // 1 min interval
+
+    document.addEventListener("visibilitychange", refreshMeals)
+    return () => {
+      if (interval) clearInterval(interval)
+      document.removeEventListener("visibilitychange", refreshMeals)
+    }
+  }, [userId])
 
   const loadMeals = async () => {
     setLoading(true)
     try {
       console.log("Loading meals for userId:", userId)
       const supabase = getSupabaseClient()
-
+      if (!supabase) {
+        console.error("Supabase client is not initialized")
+        setLoading(false)
+        return
+      }
       const { data, error } = await supabase
         .from("meals")
         .select("*")
@@ -121,10 +118,11 @@ export default function SharePage() {
       console.log(`Loaded ${data?.length || 0} meals`)
 
       if (data && data.length > 0) {
-        const grouped = groupMealsByDay(data as Meal[])
+        const meals = data as unknown as Meal[]
+        const grouped = groupMealsByDay(meals)
         setGroupedMeals(grouped)
 
-        const cycles = groupMealsByCycle(data as Meal[], cycleSettings.cycleDuration, cycleSettings.cycleStartDay)
+        const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
         setCycleGroups(cycles)
       } else {
         setGroupedMeals([])
@@ -140,7 +138,12 @@ export default function SharePage() {
   }
 
   const handleBack = () => {
-    router.push("/")
+    if (window.history.length > 2) {
+      router.back()
+    } else {
+      // Si no hay historial previo, vuelve a la página de compartidos principal
+      router.push(`/share/${userId}`)
+    }
   }
 
   const handleSectionExpand = (date: string) => {
@@ -196,16 +199,23 @@ export default function SharePage() {
     return "Historial de comidas compartido"
   }
 
-  if (!mounted) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-        <p className="text-gray-500">Cargando...</p>
-      </div>
-    )
-  }
+  // Patch: Listen for dialog open/close events globally
+  useEffect(() => {
+    const handleDialogOpen = (e: Event) => {
+      (window as any).__milyDialogOpen = true
+    }
+    const handleDialogClose = (e: Event) => {
+      (window as any).__milyDialogOpen = false
+    }
+    window.addEventListener("mily-dialog-open", handleDialogOpen)
+    window.addEventListener("mily-dialog-close", handleDialogClose)
+    return () => {
+      window.removeEventListener("mily-dialog-open", handleDialogOpen)
+      window.removeEventListener("mily-dialog-close", handleDialogClose)
+    }
+  }, [])
 
-  if (loading) {
+  if (!mounted || loading || !cycleSettingsLoaded) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
@@ -275,17 +285,14 @@ export default function SharePage() {
                 </div>
               </Card>
 
-              {cycleSettings && (
-                <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
-                  <div className="flex items-center text-sm sm:text-base">
-                    <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
-                    <span className="ml-2 text-teal-700">
-                      Inicia cada {getDayOfWeekName(cycleSettings.cycleStartDay)}, duración{" "}
-                      {cycleSettings.cycleDuration} días
-                    </span>
-                  </div>
-                </Alert>
-              )}
+              <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
+                <div className="flex items-center text-sm sm:text-base">
+                  <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
+                  <span className="ml-2 text-teal-700">
+                    Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                  </span>
+                </div>
+              </Alert>
 
               <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <div className="flex-shrink-0">

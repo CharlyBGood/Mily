@@ -15,6 +15,7 @@ import { getSupabaseClient } from "@/lib/supabase-client"
 import { getDayOfWeekName } from "@/lib/cycle-utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useCycleSettings } from "@/lib/cycle-settings-context"
 
 interface UserSettings {
   username: string
@@ -23,7 +24,11 @@ interface UserSettings {
   sweetDessertLimit: number
 }
 
-export default function UserProfileSettings() {
+interface UserProfileSettingsProps {
+  from?: string | null;
+}
+
+export default function UserProfileSettings({ from }: UserProfileSettingsProps) {
   const [settings, setSettings] = useState<UserSettings>({
     username: "",
     cycleDuration: 7,
@@ -47,20 +52,27 @@ export default function UserProfileSettings() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [setupNeeded, setSetupNeeded] = useState(false)
   const [isSettingUpDatabase, setIsSettingUpDatabase] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  const { user, refreshSession } = useAuth()
+  const { user, refreshSession, loading } = useAuth()
   const { toast } = useToast()
-  const router = useRouter()
+  const router = useRouter();
+  const { reloadSettings } = useCycleSettings();
 
   useEffect(() => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
+    setMounted(true);
+  }, []);
 
+  useEffect(() => {
+    if (!mounted) return;
+    if (loading) return;
+    if (!user) {
+      router.push("/login");
+      return;
+    }
     // Load settings
-    loadUserSettings()
-  }, [user, router])
+    loadUserSettings();
+  }, [user, router, loading, mounted])
 
   useEffect(() => {
     // Check if settings have changed
@@ -217,6 +229,9 @@ export default function UserProfileSettings() {
       `
 
       try {
+        if (!supabase) {
+          throw new Error("Supabase client is not initialized")
+        }
         // Try to execute the SQL using the exec_sql RPC function
         const { error: sqlError } = await supabase.rpc("exec_sql", { sql_query: setupSql })
 
@@ -231,6 +246,9 @@ export default function UserProfileSettings() {
 
       // Create initial profile and settings for the user
       try {
+        if (!supabase) {
+            throw new Error("Supabase client is not initialized")
+          }
         const { error: profileError } = await supabase.from("profiles").upsert(
           {
             id: user.id,
@@ -249,6 +267,9 @@ export default function UserProfileSettings() {
 
       // Create user_settings table entry
       try {
+        if (!supabase) {
+          throw new Error("Supabase client is not initialized");
+        }
         const { error: settingsError } = await supabase.from("user_settings").upsert(
           {
             user_id: user.id,
@@ -293,22 +314,18 @@ export default function UserProfileSettings() {
 
   const loadUserSettings = async () => {
     if (!user) return
-
     setIsLoading(true)
     setLoadError(null)
-
     try {
       const supabase = getSupabaseClient()
-
+      if (!supabase) throw new Error("Supabase client is not initialized")
       // Try to get user profile
       let profileData = null
       try {
         const { data, error } = await supabase.from("profiles").select("username").eq("id", user.id).single()
-
         if (!error) {
           profileData = data
-        } else if (error.message.includes("does not exist")) {
-          console.log("Profiles table doesn't exist, setup needed")
+        } else if (error.message && error.message.includes("does not exist")) {
           setSetupNeeded(true)
           setIsLoading(false)
           return
@@ -316,16 +333,13 @@ export default function UserProfileSettings() {
       } catch (error) {
         console.error("Error checking profiles table:", error)
       }
-
       // Try to get user settings
       let settingsData = null
       try {
         const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
-
         if (!error) {
           settingsData = data
-        } else if (error.message.includes("does not exist")) {
-          console.log("User settings table doesn't exist, setup needed")
+        } else if (error.message && error.message.includes("does not exist")) {
           setSetupNeeded(true)
           setIsLoading(false)
           return
@@ -333,39 +347,30 @@ export default function UserProfileSettings() {
       } catch (error) {
         console.error("Error checking user_settings table:", error)
       }
-
       // If we have settings data, use it
       if (settingsData) {
-        const loadedSettings = {
-          username: profileData?.username || settingsData.username || "",
-          cycleDuration: settingsData.cycle_duration || 7,
-          cycleStartDay: settingsData.cycle_start_day !== undefined ? settingsData.cycle_start_day : 1,
-          sweetDessertLimit: settingsData.sweet_dessert_limit || 3,
+        const loadedSettings: UserSettings = {
+          username: String(profileData?.username ?? settingsData.username ?? ""),
+          cycleDuration: Number(settingsData.cycle_duration ?? 7),
+          cycleStartDay: settingsData.cycle_start_day !== undefined && settingsData.cycle_start_day !== null
+            ? Number(settingsData.cycle_start_day)
+            : 1,
+          sweetDessertLimit: Number(settingsData.sweet_dessert_limit ?? 3),
         }
-
         setSettings(loadedSettings)
         setOriginalSettings(loadedSettings)
-
-        if (loadedSettings.username) {
-          setUsernameAvailable(true)
-        }
+        if (loadedSettings.username) setUsernameAvailable(true)
       } else if (profileData) {
-        // If we only have profile data but no settings
-        const defaultSettings = {
-          username: profileData.username || "",
+        const defaultSettings: UserSettings = {
+          username: typeof profileData.username === "string" ? profileData.username : "",
           cycleDuration: 7,
           cycleStartDay: 1,
           sweetDessertLimit: 3,
         }
-
         setSettings(defaultSettings)
         setOriginalSettings(defaultSettings)
-
-        if (defaultSettings.username) {
-          setUsernameAvailable(true)
-        }
+        if (defaultSettings.username) setUsernameAvailable(true)
       } else {
-        // If we have neither, setup is needed
         setSetupNeeded(true)
       }
     } catch (error) {
@@ -412,6 +417,9 @@ export default function UserProfileSettings() {
 
       // Check if username exists in user_settings
       try {
+        if (!supabase) {
+          throw new Error("Supabase client is not initialized")
+        }
         const { data: settingsData, error: settingsError } = await supabase
           .from("user_settings")
           .select("username")
@@ -430,6 +438,9 @@ export default function UserProfileSettings() {
 
       // Check if username exists in profiles
       try {
+        if (!supabase) {
+          throw new Error("Supabase client is not initialized")
+        }
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select("username")
@@ -482,31 +493,15 @@ export default function UserProfileSettings() {
     setSettings({ ...settings, cycleStartDay: dayValue })
   }
 
+  // Cuando el usuario guarda settings, notifica a otras pestañas y fuerza recarga de ciclos
   const saveSettings = async () => {
-    if (!user) return
-
-    if (settings.username && !usernameAvailable) {
-      toast({
-        title: "Error",
-        description: "Por favor corrige los errores antes de guardar",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSaving(true)
     setSaveSuccess(false)
-
+    setUsernameError(null)
     try {
       const supabase = getSupabaseClient()
-
-      console.log("Saving settings:", {
-        user_id: user.id,
-        username: settings.username,
-        cycle_duration: settings.cycleDuration,
-        cycle_start_day: settings.cycleStartDay,
-        sweet_dessert_limit: settings.sweetDessertLimit,
-      })
+      if (!supabase) throw new Error("Supabase client is not initialized")
+      if (!user) throw new Error("Usuario no autenticado")
 
       // Update user_settings table
       try {
@@ -520,7 +515,6 @@ export default function UserProfileSettings() {
           },
           { onConflict: "user_id" },
         )
-
         if (settingsError) {
           console.error("Error saving settings:", settingsError)
           throw settingsError
@@ -529,7 +523,6 @@ export default function UserProfileSettings() {
         console.error("Error upserting user_settings:", error)
         throw error
       }
-
       // Also update the profiles table to keep username in sync
       if (settings.username) {
         try {
@@ -541,41 +534,34 @@ export default function UserProfileSettings() {
             },
             { onConflict: "id" },
           )
-
           if (profileError) {
             console.error("Error updating profile:", profileError)
-            // Continue anyway, the main settings were saved
           }
         } catch (error) {
           console.error("Error upserting profile:", error)
-          // Continue anyway, the main settings were saved
         }
       }
-
-      // Clear the cycle settings cache to ensure fresh data is loaded
+      // Limpia cache de ciclo-utils si existe
       try {
         const cycleUtils = await import("@/lib/cycle-utils")
-        if (typeof cycleUtils.clearCycleSettingsCache === "function") {
-          cycleUtils.clearCycleSettingsCache(user.id)
+        if ("clearCycleSettingsCache" in cycleUtils && typeof (cycleUtils as any).clearCycleSettingsCache === "function") {
+          (cycleUtils as any).clearCycleSettingsCache(user.id)
         }
       } catch (error) {
-        console.error("Error clearing cycle settings cache:", error)
-        // Continue anyway
+        // Silenciar error
       }
-
-      setOriginalSettings({ ...settings })
+      // Forzar recarga de settings en esta pestaña y notificar a otras
+      await loadUserSettings()
+      await reloadSettings() // <--- ACTUALIZA EL CONTEXTO GLOBAL
+      localStorage.setItem("cycleSettingsUpdated", Date.now().toString())
+      // Notificar a la pestaña anterior (si hay parámetro 'from')
+      if (from && window.opener) {
+        try {
+          window.opener.postMessage({ type: "cycleSettingsUpdated" }, "*")
+        } catch {}
+      }
       setSaveSuccess(true)
-
-      toast({
-        title: "Configuración guardada",
-        description: "Tus preferencias han sido actualizadas",
-      })
-
-      // Show success indicator briefly before redirecting
-      setTimeout(() => {
-        // Redirect to the Historial page
-        router.push("/")
-      }, 1500)
+      setTimeout(() => setSaveSuccess(false), 2000)
     } catch (error) {
       console.error("Error saving settings:", error)
       toast({
@@ -583,7 +569,25 @@ export default function UserProfileSettings() {
         description: "No se pudieron guardar tus configuraciones",
         variant: "destructive",
       })
+    } finally {
       setIsSaving(false)
+    }
+  }
+
+  // Helper para el parámetro 'from'
+  const getCurrentPathWithQuery = () => {
+    if (typeof window !== "undefined") {
+      return window.location.pathname + window.location.search;
+    }
+    return "/profile/settings";
+  };
+
+  // Navegación: si hay parámetro 'from', el botón de volver usa router.replace(from)
+  const handleBack = () => {
+    if (from) {
+      router.replace(from)
+    } else {
+      router.push("/logger"); // Vuelve a logger por defecto
     }
   }
 
@@ -591,7 +595,7 @@ export default function UserProfileSettings() {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 flex justify-center">
@@ -610,7 +614,7 @@ export default function UserProfileSettings() {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 flex justify-center">
@@ -664,9 +668,15 @@ export default function UserProfileSettings() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-neutral-50">
+    <div className="flex flex-col min-h-screen bg-white">
       <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2">
+        <Button variant="ghost" size="icon" onClick={() => {
+          if (from) {
+            router.replace(from);
+          } else {
+            router.push("/logger"); // Vuelve a logger por defecto
+          }
+        }} className="mr-2">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 flex justify-center">
@@ -702,9 +712,8 @@ export default function UserProfileSettings() {
                   value={settings.username}
                   onChange={(e) => handleUsernameChange(e.target.value)}
                   placeholder="tu_nombre_usuario"
-                  className={`pr-10 ${
-                    settings.username && (usernameAvailable ? "border-green-500" : "border-red-500")
-                  }`}
+                  className={`pr-10 ${settings.username && (usernameAvailable ? "border-green-500" : "border-red-500")
+                    }`}
                 />
                 {settings.username && usernameAvailable && (
                   <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
@@ -722,13 +731,13 @@ export default function UserProfileSettings() {
                     <SelectValue placeholder="Selecciona el día de inicio" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">{getDayOfWeekName(0)}</SelectItem>
                     <SelectItem value="1">{getDayOfWeekName(1)}</SelectItem>
                     <SelectItem value="2">{getDayOfWeekName(2)}</SelectItem>
                     <SelectItem value="3">{getDayOfWeekName(3)}</SelectItem>
                     <SelectItem value="4">{getDayOfWeekName(4)}</SelectItem>
                     <SelectItem value="5">{getDayOfWeekName(5)}</SelectItem>
                     <SelectItem value="6">{getDayOfWeekName(6)}</SelectItem>
-                    <SelectItem value="0">{getDayOfWeekName(0)}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-neutral-500">Define qué día de la semana comienza cada ciclo nutricional</p>
@@ -792,7 +801,7 @@ export default function UserProfileSettings() {
           <CardFooter>
             <Button
               onClick={saveSettings}
-              disabled={isSaving || !hasChanges || (settings.username && !usernameAvailable)}
+              disabled={isSaving || !hasChanges || (!!settings.username && !usernameAvailable)}
               className="w-full"
             >
               {isSaving ? (
