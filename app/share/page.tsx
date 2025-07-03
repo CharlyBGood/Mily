@@ -42,17 +42,8 @@ export default function SharePage() {
     router.push("/")
   }
 
-  // Empty functions since we don't need these functionalities in share view
-  const handleDeleteClick = () => {}
-  const handleEditClick = () => {}
-
   const handleSectionExpand = (date: string) => {
     setExpandedSection(date)
-  }
-
-  const handleSettingsClick = () => {
-    const from = typeof window !== "undefined" ? window.location.pathname + window.location.search : "/share"
-    router.push(`/profile/settings?from=${encodeURIComponent(from)}`)
   }
 
   if (!mounted) {
@@ -97,9 +88,7 @@ export default function SharePage() {
                 key={group.date}
                 date={group.date}
                 displayDate={group.displayDate}
-                meals={group.meals}
-                onDeleteMeal={handleDeleteClick}
-                onEditMeal={handleEditClick}
+                meals={group.meals}                
                 onExpand={handleSectionExpand}
                 isExpanded={expandedSection === group.date}
               />

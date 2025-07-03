@@ -43,7 +43,6 @@ export default function SharePage() {
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
   const userId = params.userId as string
   const cycleParam = searchParams.get("cycle")
 

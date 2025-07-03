@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -54,36 +54,50 @@ export default function MealHistory() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [cycleSettingsLoaded, setCycleSettingsLoaded] = useState(false)
   const [dataInitialized, setDataInitialized] = useState(false)
+  const isLoadingMeals = useRef(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  // Efecto principal: carga cuando cambia user, storageType, settings o al montar
   useEffect(() => {
     if (!mounted) return
+    if (!user && storageType === "supabase") return
+    if (isLoadingMeals.current) return
+    isLoadingMeals.current = true
+    loadMeals().finally(() => {
+      isLoadingMeals.current = false
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, storageType, cycleStartDay, cycleDuration, mounted])
 
-    const timer = setTimeout(() => {
-      if (user || storageType === "local") {
+  // Listeners globales: recarga solo si la pestaña está visible
+  useEffect(() => {
+    function handleStorageChange(e: StorageEvent) {
+      if (e.key === "cycleSettingsUpdated" && document.visibilityState === "visible") {
         loadMeals()
       }
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [user, storageType, mounted])
-
-  // Filter meals based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredMeals(meals)
-    } else {
-      const filtered = meals.filter(
-        (meal) =>
-          meal.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (meal.notes && meal.notes.toLowerCase().includes(searchQuery.toLowerCase())),
-      )
-      setFilteredMeals(filtered)
     }
-  }, [meals, searchQuery])
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadMeals()
+      }
+    }
+    function handleMessage(e: MessageEvent) {
+      if (e.data && e.data.type === "cycleSettingsUpdated" && document.visibilityState === "visible") {
+        loadMeals()
+      }
+    }
+    window.addEventListener("storage", handleStorageChange)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("message", handleMessage)
+    return () => {
+      window.removeEventListener("storage", handleStorageChange)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("message", handleMessage)
+    }
+  }, [])
 
   useEffect(() => {
     if (cycleSettingsLoaded && filteredMeals && Array.isArray(filteredMeals) && filteredMeals.length > 0) {
@@ -257,13 +271,6 @@ export default function MealHistory() {
       window.removeEventListener("message", handleMessage)
     }
   }, [])
-
-  useEffect(() => {
-    if (cycleSettingsLoaded) {
-      loadMeals()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cycleStartDay, cycleDuration, cycleSettingsLoaded])
 
   // Helper para el parámetro 'from'
   const getCurrentPathWithQuery = () => {

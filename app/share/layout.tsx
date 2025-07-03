@@ -20,12 +20,9 @@ export default function ShareLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
-        <ThemeProvider attribute="class" defaultTheme="light">
-          {children}
-        </ThemeProvider>
-      </body>
-    </html>
-  )
+    <ThemeProvider attribute="class" defaultTheme="light">
+      <div className="min-h-screen w-100 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        {children}
+      </div>
+    </ThemeProvider>)
 }

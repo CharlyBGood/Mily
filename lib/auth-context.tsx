@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { getSupabaseClient, resetSupabaseClient } from "./supabase-client"
 import type { Session, User } from "@supabase/supabase-js"
+import { set } from "date-fns"
 
 export interface UserProfile {
   id: string
@@ -45,11 +46,11 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   signIn: async () => ({ success: false, error: new Error("Not implemented") }),
   signUp: async () => ({ success: false, error: new Error("Not implemented") }),
-  signOut: async () => {},
+  signOut: async () => { },
   resetPassword: async () => ({ success: false, error: new Error("Not implemented") }),
   updatePassword: async () => ({ success: false, error: new Error("Not implemented") }),
   updateProfile: async () => ({ success: false, error: new Error("Not implemented") }),
-  refreshSession: async () => {},
+  refreshSession: async () => { },
   ensureDbSetup: async () => false,
 })
 
@@ -60,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [initialized, setInitialized] = useState(false)
   const [firstSessionChecked, setFirstSessionChecked] = useState(false)
 
   // Function to refresh the session
@@ -197,6 +197,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (!isMounted) return;
 
+          setSession(prevSession => {
+
+            if (!prevSession && newSession || prevSession && newSession && prevSession.access_token !== newSession.access_token) {
+              setUser(newSession?.user || null);
+              return newSession;
+            }
+            return prevSession;
+          })
+
+          if (!newSession) {
+            return setUser(null);
+          }
+
+          setLoading(false);
+
           if (newSession) {
             setSession(newSession)
             setUser(newSession.user)
@@ -207,9 +222,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setLoading(false)
         }).data;
-        
-        setInitialized(true)
-        setLoading(false)
       } catch (err) {
         console.error("Error in auth initialization:", err)
         setError(err instanceof Error ? err : new Error(String(err)))
