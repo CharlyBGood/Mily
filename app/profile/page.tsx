@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { ArrowLeft, LogOut, Settings, AlertCircle, Database, RefreshCw } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
@@ -15,8 +15,7 @@ export default function ProfilePage() {
   const { user, signOut, refreshSession, ensureDbSetup, loading } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
-  const searchParams = useSearchParams();
-  const from = searchParams.get("from");
+  // Eliminado useSearchParams y from
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
@@ -165,7 +164,7 @@ export default function ProfilePage() {
     setRetryCount((prev) => prev + 1)
   }
 
-  // Helper to get current path and query for 'from' param
+  // Helper to get current path and query (ya no se usa 'from')
   const getCurrentPathWithQuery = () => {
     if (typeof window !== "undefined") {
       return window.location.pathname + window.location.search;
@@ -179,11 +178,7 @@ export default function ProfilePage() {
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
           <Button variant="ghost" size="icon" onClick={() => {
-            if (from) {
-              router.replace(from);
-            } else {
-              router.push("/");
-            }
+            router.push("/");
           }} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -204,11 +199,7 @@ export default function ProfilePage() {
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
           <Button variant="ghost" size="icon" onClick={() => {
-            if (from) {
-              router.replace(from);
-            } else {
-              router.push("/");
-            }
+            router.push("/");
           }} className="mr-2">
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -232,11 +223,7 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen bg-neutral-50">
       <header className="p-4 border-b bg-white flex items-center">
         <Button variant="ghost" size="icon" onClick={() => {
-          if (from) {
-            router.replace(from);
-          } else {
-            router.push("/");
-          }
+          router.push("/");
         }} className="mr-2">
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -293,8 +280,7 @@ export default function ProfilePage() {
             <Button
               variant={setupNeeded ? "default" : "outline"}
               onClick={() => {
-                const fromParam = getCurrentPathWithQuery();
-                router.push(`/profile/settings?from=${encodeURIComponent(fromParam)}`);
+                router.push(`/profile/settings`);
               }}
               className="w-full"
               disabled={isSettingUpDatabase}

@@ -24,11 +24,9 @@ interface UserSettings {
   sweetDessertLimit: number
 }
 
-interface UserProfileSettingsProps {
-  from?: string | null;
-}
+interface UserProfileSettingsProps {}
 
-export default function UserProfileSettings({ from }: UserProfileSettingsProps) {
+export default function UserProfileSettings({}: UserProfileSettingsProps) {
   const [settings, setSettings] = useState<UserSettings>({
     username: "",
     cycleDuration: 7,
@@ -563,17 +561,6 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
       await reloadSettings() // <--- ACTUALIZA EL CONTEXTO GLOBAL
       console.log('[UserProfileSettings] Guardado: disparando evento localStorage cycleSettingsUpdated')
       localStorage.setItem("cycleSettingsUpdated", Date.now().toString())
-      // Notificar a la pestaña anterior (si hay parámetro 'from')
-      if (from) {
-        // Redirige con settingsUpdated=1 para que historial recargue settings
-        router.replace(`${from}${from.includes('?') ? '&' : '?'}settingsUpdated=1`);
-        return;
-      }
-      if (from && window.opener) {
-        try {
-          window.opener.postMessage({ type: "cycleSettingsUpdated" }, "*")
-        } catch {}
-      }
       // Notificar a otras rutas internas de la SPA (custom event)
       window.dispatchEvent(new Event("cycleSettingsUpdatedInternal"));
       setSaveSuccess(true)
@@ -594,13 +581,9 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
     }
   }
 
-  // Navegación: si hay parámetro 'from', el botón de volver usa router.replace(from)
+  // Navegación simplificada
   const handleBack = () => {
-    if (from) {
-      router.replace(from)
-    } else {
-      router.push("/logger"); // Vuelve a logger por defecto
-    }
+    router.push("/logger"); // Vuelve a logger por defecto
   }
 
   if (isLoading) {
@@ -682,13 +665,7 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => {
-          if (from) {
-            router.replace(from);
-          } else {
-            router.push("/logger"); // Vuelve a logger por defecto
-          }
-        }} className="mr-2">
+        <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 flex justify-center">

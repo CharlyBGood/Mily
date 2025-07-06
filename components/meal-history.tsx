@@ -12,7 +12,7 @@ import CycleSection from "./cycle-section"
 import MealEditor from "./meal-editor"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +42,6 @@ export default function MealHistory() {
   const [mounted, setMounted] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { storageType } = useStorage();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null);
@@ -167,14 +166,14 @@ export default function MealHistory() {
 
   // Recarga settings si viene de settings (query param)
   useEffect(() => {
-    if (searchParams.get("settingsUpdated") === "1") {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("settingsUpdated") === "1") {
       reloadSettings();
       // Limpia el query param para evitar loops
       const params = new URLSearchParams(window.location.search);
       params.delete("settingsUpdated");
       router.replace(window.location.pathname + (params.toString() ? `?${params}` : ""));
     }
-  }, [searchParams, reloadSettings, router]);
+  }, [reloadSettings, router]);
 
   // Sincronización de settings entre rutas internas (SPA)
   useEffect(() => {
@@ -337,8 +336,7 @@ export default function MealHistory() {
                           <Button
                             variant="outline"
                             onClick={() => {
-                              const from = getCurrentPathWithQuery();
-                              router.push(`/profile/settings?from=${encodeURIComponent(from)}`);
+                              router.push(`/profile/settings`);
                               setShowMobileFilters(false);
                             }}
                             className="h-12 text-sm"
@@ -402,8 +400,7 @@ export default function MealHistory() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const from = getCurrentPathWithQuery();
-                      router.push(`/profile/settings?from=${encodeURIComponent(from)}`);
+                      router.push(`/profile/settings`);
                     }}
                     className="flex items-center"
                   >

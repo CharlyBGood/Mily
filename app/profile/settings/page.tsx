@@ -1,15 +1,13 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import UserProfileSettings from "@/components/user-profile-settings"
 
 export default function ProfileSettingsPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const from = searchParams.get("from")
 
   useEffect(() => {
     if (loading) return
@@ -26,5 +24,5 @@ export default function ProfileSettingsPage() {
     )
   }
 
-  return <UserProfileSettings from={from} />
+  return <UserProfileSettings />
 }

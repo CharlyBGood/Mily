@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, ChevronDown, LayoutGrid, List } from "lucide-react"
@@ -42,9 +42,7 @@ export default function SharePage() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const router = useRouter()
   const params = useParams()
-  const searchParams = useSearchParams()
   const userId = params.userId as string
-  const cycleParam = searchParams.get("cycle")
 
   // Get cycle settings from context
   const { cycleStartDay, cycleDuration, sweetDessertLimit, loaded: cycleSettingsLoaded } = useCycleSettings()
@@ -52,12 +50,8 @@ export default function SharePage() {
   useEffect(() => {
     setMounted(true)
 
-    if (cycleParam) {
-      setSelectedCycle(cycleParam)
-    }
-
     loadMeals()
-  }, [userId, cycleParam])
+  }, [userId])
 
   // Auto-refresh for real-time updates
   useEffect(() => {
