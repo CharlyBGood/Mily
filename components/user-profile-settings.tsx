@@ -349,8 +349,9 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
       }
       // If we have settings data, use it
       if (settingsData) {
+        // Solo usar el username de la base, nunca el email ni ningún fallback
         const loadedSettings: UserSettings = {
-          username: String(profileData?.username ?? settingsData.username ?? ""),
+          username: typeof settingsData.username === "string" ? settingsData.username : "",
           cycleDuration: Number(settingsData.cycle_duration ?? 7),
           cycleStartDay: settingsData.cycle_start_day !== undefined && settingsData.cycle_start_day !== null
             ? Number(settingsData.cycle_start_day)
@@ -361,6 +362,7 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
         setOriginalSettings(loadedSettings)
         if (loadedSettings.username) setUsernameAvailable(true)
       } else if (profileData) {
+        // Solo usar el username de profile si existe, nunca el email ni ningún fallback
         const defaultSettings: UserSettings = {
           username: typeof profileData.username === "string" ? profileData.username : "",
           cycleDuration: 7,
@@ -722,6 +724,7 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
                   value={settings.username}
                   onChange={(e) => handleUsernameChange(e.target.value)}
                   placeholder="tu_nombre_usuario"
+                  autoComplete="off"
                   className={`pr-10 ${settings.username && (usernameAvailable ? "border-green-500" : "border-red-500")
                     }`}
                 />
