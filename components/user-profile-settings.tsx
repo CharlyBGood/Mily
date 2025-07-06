@@ -583,7 +583,7 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
 
   // Navegación simplificada
   const handleBack = () => {
-    router.push("/logger"); // Vuelve a logger por defecto
+    router.push("/"); // Vuelve a la home
   }
 
   if (isLoading) {
