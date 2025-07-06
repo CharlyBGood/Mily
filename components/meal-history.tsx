@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -12,7 +12,7 @@ import CycleSection from "./cycle-section"
 import MealEditor from "./meal-editor"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,247 +30,132 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Input } from "@/components/ui/input"
 import ShareDropdown from "./share-dropdown"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
+import { useMealContext } from "@/lib/meal-context"
 
 export default function MealHistory() {
-  const { cycleStartDay, cycleDuration, setCycleDuration, setCycleStartDay, loaded } = useCycleSettings()
-  const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
-  const [cycleGroups, setCycleGroups] = useState<CycleGroup[]>([])
-  const [meals, setMeals] = useState<Meal[]>([])
-  const [filteredMeals, setFilteredMeals] = useState<Meal[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [expandedSection, setExpandedSection] = useState<string | null>(null)
-  const [expandedCycle, setExpandedCycle] = useState<number | null>(null)
-  const [editingMeal, setEditingMeal] = useState<Meal | null>(null)
-  const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles")
-  const [showMobileFilters, setShowMobileFilters] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const { toast } = useToast()
-  const [mounted, setMounted] = useState(false)
-  const { user } = useAuth()
-  const router = useRouter()
-  const { getUserMeals, deleteMeal, storageType } = useStorage()
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [cycleSettingsLoaded, setCycleSettingsLoaded] = useState(false)
-  const [dataInitialized, setDataInitialized] = useState(false)
-  const isLoadingMeals = useRef(false)
+  const { cycleStartDay, cycleDuration, loaded, reloadSettings, version } = useCycleSettings();
+  const { meals, loading: mealsLoading, error, refresh, removeMeal } = useMealContext();
+  const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const [mounted, setMounted] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { storageType } = useStorage();
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [expandedCycle, setExpandedCycle] = useState<number | null>(null);
+  const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+
+  // LOG: Render principal
+  console.log("[MealHistory] Render", {
+    cycleStartDay,
+    cycleDuration,
+    loaded,
+    user,
+    mealsCount: Array.isArray(meals) ? meals.length : null,
+    version
+  });
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
-  // Efecto principal: carga cuando cambia user, storageType, settings o al montar
+  // LOG: Cambios en settings de ciclo
   useEffect(() => {
-    if (!mounted) return
-    if (!user && storageType === "supabase") return
-    if (isLoadingMeals.current) return
-    isLoadingMeals.current = true
-    loadMeals().finally(() => {
-      isLoadingMeals.current = false
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, storageType, cycleStartDay, cycleDuration, mounted])
+    console.log("[MealHistory] Cambiaron settings de ciclo", {
+      cycleStartDay,
+      cycleDuration,
+      loaded,
+      version
+    });
+  }, [cycleStartDay, cycleDuration, loaded, version]);
 
-  // Listeners globales: recarga solo si la pestaña está visible
+  // LOG: Cambios en usuario
   useEffect(() => {
-    function handleStorageChange(e: StorageEvent) {
-      if (e.key === "cycleSettingsUpdated" && document.visibilityState === "visible") {
-        loadMeals()
-      }
-    }
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        loadMeals()
-      }
-    }
-    function handleMessage(e: MessageEvent) {
-      if (e.data && e.data.type === "cycleSettingsUpdated" && document.visibilityState === "visible") {
-        loadMeals()
-      }
-    }
-    window.addEventListener("storage", handleStorageChange)
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    window.addEventListener("message", handleMessage)
-    return () => {
-      window.removeEventListener("storage", handleStorageChange)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-      window.removeEventListener("message", handleMessage)
-    }
-  }, [])
+    console.log("[MealHistory] Cambió usuario", user);
+  }, [user]);
 
   useEffect(() => {
-    if (cycleSettingsLoaded && filteredMeals && Array.isArray(filteredMeals) && filteredMeals.length > 0) {
-      try {
-        const cycles = groupMealsByCycle(filteredMeals, cycleDuration, cycleStartDay)
-        setCycleGroups(Array.isArray(cycles) ? cycles : [])
+    console.log('[MealHistory] meals changed', {
+      mealsCount: Array.isArray(meals) ? meals.length : 'N/A',
+      time: new Date().toISOString(),
+    });
+  }, [meals]);
 
-        const grouped = groupMealsByDay(filteredMeals)
-        setGroupedMeals(Array.isArray(grouped) ? grouped : [])
-      } catch (error) {
-        console.error("Error grouping meals:", error)
-        setCycleGroups([])
-        setGroupedMeals([])
-      }
-    }
-  }, [cycleDuration, cycleStartDay, cycleSettingsLoaded, filteredMeals])
+  // Agrupación reactiva
+  const safeMeals = Array.isArray(meals) ? meals : [];
+  const filteredMeals = searchQuery
+    ? safeMeals.filter((m) =>
+        m.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : safeMeals;
+  // Forzar reagrupar cuando version cambia
+  const groupedMeals = groupMealsByDay(filteredMeals);
+  const cycleGroups = groupMealsByCycle(filteredMeals, cycleDuration, cycleStartDay);
 
-  const loadMeals = async () => {
-    if (storageType === "supabase" && !user) {
-      setLoading(false)
-      setDataInitialized(true)
-      return
-    }
-
-    setLoading(true)
-    setLoadError(null)
-    setCycleSettingsLoaded(false)
-
-    try {
-      if (user) {
-        try {
-          // Do not setCycleDuration or setCycleStartDay here!
-          await getUserCycleSettings(user.id) // Just to ensure settings are loaded/cached if needed
-          setCycleSettingsLoaded(true)
-        } catch (error) {
-          console.error("Error loading cycle settings:", error)
-          setCycleSettingsLoaded(true)
-        }
-      } else {
-        setCycleSettingsLoaded(true)
-      }
-
-      const { success, data, error } = await getUserMeals()
-
-      if (!success || !data) {
-        setLoadError(error?.message || "Error al cargar el historial de comidas")
-        toast({
-          title: "Error",
-          description: "Error al cargar el historial de comidas",
-          variant: "destructive",
-        })
-        setLoading(false)
-        setDataInitialized(true)
-        return
-      }
-
-      const mealsArray = Array.isArray(data) ? data : []
-      setMeals(mealsArray)
-      setFilteredMeals(mealsArray)
-
-      setExpandedCycle(null)
-      setDataInitialized(true)
-    } catch (error) {
-      console.error("Error in loadMeals:", error)
-      setLoadError(error instanceof Error ? error.message : "Ocurrió un error al cargar el historial")
-      toast({
-        title: "Error",
-        description: "Ocurrió un error al cargar el historial",
-        variant: "destructive",
-      })
-      setDataInitialized(true)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Handlers
   const handleDeleteMeal = async (meal: Meal) => {
-    if (!meal.id) return
-
+    if (!meal.id) return;
     try {
-      const { success, error } = await deleteMeal(meal.id)
-
-      if (!success) {
-        toast({
-          title: "Error",
-          description: "Error al eliminar la comida",
-          variant: "destructive",
-        })
-        return
-      }
-
-      await loadMeals()
-
+      await removeMeal(meal.id);
       toast({
         title: "Comida eliminada",
         description: "La comida ha sido eliminada exitosamente",
-      })
+      });
     } catch (error) {
-      console.error("Error deleting meal:", error)
       toast({
         title: "Error",
         description: "Ocurrió un error al eliminar la comida",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const handleRefresh = () => {
-    loadMeals()
-  }
+    console.log('[MealHistory] handleRefresh called', { time: new Date().toISOString() });
+    refresh();
+  };
 
   const handleDeleteClick = (meal: Meal) => {
     if (meal && meal.id) {
-      setSelectedMeal(meal)
-      setShowDeleteDialog(true)
+      setSelectedMeal(meal);
+      setShowDeleteDialog(true);
     }
-  }
+  };
 
   const handleEditClick = (meal: Meal) => {
-    setEditingMeal(meal)
-  }
+    setEditingMeal(meal);
+  };
 
   const handleEditCancel = () => {
-    setEditingMeal(null)
-  }
+    setEditingMeal(null);
+  };
 
   const handleEditSaved = () => {
-    setEditingMeal(null)
-    loadMeals()
-  }
+    setEditingMeal(null);
+    refresh();
+  };
 
   const handleSectionExpand = (date: string) => {
     if (!date || date === expandedSection) {
-      setExpandedSection(null)
+      setExpandedSection(null);
     } else {
-      setExpandedSection(date)
+      setExpandedSection(date);
     }
-  }
+  };
 
   const handleCycleExpand = (cycleNumber: number) => {
     if (cycleNumber === expandedCycle) {
-      setExpandedCycle(null)
+      setExpandedCycle(null);
     } else {
-      setExpandedCycle(cycleNumber)
+      setExpandedCycle(cycleNumber);
     }
-  }
-
-  // Ref: Recarga ciclos si settings cambian en otra pestaña o tras guardar settings
-  useEffect(() => {
-    function handleStorageChange(e: StorageEvent) {
-      if (e.key === "cycleSettingsUpdated") {
-        loadMeals()
-      }
-    }
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        loadMeals()
-      }
-    }
-    function handleMessage(e: MessageEvent) {
-      if (e.data && e.data.type === "cycleSettingsUpdated") {
-        loadMeals()
-      }
-    }
-    window.addEventListener("storage", handleStorageChange)
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    window.addEventListener("message", handleMessage)
-    return () => {
-      window.removeEventListener("storage", handleStorageChange)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-      window.removeEventListener("message", handleMessage)
-    }
-  }, [])
+  };
 
   // Helper para el parámetro 'from'
   const getCurrentPathWithQuery = () => {
@@ -280,10 +165,33 @@ export default function MealHistory() {
     return "/history";
   };
 
+  // Recarga settings si viene de settings (query param)
+  useEffect(() => {
+    if (searchParams.get("settingsUpdated") === "1") {
+      reloadSettings();
+      // Limpia el query param para evitar loops
+      const params = new URLSearchParams(window.location.search);
+      params.delete("settingsUpdated");
+      router.replace(window.location.pathname + (params.toString() ? `?${params}` : ""));
+    }
+  }, [searchParams, reloadSettings, router]);
+
+  // Sincronización de settings entre rutas internas (SPA)
+  useEffect(() => {
+    const handleSettingsUpdate = () => {
+      console.log('[MealHistory] Recibido evento cycleSettingsUpdatedInternal, recargando settings');
+      if (typeof reloadSettings === 'function') reloadSettings();
+    };
+    window.addEventListener('cycleSettingsUpdatedInternal', handleSettingsUpdate);
+    return () => {
+      window.removeEventListener('cycleSettingsUpdatedInternal', handleSettingsUpdate);
+    };
+  }, [reloadSettings]);
+
+  // Renderizado
   if (editingMeal) {
     return <MealEditor meal={editingMeal} onCancel={handleEditCancel} onSaved={handleEditSaved} />
   }
-
   if (!mounted) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8">
@@ -292,8 +200,7 @@ export default function MealHistory() {
       </div>
     )
   }
-
-  if (loading) {
+  if (mealsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
@@ -301,8 +208,8 @@ export default function MealHistory() {
       </div>
     )
   }
-
   if (storageType === "supabase" && !user) {
+    console.log('[MealHistory] No user detected, showing login', { time: new Date().toISOString() });
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
         <Card className="p-6 max-w-sm mx-auto w-full bg-white border border-gray-200">
@@ -326,8 +233,7 @@ export default function MealHistory() {
       </div>
     )
   }
-
-  if (loadError) {
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
         <Card className="p-6 max-w-sm mx-auto w-full">
@@ -337,7 +243,13 @@ export default function MealHistory() {
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-2">Error al cargar el historial</h3>
-              <p className="text-gray-600 mb-4">{loadError}</p>
+              <p className="text-gray-600 mb-4">
+                {typeof error === "string"
+                  ? error
+                  : error && typeof error === "object" && "message" in error
+                  ? (error as { message?: string }).message
+                  : "Ocurrió un error desconocido"}
+              </p>
             </div>
             <Button variant="default" onClick={handleRefresh} className="w-full h-10">
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -348,13 +260,6 @@ export default function MealHistory() {
       </div>
     )
   }
-
-  // Safe check for meals array
-  const safeMeals = Array.isArray(meals) ? meals : []
-  const safeFilteredMeals = Array.isArray(filteredMeals) ? filteredMeals : []
-  const safeGroupedMeals = Array.isArray(groupedMeals) ? groupedMeals : []
-  const safeCycleGroups = Array.isArray(cycleGroups) ? cycleGroups : []
-
   if (safeMeals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
@@ -378,16 +283,12 @@ export default function MealHistory() {
       </div>
     )
   }
-
   return (
     <div className="flex flex-col min-h-screen">
       {/* Se eliminó el header con título y botón de settings para restaurar el diseño original */}
       <main className="flex-1">
         <div className="min-h-screen bg-gray-50">
-          {/* Fixed container with proper mobile padding */}
           <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-            {/* Header eliminado, el historial aparece directamente */}
-
             {/* Search and Controls */}
             <Card className="mb-4 sm:mb-6 border border-gray-200">
               <CardContent className="p-3 sm:p-4">
@@ -529,13 +430,9 @@ export default function MealHistory() {
                 </div>
               </CardContent>
             </Card>
-
             {/* Cycle Info Alert */}
-            {loaded && cycleSettingsLoaded && (
+            {loaded && (
               <>
-                {console.log(
-                  `[MealHistory] Renderizando ciclo: Inicia cada ${getDayOfWeekName(cycleStartDay)}, duración ${cycleDuration} días (cycleStartDay=${cycleStartDay}, cycleDuration=${cycleDuration})`
-                )}
                 <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
                   <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-teal-600 flex-shrink-0" />
                   <AlertDescription className="text-teal-800 font-medium text-sm sm:text-base">
@@ -547,39 +444,37 @@ export default function MealHistory() {
                 </Alert>
               </>
             )}
-
             {/* Content Section */}
             <div className="space-y-3 sm:space-y-4">
               {viewMode === "days"
-                ? safeGroupedMeals.map((group) => (
-                  <DaySection
-                    key={group.date}
-                    date={group.date}
-                    displayDate={group.displayDate}
-                    meals={Array.isArray(group.meals) ? group.meals : []}
-                    onDeleteMeal={handleDeleteClick}
-                    onEditMeal={handleEditClick}
-                    onExpand={handleSectionExpand}
-                    isExpanded={expandedSection === group.date}
-                  />
-                ))
-                : safeCycleGroups.map((cycle) => (
-                  <CycleSection
-                    key={cycle.cycleNumber}
-                    cycle={{
-                      ...cycle,
-                      days: Array.isArray(cycle.days) ? cycle.days : [],
-                    }}
-                    onDeleteMeal={handleDeleteClick}
-                    onEditMeal={handleEditClick}
-                    onExpand={handleCycleExpand}
-                    isExpanded={expandedCycle === cycle.cycleNumber}
-                  />
-                ))}
+                ? groupedMeals.map((group) => (
+                    <DaySection
+                      key={group.date}
+                      date={group.date}
+                      displayDate={group.displayDate}
+                      meals={Array.isArray(group.meals) ? group.meals : []}
+                      onDeleteMeal={handleDeleteClick}
+                      onEditMeal={handleEditClick}
+                      onExpand={handleSectionExpand}
+                      isExpanded={expandedSection === group.date}
+                    />
+                  ))
+                : cycleGroups.map((cycle) => (
+                    <CycleSection
+                      key={cycle.cycleNumber}
+                      cycle={{
+                        ...cycle,
+                        days: Array.isArray(cycle.days) ? cycle.days : [],
+                      }}
+                      onDeleteMeal={handleDeleteClick}
+                      onEditMeal={handleEditClick}
+                      onExpand={handleCycleExpand}
+                      isExpanded={expandedCycle === cycle.cycleNumber}
+                    />
+                  ))}
             </div>
-
             {/* Empty Search Results */}
-            {searchQuery && safeFilteredMeals.length === 0 && safeMeals.length > 0 && (
+            {searchQuery && filteredMeals.length === 0 && safeMeals.length > 0 && (
               <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
                 <CardContent>
                   <Search className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
@@ -593,9 +488,8 @@ export default function MealHistory() {
                 </CardContent>
               </Card>
             )}
-
             {/* Empty State for View Mode */}
-            {viewMode === "cycles" && safeCycleGroups.length === 0 && safeFilteredMeals.length > 0 && (
+            {viewMode === "cycles" && cycleGroups.length === 0 && filteredMeals.length > 0 && (
               <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
                 <CardContent>
                   <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
@@ -609,7 +503,6 @@ export default function MealHistory() {
           </div>
         </div>
       </main>
-
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent className="mx-4 sm:mx-auto max-w-md">
           <AlertDialogHeader>
@@ -626,9 +519,9 @@ export default function MealHistory() {
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700 order-1 sm:order-2 text-sm sm:text-base"
               onClick={() => {
                 if (selectedMeal?.id) {
-                  handleDeleteMeal(selectedMeal)
+                  handleDeleteMeal(selectedMeal);
                 }
-                setShowDeleteDialog(false)
+                setShowDeleteDialog(false);
               }}
             >
               Eliminar
@@ -637,5 +530,5 @@ export default function MealHistory() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react"
 import { getUserCycleSettings } from "@/lib/cycle-utils"
 import { useAuth } from "@/lib/auth-context"
 
@@ -10,6 +10,7 @@ interface CycleSettingsContextProps {
   setCycleDuration: (duration: number) => void
   reloadSettings: () => Promise<void>
   loaded: boolean
+  version: number // Nuevo: para forzar reactividad en consumidores
 }
 
 const CycleSettingsContext = createContext<CycleSettingsContextProps | undefined>(undefined)
@@ -20,32 +21,53 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
   const [cycleDuration, setCycleDuration] = useState<number | null>(null)
   const [sweetDessertLimit, setSweetDessertLimit] = useState<number | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [version, setVersion] = useState(0) // Para forzar rerender
+  const lastUserIdRef = useRef<string | null>(null)
+  const lastSettingsRef = useRef<{cycleStartDay: number, cycleDuration: number, sweetDessertLimit: number} | null>(null)
 
   const reloadSettings = async () => {
     if (!user) return
     try {
+      console.log('[CycleSettingsContext] reloadSettings: solicitando settings para user', user.id)
       const settings = await getUserCycleSettings(user.id)
       setCycleStartDay(settings.cycleStartDay)
       setCycleDuration(settings.cycleDuration)
       setSweetDessertLimit(settings.sweetDessertLimit)
       setLoaded(true)
-    } catch {
+      // Solo actualiza version si los settings realmente cambiaron
+      const last = lastSettingsRef.current
+      if (!last || last.cycleStartDay !== settings.cycleStartDay || last.cycleDuration !== settings.cycleDuration || last.sweetDessertLimit !== settings.sweetDessertLimit) {
+        setVersion(v => v + 1)
+        lastSettingsRef.current = settings
+      }
+      console.log('[CycleSettingsContext] reloadSettings: nuevos valores', settings)
+    } catch (e) {
       setCycleStartDay(1)
       setCycleDuration(7)
       setSweetDessertLimit(3)
       setLoaded(true)
+      setVersion(v => v + 1)
+      lastSettingsRef.current = {cycleStartDay: 1, cycleDuration: 7, sweetDessertLimit: 3}
+      console.log('[CycleSettingsContext] reloadSettings: error, valores por defecto', e)
     }
   }
 
   useEffect(() => {
-    if (user) reloadSettings()
+    // Solo recargar settings si el user.id realmente cambió
+    if (user?.id && lastUserIdRef.current !== user.id) {
+      lastUserIdRef.current = user.id
+      reloadSettings()
+    }
     // Escucha storage para sincronizar entre pestañas
     const handler = (e: StorageEvent) => {
-      if (e.key === "cycleSettingsUpdated") reloadSettings()
+      if (e.key === "cycleSettingsUpdated") {
+        console.log('[CycleSettingsContext] Evento storage: cycleSettingsUpdated detectado, recargando settings')
+        reloadSettings()
+      }
     }
     window.addEventListener("storage", handler)
     return () => window.removeEventListener("storage", handler)
-  }, [user])
+  }, [user?.id])
 
   return (
     <CycleSettingsContext.Provider value={{
@@ -55,7 +77,8 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
       setCycleStartDay: (d) => setCycleStartDay(d),
       setCycleDuration: (d) => setCycleDuration(d),
       reloadSettings,
-      loaded
+      loaded,
+      version // Nuevo: para forzar reactividad en consumidores
     }}>
       {children}
     </CycleSettingsContext.Provider>

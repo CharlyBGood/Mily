@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
 import { useStorage } from "@/lib/storage-provider"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
+import { useMealContext } from "@/lib/meal-context"
 import {
   countSweetDessertsInCurrentCycle,
   calculateCycleInfo,
@@ -47,6 +48,7 @@ export default function MealLogger() {
   const router = useRouter()
   const { user } = useAuth()
   const { saveMeal, uploadImage, storageType, getUserMeals } = useStorage()
+  const { addOrUpdateMeal } = useMealContext()
 
   // Elimina la carga de settings desde loadUserSettings, solo usa el contexto
   const loadUserStats = async () => {
@@ -192,17 +194,7 @@ export default function MealLogger() {
         metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
       }
 
-      const { success, error } = await saveMeal(meal)
-
-      if (!success) {
-        toast({
-          title: "Error",
-          description: error?.message || "Error al guardar la comida",
-          variant: "destructive",
-        })
-        setIsSubmitting(false)
-        return
-      }
+      await addOrUpdateMeal(meal)
 
       resetForm()
 
@@ -215,7 +207,6 @@ export default function MealLogger() {
         description: "Tu comida ha sido registrada exitosamente",
       })
 
-      router.refresh()
       router.push("?tab=history")
     } catch (error) {
       console.error("Error saving meal:", error)

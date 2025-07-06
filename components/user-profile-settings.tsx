@@ -63,16 +63,16 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
     setMounted(true);
   }, []);
 
+  // Solo cargar settings una vez al montar, no cada vez que cambia user/loading
   useEffect(() => {
     if (!mounted) return;
-    if (loading) return;
     if (!user) {
       router.push("/login");
       return;
     }
-    // Load settings
     loadUserSettings();
-  }, [user, router, loading, mounted])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted])
 
   useEffect(() => {
     // Check if settings have changed
@@ -495,9 +495,9 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
 
   // Cuando el usuario guarda settings, notifica a otras pestañas y fuerza recarga de ciclos
   const saveSettings = async () => {
-    setIsSaving(true)
-    setSaveSuccess(false)
-    setUsernameError(null)
+    setIsSaving(true);
+    setSaveSuccess(false);
+    setUsernameError(null);
     try {
       const supabase = getSupabaseClient()
       if (!supabase) throw new Error("Supabase client is not initialized")
@@ -505,20 +505,25 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
 
       // Update user_settings table
       try {
-        const { error: settingsError } = await supabase.from("user_settings").upsert(
-          {
-            user_id: user.id,
-            username: settings.username,
-            cycle_duration: settings.cycleDuration,
-            cycle_start_day: settings.cycleStartDay,
-            sweet_dessert_limit: settings.sweetDessertLimit,
-          },
+        const upsertPayload = {
+          user_id: user.id,
+          username: settings.username,
+          cycle_duration: settings.cycleDuration,
+          cycle_start_day: settings.cycleStartDay,
+          sweet_dessert_limit: settings.sweetDessertLimit,
+        };
+        console.log('[UserProfileSettings] Payload enviado a upsert user_settings:', upsertPayload);
+        const { data: upsertData, error: settingsError } = await supabase.from("user_settings").upsert(
+          [upsertPayload],
           { onConflict: "user_id" },
-        )
+        );
+        console.log('[UserProfileSettings] Respuesta upsert user_settings:', { upsertData, settingsError });
         if (settingsError) {
           console.error("Error saving settings:", settingsError)
           throw settingsError
         }
+        // Esperar un pequeño delay para asegurar que la base de datos refleje el cambio
+        await new Promise(res => setTimeout(res, 350));
       } catch (error) {
         console.error("Error upserting user_settings:", error)
         throw error
@@ -544,43 +549,48 @@ export default function UserProfileSettings({ from }: UserProfileSettingsProps) 
       // Limpia cache de ciclo-utils si existe
       try {
         const cycleUtils = await import("@/lib/cycle-utils")
-        if ("clearCycleSettingsCache" in cycleUtils && typeof (cycleUtils as any).clearCycleSettingsCache === "function") {
-          (cycleUtils as any).clearCycleSettingsCache(user.id)
+        if (typeof cycleUtils.clearCycleSettingsCache === "function") {
+          cycleUtils.clearCycleSettingsCache(user.id)
         }
       } catch (error) {
         // Silenciar error
       }
       // Forzar recarga de settings en esta pestaña y notificar a otras
       await loadUserSettings()
+      console.log('[UserProfileSettings] Guardado: llamando reloadSettings()')
       await reloadSettings() // <--- ACTUALIZA EL CONTEXTO GLOBAL
+      console.log('[UserProfileSettings] Guardado: disparando evento localStorage cycleSettingsUpdated')
       localStorage.setItem("cycleSettingsUpdated", Date.now().toString())
       // Notificar a la pestaña anterior (si hay parámetro 'from')
+      if (from) {
+        // Redirige con settingsUpdated=1 para que historial recargue settings
+        router.replace(`${from}${from.includes('?') ? '&' : '?'}settingsUpdated=1`);
+        return;
+      }
       if (from && window.opener) {
         try {
           window.opener.postMessage({ type: "cycleSettingsUpdated" }, "*")
         } catch {}
       }
+      // Notificar a otras rutas internas de la SPA (custom event)
+      window.dispatchEvent(new Event("cycleSettingsUpdatedInternal"));
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
+      toast({
+        title: "Cambios guardados",
+        description: "La configuración del ciclo se actualizó correctamente.",
+      });
     } catch (error) {
-      console.error("Error saving settings:", error)
+      setUsernameError("Error al guardar los cambios");
       toast({
         title: "Error",
-        description: "No se pudieron guardar tus configuraciones",
+        description: "No se pudieron guardar los cambios.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
   }
-
-  // Helper para el parámetro 'from'
-  const getCurrentPathWithQuery = () => {
-    if (typeof window !== "undefined") {
-      return window.location.pathname + window.location.search;
-    }
-    return "/profile/settings";
-  };
 
   // Navegación: si hay parámetro 'from', el botón de volver usa router.replace(from)
   const handleBack = () => {

@@ -104,6 +104,11 @@ export async function getUserCycleSettings(userId: string): Promise<CycleSetting
   return defaults
 }
 
+// Limpia el cache de settings para un usuario
+export function clearCycleSettingsCache(userId: string) {
+  delete settingsCache[userId]
+}
+
 // ------------------ Simple aggregations ----------------------------------------------------------
 
 export async function getUserCycleDuration(userId?: string, fallback = 7) {

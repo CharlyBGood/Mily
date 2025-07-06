@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/lib/auth-context"
 import { StorageProvider } from "@/lib/storage-provider"
 import { CycleSettingsProvider } from "@/lib/cycle-settings-context"
+import { MealProvider } from "@/lib/meal-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,7 +22,9 @@ export default function RootLayout({
           <AuthProvider>
             <StorageProvider>
               <CycleSettingsProvider>
-                {children}
+                <MealProvider>
+                  {children}
+                </MealProvider>
               </CycleSettingsProvider>
             </StorageProvider>
           </AuthProvider>
