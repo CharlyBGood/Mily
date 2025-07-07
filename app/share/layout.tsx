@@ -1,8 +1,6 @@
 import type React from "react"
-import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 
-const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "Mily",
@@ -21,7 +19,7 @@ export default function ShareLayout({
 }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light">
-      <div className="min-h-screen w-100 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <div className="min-h-screen w-100">
         {children}
       </div>
     </ThemeProvider>)

@@ -204,7 +204,7 @@ export default function ProfilePage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 flex justify-center">
-            <MilyLogo />
+            <MilyLogo className="w-24 h-auto" />
           </div>
           <div className="w-10"></div>
         </header>

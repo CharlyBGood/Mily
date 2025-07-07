@@ -13,6 +13,8 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import Link from "next/link"
+import { FcGoogle } from "react-icons/fc"
+import { getSupabaseClient } from "@/lib/supabase-client"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const { toast } = useToast()
   const { signIn, signUp } = useAuth()
   const router = useRouter()
+  const [error, setError] = useState(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,6 +90,29 @@ export default function LoginPage() {
     }
   }
 
+  const handleGoogleLogin = async () => {
+    setError(null)
+    setIsLoading(true)
+
+    try {
+      const supabase = getSupabaseClient()
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      })
+
+      if (error) throw error
+      // Redirect happens automatically
+    } catch (err) {
+
+      console.error("Google login error:", err)
+
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
       <header className="p-4 border-b bg-white flex justify-center items-center">
@@ -139,6 +165,13 @@ export default function LoginPage() {
                       required
                     />
                   </div>
+                  <button
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-md font-medium hover:bg-gray-100 disabled:opacity-70 border border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                  >
+                    Continuar con Google
+                  </button>
                 </CardContent>
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -173,6 +206,7 @@ export default function LoginPage() {
                     <p className="text-xs text-neutral-500">La contraseña debe tener al menos 6 caracteres</p>
                   </div>
                 </CardContent>
+
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Registrando..." : "Registrarse"}

@@ -89,9 +89,9 @@ export default function MealHistory() {
   const safeMeals = Array.isArray(meals) ? meals : [];
   const filteredMeals = searchQuery
     ? safeMeals.filter((m) =>
-        m.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.notes?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      m.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      m.notes?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : safeMeals;
   // Forzar reagrupar cuando version cambia
   const groupedMeals = groupMealsByDay(filteredMeals);
@@ -154,14 +154,6 @@ export default function MealHistory() {
     } else {
       setExpandedCycle(cycleNumber);
     }
-  };
-
-  // Helper para el parámetro 'from'
-  const getCurrentPathWithQuery = () => {
-    if (typeof window !== "undefined") {
-      return window.location.pathname + window.location.search;
-    }
-    return "/history";
   };
 
   // Recarga settings si viene de settings (query param)
@@ -246,8 +238,8 @@ export default function MealHistory() {
                 {typeof error === "string"
                   ? error
                   : error && typeof error === "object" && "message" in error
-                  ? (error as { message?: string }).message
-                  : "Ocurrió un error desconocido"}
+                    ? (error as { message?: string }).message
+                    : "Ocurrió un error desconocido"}
               </p>
             </div>
             <Button variant="default" onClick={handleRefresh} className="w-full h-10">
@@ -283,7 +275,7 @@ export default function MealHistory() {
     )
   }
   return (
-    <div className="flex flex-col min-h-screen">      
+    <div className="flex flex-col min-h-screen">
       <main className="flex-1">
         <div className="min-h-screen bg-gray-50">
           <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
@@ -444,30 +436,30 @@ export default function MealHistory() {
             <div className="space-y-3 sm:space-y-4">
               {viewMode === "days"
                 ? groupedMeals.map((group) => (
-                    <DaySection
-                      key={group.date}
-                      date={group.date}
-                      displayDate={group.displayDate}
-                      meals={Array.isArray(group.meals) ? group.meals : []}
-                      onDeleteMeal={handleDeleteClick}
-                      onEditMeal={handleEditClick}
-                      onExpand={handleSectionExpand}
-                      isExpanded={expandedSection === group.date}
-                    />
-                  ))
+                  <DaySection
+                    key={group.date}
+                    date={group.date}
+                    displayDate={group.displayDate}
+                    meals={Array.isArray(group.meals) ? group.meals : []}
+                    onDeleteMeal={handleDeleteClick}
+                    onEditMeal={handleEditClick}
+                    onExpand={handleSectionExpand}
+                    isExpanded={expandedSection === group.date}
+                  />
+                ))
                 : cycleGroups.map((cycle) => (
-                    <CycleSection
-                      key={cycle.cycleNumber}
-                      cycle={{
-                        ...cycle,
-                        days: Array.isArray(cycle.days) ? cycle.days : [],
-                      }}
-                      onDeleteMeal={handleDeleteClick}
-                      onEditMeal={handleEditClick}
-                      onExpand={handleCycleExpand}
-                      isExpanded={expandedCycle === cycle.cycleNumber}
-                    />
-                  ))}
+                  <CycleSection
+                    key={cycle.cycleNumber}
+                    cycle={{
+                      ...cycle,
+                      days: Array.isArray(cycle.days) ? cycle.days : [],
+                    }}
+                    onDeleteMeal={handleDeleteClick}
+                    onEditMeal={handleEditClick}
+                    onExpand={handleCycleExpand}
+                    isExpanded={expandedCycle === cycle.cycleNumber}
+                  />
+                ))}
             </div>
             {/* Empty Search Results */}
             {searchQuery && filteredMeals.length === 0 && safeMeals.length > 0 && (
