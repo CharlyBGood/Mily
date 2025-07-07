@@ -283,8 +283,7 @@ export default function MealHistory() {
     )
   }
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Se eliminó el header con título y botón de settings para restaurar el diseño original */}
+    <div className="flex flex-col min-h-screen">      
       <main className="flex-1">
         <div className="min-h-screen bg-gray-50">
           <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">

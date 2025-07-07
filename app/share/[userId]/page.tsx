@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, ChevronDown, LayoutGrid, List } from "lucide-react"
 import MilyLogo from "@/components/mily-logo"
@@ -10,7 +9,6 @@ import DaySection from "@/components/day-section"
 import CycleSection from "@/components/cycle-section"
 import { groupMealsByDay } from "@/lib/utils"
 import { groupMealsByCycle, type CycleGroup, getDayOfWeekName } from "@/lib/cycle-utils"
-import { useToast } from "@/hooks/use-toast"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import type { Meal } from "@/lib/types"
 import {
@@ -147,8 +145,8 @@ export default function SharePage() {
     setExpandedCycle(cycleNumber === expandedCycle ? null : cycleNumber)
   }
 
-  const handleDeleteClick = () => {}
-  const handleEditClick = () => {}
+  const handleDeleteClick = () => { }
+  const handleEditClick = () => { }
 
   const filteredCycleGroups =
     selectedCycle === "all"
@@ -219,18 +217,19 @@ export default function SharePage() {
 
   if (error) {
     return (
-      <div className="flex flex-col h-screen bg-gray-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
+      <div className="flex flex-col min-h-screen bg-gray-50">
+        <header className="p-3 sm:p-4 border-b bg-white flex items-center w-full">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo />
+          <div className="flex-1 flex justify-center items-center min-w-0">
+            <div className="w-full max-w-[120px] sm:max-w-[160px] flex items-center justify-center">
+              <MilyLogo className="w-full h-auto object-contain" />
+            </div>
           </div>
-          <div className="w-10"></div>
+          <div className="w-10 flex-shrink-0"></div>
         </header>
-
-        <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+        <main className="flex-1 flex items-center justify-center p-4">
           <Card className="p-6 max-w-md">
             <CardContent>
               <h2 className="text-xl font-semibold text-red-700 mb-2">Error</h2>
@@ -240,7 +239,7 @@ export default function SharePage() {
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
     )
   }
@@ -248,116 +247,117 @@ export default function SharePage() {
   const titleDateRange = getFormattedDateRange()
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <header className="p-3 sm:p-4 border-b bg-white flex items-center">
+    <div className="flex flex-col min-h-screen">
+      <header className="p-3 sm:p-4 border-b bg-white flex items-center w-full">
         <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1 flex justify-center">
-          <MilyLogo />
+        <div className="flex-1 flex justify-center items-center min-w-0">
+          <div className="w-full max-w-[120px] sm:max-w-[160px] flex items-center justify-center">
+            <MilyLogo className="w-full h-auto object-contain" />
+          </div>
         </div>
-        <div className="w-10"></div>
+        <div className="w-10 flex-shrink-0"></div>
       </header>
-
-      <ScrollArea className="flex-1">
-        {/* Fixed container with proper mobile padding */}
-        <div className="w-full px-3 sm:px-4 py-4 sm:py-6 pb-20 max-w-7xl mx-auto">
-          {groupedMeals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <p className="text-gray-500">No hay comidas compartidas</p>
-            </div>
-          ) : (
-            <>
-              <Card className="bg-teal-500 text-white p-4 sm:p-6 mb-4 sm:mb-6 text-center border-0">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{titleDateRange}</h1>
-                <p className="text-teal-100 text-sm sm:text-base">
-                  {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
-                </p>
-                <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-teal-100">
-                  Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
-                </div>
-              </Card>
-
-              <Alert className="mb-4 sm:mb-6 border-teal-200 bg-teal-50">
-                <div className="flex items-center text-sm sm:text-base">
-                  <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
-                  <span className="ml-2 text-teal-700">
-                    Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
-                  </span>
-                </div>
-              </Alert>
-
-              <div className="flex flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <div className="flex-shrink-0">
-                  <Button
-                    variant={viewMode === "cycles" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("cycles")}
-                    className={`flex items-center text-xs sm:text-sm ${viewMode === "cycles" ? "bg-teal-500 text-white" : ""}`}
-                    aria-label="Ver por ciclos"
-                  >
-                    <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Ciclos</span>
-                    <span className="sm:hidden">C</span>
-                  </Button>
-                </div>
-
-                <div className="flex-shrink-0">
-                  <Button
-                    variant={viewMode === "days" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("days")}
-                    className={`flex items-center text-xs sm:text-sm ${viewMode === "days" ? "bg-teal-500 text-white" : ""}`}
-                    aria-label="Ver por días"
-                  >
-                    <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Días</span>
-                    <span className="sm:hidden">D</span>
-                  </Button>
-                </div>
-
-                {viewMode === "cycles" && cycleGroups.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-shrink-0 text-xs sm:text-sm">
-                        <span className="hidden sm:inline">
-                          {selectedCycle === "all"
-                            ? "Todos los ciclos"
-                            : selectedCycle === "current"
-                              ? "Ciclo actual"
-                              : `Ciclo ${selectedCycle}`}
-                        </span>
-                        <span className="sm:hidden">
-                          {selectedCycle === "all"
-                            ? "Todos"
-                            : selectedCycle === "current"
-                              ? "Actual"
-                              : `C${selectedCycle}`}
-                        </span>
-                        <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuLabel>Seleccionar ciclo</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuRadioGroup value={selectedCycle} onValueChange={setSelectedCycle}>
-                        <DropdownMenuRadioItem value="all">Todos los ciclos</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="current">Ciclo actual</DropdownMenuRadioItem>
-                        {cycleGroups.map((cycle) => (
-                          <DropdownMenuRadioItem key={cycle.cycleNumber} value={cycle.cycleNumber.toString()}>
-                            Ciclo {cycle.cycleNumber}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+      <main className="flex-1">
+        <div className="min-h-screen bg-gray-50">
+          <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
+            {groupedMeals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-center">
+                <p className="text-gray-500">No hay comidas compartidas</p>
               </div>
+            ) : (
+              <>
+                <Card className="bg-teal-500 text-white p-3 sm:p-6 mb-4 sm:mb-6 text-center border-0 rounded-lg">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{titleDateRange}</h1>
+                  <p className="text-teal-100 text-sm sm:text-base">
+                    {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
+                  </p>
+                  <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-teal-100">
+                    Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
+                  </div>
+                </Card>
 
-              {/* Content Section */}
-              <div className="space-y-3 sm:space-y-4">
-                {viewMode === "days"
-                  ? groupedMeals.map((group) => (
+                <Alert className="mb-3 sm:mb-6 border-teal-200 bg-teal-50 rounded-lg">
+                  <div className="flex items-center text-sm sm:text-base">
+                    <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
+                    <span className="ml-2 text-teal-700">
+                      Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                    </span>
+                  </div>
+                </Alert>
+
+                <div className="flex flex-wrap gap-2 sm:gap-3 mb-3 sm:mb-6">
+                  <div className="flex-shrink-0">
+                    <Button
+                      variant={viewMode === "cycles" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("cycles")}
+                      className={`flex items-center text-xs sm:text-sm ${viewMode === "cycles" ? "bg-teal-500 text-white" : ""}`}
+                      aria-label="Ver por ciclos"
+                    >
+                      <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Ciclos</span>
+                      <span className="sm:hidden">C</span>
+                    </Button>
+                  </div>
+
+                  <div className="flex-shrink-0">
+                    <Button
+                      variant={viewMode === "days" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setViewMode("days")}
+                      className={`flex items-center text-xs sm:text-sm ${viewMode === "days" ? "bg-teal-500 text-white" : ""}`}
+                      aria-label="Ver por días"
+                    >
+                      <List className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Días</span>
+                      <span className="sm:hidden">D</span>
+                    </Button>
+                  </div>
+
+                  {viewMode === "cycles" && cycleGroups.length > 1 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="flex-shrink-0 text-xs sm:text-sm">
+                          <span className="hidden sm:inline">
+                            {selectedCycle === "all"
+                              ? "Todos los ciclos"
+                              : selectedCycle === "current"
+                                ? "Ciclo actual"
+                                : `Ciclo ${selectedCycle}`}
+                          </span>
+                          <span className="sm:hidden">
+                            {selectedCycle === "all"
+                              ? "Todos"
+                              : selectedCycle === "current"
+                                ? "Actual"
+                                : `C${selectedCycle}`}
+                          </span>
+                          <ChevronDown className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuLabel>Seleccionar ciclo</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioGroup value={selectedCycle} onValueChange={setSelectedCycle}>
+                          <DropdownMenuRadioItem value="all">Todos los ciclos</DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value="current">Ciclo actual</DropdownMenuRadioItem>
+                          {cycleGroups.map((cycle) => (
+                            <DropdownMenuRadioItem key={cycle.cycleNumber} value={cycle.cycleNumber.toString()}>
+                              Ciclo {cycle.cycleNumber}
+                            </DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+
+                {/* Content Section */}
+                <div className="space-y-2 sm:space-y-4">
+                  {viewMode === "days"
+                    ? groupedMeals.map((group) => (
                       <DaySection
                         key={group.date}
                         date={group.date}
@@ -372,7 +372,7 @@ export default function SharePage() {
                         isSharedView={true}
                       />
                     ))
-                  : filteredCycleGroups.map((cycle) => (
+                    : filteredCycleGroups.map((cycle) => (
                       <CycleSection
                         key={cycle.cycleNumber}
                         cycle={cycle}
@@ -385,11 +385,12 @@ export default function SharePage() {
                         isSharedView={true}
                       />
                     ))}
-              </div>
-            </>
-          )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </ScrollArea>
+      </main>
     </div>
   )
 }
