@@ -205,6 +205,13 @@ export default function LoginPage() {
                     />
                     <p className="text-xs text-neutral-500">La contraseña debe tener al menos 6 caracteres</p>
                   </div>
+                  <button
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-md font-medium hover:bg-gray-100 disabled:opacity-70 border border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+                  >
+                    Continuar con Google
+                  </button>
                 </CardContent>
 
                 <CardFooter>
