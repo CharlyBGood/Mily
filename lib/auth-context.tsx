@@ -4,7 +4,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { getSupabaseClient, resetSupabaseClient } from "./supabase-client"
 import type { Session, User } from "@supabase/supabase-js"
-import { set } from "date-fns"
+
 
 export interface UserProfile {
   id: string

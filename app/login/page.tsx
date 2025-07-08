@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import Link from "next/link"
 import { FcGoogle } from "react-icons/fc"
+import { CircleFadingPlus } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
 
 export default function LoginPage() {
@@ -170,6 +171,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                     className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-md font-medium hover:bg-gray-100 disabled:opacity-70 border border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
                   >
+                    <CircleFadingPlus className="w-5 h-5" />
                     Continuar con Google
                   </button>
                 </CardContent>
@@ -210,6 +212,7 @@ export default function LoginPage() {
                     disabled={isLoading}
                     className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-md font-medium hover:bg-gray-100 disabled:opacity-70 border border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
                   >
+                    <CircleFadingPlus className="w-5 h-5" />
                     Continuar con Google
                   </button>
                 </CardContent>
