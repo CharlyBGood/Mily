@@ -16,6 +16,7 @@ import Link from "next/link"
 import { FcGoogle } from "react-icons/fc"
 import { CircleFadingPlus } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
+import HeaderBar from "@/components/header-bar"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -116,10 +117,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex justify-center items-center">
-        <MilyLogo />
-      </header>
-
+      <HeaderBar backHref="/login" />
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">

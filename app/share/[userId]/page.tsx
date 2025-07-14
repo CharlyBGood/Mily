@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
+import HeaderBar from "@/components/header-bar"
 
 export default function SharePage() {
   const [groupedMeals, setGroupedMeals] = useState<ReturnType<typeof groupMealsByDay>>([])
@@ -129,9 +130,12 @@ export default function SharePage() {
   }
 
   const handleBack = () => {
-    console.log("Navigating back to home")
-      router.push('/')
-    
+    if (window.history.length > 2) {
+      router.back()
+    } else {
+      // Si no hay historial previo, vuelve a la página de compartidos principal
+      router.push(`/share/${userId}`)
+    }
   }
 
   const handleSectionExpand = (date: string) => {
@@ -215,17 +219,7 @@ export default function SharePage() {
   if (error) {
     return (
       <div className="flex flex-col min-h-screen bg-gray-50">
-        <header className="flex-shrink-0 bg-white border-b border-gray-200">
-          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="px-4 py-4 sm:px-6">
-            <div className="flex justify-center">
-              <MilyLogo className="w-24 h-auto" />
-            </div>
-          </div>
-          <div className="w-10 flex-shrink-0"></div>
-        </header>
+        <HeaderBar backHref="/" />
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="p-6 max-w-md">
             <CardContent>
@@ -245,17 +239,7 @@ export default function SharePage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="p-3 sm:p-4 border-b bg-white flex items-center w-full">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label="Volver">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1 flex justify-center items-center min-w-0">
-          <div className="w-full max-w-[120px] sm:max-w-[160px] flex items-center justify-center">
-            <MilyLogo className="w-full h-auto object-contain" />
-          </div>
-        </div>
-        <div className="w-10 flex-shrink-0"></div>
-      </header>
+      <HeaderBar backHref="/" />
       <main className="flex-1">
         <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
           {/* Copiado del historial principal: Card de controles, paddings, y layout */}

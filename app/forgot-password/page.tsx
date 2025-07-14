@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { ArrowLeft } from "lucide-react"
+import HeaderBar from "@/components/header-bar"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -56,15 +57,7 @@ export default function ForgotPasswordPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/login")} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo />
-          </div>
-          <div className="w-10"></div>
-        </header>
+        <HeaderBar backHref="/login" />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
         </main>
@@ -74,16 +67,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/login")} className="mr-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1 flex justify-center">
-          <MilyLogo />
-        </div>
-        <div className="w-10"></div> {/* Spacer for centering */}
-      </header>
-
+      <HeaderBar backHref="/login" />
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">

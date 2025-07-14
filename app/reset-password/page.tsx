@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { getSupabaseClient } from "@/lib/supabase-client"
+import HeaderBar from "@/components/header-bar"
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
@@ -145,10 +146,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex justify-center">
-        <MilyLogo />
-      </header>
-
+      <HeaderBar backHref="/login" />
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
