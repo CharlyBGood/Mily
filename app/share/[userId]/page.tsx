@@ -96,6 +96,18 @@ export default function SharePage() {
         setLoading(false)
         return
       }
+      // 1. Obtener settings del usuario compartido
+      const { data: settingsData, error: settingsError } = await supabase
+        .from("user_settings")
+        .select("cycle_start_day, cycle_duration")
+        .eq("user_id", userId)
+        .single();
+      if (settingsError) {
+        console.error("Error loading shared user settings:", settingsError)
+      }
+      const cycleStartDayShared = settingsData?.cycle_start_day ?? 1;
+      const cycleDurationShared = settingsData?.cycle_duration ?? 7;
+      // 2. Obtener comidas
       const { data, error } = await supabase
         .from("meals")
         .select("*")
@@ -113,8 +125,8 @@ export default function SharePage() {
         const meals = data as unknown as Meal[]
         const grouped = groupMealsByDay(meals)
         setGroupedMeals(grouped)
-
-        const cycles = groupMealsByCycle(meals, cycleDuration, cycleStartDay)
+        // 3. Usar settings del usuario compartido para agrupar ciclos
+        const cycles = groupMealsByCycle(meals, cycleDurationShared, cycleStartDayShared)
         setCycleGroups(cycles)
       } else {
         setGroupedMeals([])

@@ -31,7 +31,8 @@ export function groupMealsByDay(meals: Meal[] = []) {
       if (!mealDate) continue
 
       const dateObj = new Date(mealDate)
-      const dateStr = dateObj.toISOString().split("T")[0]
+      // Agrupa por día local en formato YYYY-MM-DD
+      const dateStr = dateObj.toLocaleDateString("sv-SE")
 
       if (!mealsByDate.has(dateStr)) {
         mealsByDate.set(dateStr, [])

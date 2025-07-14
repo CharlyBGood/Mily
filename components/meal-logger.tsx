@@ -194,6 +194,9 @@ export default function MealLogger() {
         metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
       }
 
+      const now = new Date()
+      meal.created_at = now.toISOString() // Guardar la fecha en formato ISO (UTC)
+
       await addOrUpdateMeal(meal)
 
       resetForm()

@@ -1,20 +1,16 @@
-"use client"
-import type React from "react"
-import "./globals.css"
-import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import { AuthProvider } from "@/lib/auth-context"
-import { StorageProvider } from "@/lib/storage-provider"
-import { CycleSettingsProvider } from "@/lib/cycle-settings-context"
-import { MealProvider } from "@/lib/meal-context"
+"use client";
+import type React from "react";
+import "./globals.css";
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/lib/auth-context";
+import { StorageProvider } from "@/lib/storage-provider";
+import { CycleSettingsProvider } from "@/lib/cycle-settings-context";
+import { MealProvider } from "@/lib/meal-context";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
@@ -22,14 +18,12 @@ export default function RootLayout({
           <AuthProvider>
             <StorageProvider>
               <CycleSettingsProvider>
-                <MealProvider>
-                  {children}
-                </MealProvider>
+                <MealProvider>{children}</MealProvider>
               </CycleSettingsProvider>
             </StorageProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
