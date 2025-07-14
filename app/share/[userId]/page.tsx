@@ -89,7 +89,6 @@ export default function SharePage() {
   const loadMeals = async () => {
     setLoading(true)
     try {
-      console.log("Loading meals for userId:", userId)
       const supabase = getSupabaseClient()
       if (!supabase) {
         console.error("Supabase client is not initialized")
@@ -118,8 +117,6 @@ export default function SharePage() {
         console.error("Error loading meals:", error)
         throw new Error("Error loading shared content")
       }
-
-      console.log(`Loaded ${data?.length || 0} meals`)
 
       if (data && data.length > 0) {
         const meals = data as unknown as Meal[]
@@ -235,7 +232,6 @@ export default function SharePage() {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('[Supabase Realtime] Cambio detectado en user_settings:', payload);
           loadMeals();
           setLastUpdated(new Date());
         }

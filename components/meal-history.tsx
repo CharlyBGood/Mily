@@ -50,15 +50,7 @@ export default function MealHistory() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
   // LOG: Render principal
-  console.log("[MealHistory] Render", {
-    cycleStartDay,
-    cycleDuration,
-    loaded,
-    user,
-    mealsCount: Array.isArray(meals) ? meals.length : null,
-    version
-  });
-
+  
   useEffect(() => {
     setMounted(true);
   }, []);
