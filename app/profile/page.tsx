@@ -272,17 +272,13 @@ export default function ProfilePage() {
               <p className="text-sm font-medium text-neutral-500">Correo electrónico</p>
               <p className="text-base">{user.email}</p>
             </div>
-            <div>
-              <p className="text-sm font-medium text-neutral-500">ID de usuario</p>
-              <p className="text-xs text-neutral-400 break-all">{user.id}</p>
-            </div>
 
             <Button
               variant={setupNeeded ? "default" : "outline"}
               onClick={() => {
                 router.push(`/profile/settings`);
               }}
-              className="w-full"
+              className="w-full mb-2"
               disabled={isSettingUpDatabase}
             >
               {isSettingUpDatabase ? (
@@ -296,6 +292,13 @@ export default function ProfilePage() {
                   {setupNeeded ? "Configurar perfil" : "Configuración de perfil"}
                 </>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/privacy-policy")}
+              className="w-full mb-2"
+            >
+              Política de Privacidad
             </Button>
           </CardContent>
           <CardFooter>
