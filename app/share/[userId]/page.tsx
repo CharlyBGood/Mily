@@ -219,6 +219,34 @@ export default function SharePage() {
     }
   }, [])
 
+  // Suscribirse a cambios en los settings del usuario compartido
+  useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !userId) return;
+
+    const channel = supabase
+      .channel('shared-user-settings')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_settings',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('[Supabase Realtime] Cambio detectado en user_settings:', payload);
+          loadMeals();
+          setLastUpdated(new Date());
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [userId]);
+
   if (!mounted || loading || !cycleSettingsLoaded) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { type Meal, type MealType, saveMeal, savePhotoToLocalStorage } from "@/lib/local-storage"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useMealContext } from "@/lib/meal-context"
 
 interface MealEditorProps {
   meal: Meal
@@ -37,6 +38,7 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
+  const { addOrUpdateMeal } = useMealContext()
 
   useEffect(() => {
     setMounted(true)
@@ -80,10 +82,11 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!mealType || !description) {
+    // Solo la foto y el tipo de comida son obligatorios
+    if ((!photo && !meal.photo_url) || !mealType) {
       toast({
         title: "Campos requeridos",
-        description: "Por favor completa todos los campos requeridos",
+        description: "Debes agregar una foto y seleccionar el tipo de comida",
         variant: "destructive",
       })
       return
@@ -92,56 +95,29 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
     setIsSubmitting(true)
 
     try {
-      console.log("Updating meal...")
-
-      // Only process new photo if one was selected
       let photoUrl = meal.photo_url
       if (photo) {
         photoUrl = await savePhotoToLocalStorage(photo)
-        console.log("New photo saved")
       }
 
-      // Prepare updated meal - preserve original ID and creation timestamp
       const updatedMeal: Meal = {
         ...meal,
-        description,
+        description: description || "",
         meal_type: mealType as MealType,
         photo_url: photoUrl,
-        notes: notes || undefined,
+        notes: notes || "",
       }
 
-      const { success, data, error } = await saveMeal(updatedMeal)
-      console.log("Meal update result:", success)
-
-      if (!success) {
-        let errorMessage = "Error al actualizar la comida"
-
-        // Check if it's a storage error
-        if (error && typeof error === "string" && (error.includes("quota") || error.includes("storage"))) {
-          errorMessage = "No hay suficiente espacio de almacenamiento. Intenta eliminar algunas comidas antiguas."
-        }
-
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive",
-        })
-        setIsSubmitting(false)
-        return
-      }
+      await addOrUpdateMeal(updatedMeal)
 
       toast({
         title: "Comida actualizada",
         description: "Tu comida ha sido actualizada exitosamente",
       })
 
-      // Force a refresh of the router to update the history tab
-      router.refresh()
-
       // Notify parent component
       onSaved()
     } catch (error) {
-      console.error("Error updating meal:", error)
       toast({
         title: "Error",
         description: "Ocurrió un error al actualizar la comida",
@@ -238,7 +214,6 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
             placeholder="¿Qué comiste?"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            required
             className="text-base"
           />
         </div>
@@ -264,7 +239,7 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
           <Button
             type="submit"
             className="flex-1 bg-teal-600 hover:bg-teal-700 text-base"
-            disabled={!description || !mealType || isSubmitting}
+            disabled={isSubmitting}
           >
             {isSubmitting ? "Guardando..." : "Guardar cambios"}
           </Button>
