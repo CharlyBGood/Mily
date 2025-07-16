@@ -22,12 +22,6 @@ export default function ForgotPasswordPage() {
   const router = useRouter()
   const { user, loading } = useAuth()
 
-  // useEffect(() => {
-  //   if (!loading && user) {
-  //     router.replace("/");
-  //   }
-  // }, [user, loading, router]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
