@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { getSupabaseClient, resetSupabaseClient } from "./supabase-client"
 import type { Session, User } from "@supabase/supabase-js"
+import { useRouter, usePathname } from "next/navigation";
 
 
 export interface UserProfile {
@@ -61,7 +62,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
-  const [firstSessionChecked, setFirstSessionChecked] = useState(false)
+  const [firstSessionChecked, setFirstSessionChecked] = useState(false);
+
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
+
+    if (!loading && user && PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
+      router.replace("/");
+    }
+  }, [user, loading, pathname, router]);
+
 
   // Function to refresh the session
   const refreshSession = useCallback(async () => {
@@ -161,6 +174,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error in ensureDbSetup:", error)
       return false
     }
+
+
+
   }, [user])
 
   // Initialize auth state

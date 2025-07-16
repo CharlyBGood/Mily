@@ -22,6 +22,13 @@ export default function ResetPasswordPage() {
   const { toast } = useToast()
   const { updatePassword } = useAuth()
   const router = useRouter()
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/");
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     // Check if the reset token is valid

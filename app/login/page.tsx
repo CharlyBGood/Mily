@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,12 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
-import MilyLogo from "@/components/mily-logo"
 import Link from "next/link"
-import { FcGoogle } from "react-icons/fc"
 import { CircleFadingPlus } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import HeaderBar from "@/components/header-bar"
+import Loader from "@/components/ui/loader";
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -27,6 +27,13 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth()
   const router = useRouter()
   const [error, setError] = useState(null)
+  const { user, loading } = useAuth()
+
+  // useEffect(() => {
+  //   if (!loading && user) {
+  //     router.replace("/");
+  //   }
+  // }, [user, loading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -113,6 +120,10 @@ export default function LoginPage() {
 
       setIsLoading(false)
     }
+  }
+
+  if (loading || user) {
+    return <Loader />;
   }
 
   return (

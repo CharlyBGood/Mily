@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,9 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { useRouter } from "next/navigation"
-import MilyLogo from "@/components/mily-logo"
-import { ArrowLeft } from "lucide-react"
 import HeaderBar from "@/components/header-bar"
+import Loader from "@/components/ui/loader";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -21,6 +20,13 @@ export default function ForgotPasswordPage() {
   const { toast } = useToast()
   const { resetPassword } = useAuth()
   const router = useRouter()
+  const { user, loading } = useAuth()
+
+  // useEffect(() => {
+  //   if (!loading && user) {
+  //     router.replace("/");
+  //   }
+  // }, [user, loading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,6 +70,10 @@ export default function ForgotPasswordPage() {
       </div>
     )
   }
+
+  if (loading || user) {
+      return <Loader />;
+    }
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
