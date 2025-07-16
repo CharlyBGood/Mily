@@ -322,6 +322,8 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
     setIsLoading(true)
     setLoadError(null)
     try {
+      // LOG: Mostrar el usuario actual y su email antes de cargar settings
+      console.log('[loadUserSettings] user.id:', user.id, 'user.email:', user.email)
       const supabase = getSupabaseClient()
       if (!supabase) throw new Error("Supabase client is not initialized")
       // Try to get user profile
@@ -345,6 +347,9 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
         const result = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
         settingsData = result.data
         settingsError = result.error
+        // LOG: Mostrar settingsData y profileData obtenidos
+        console.log('[loadUserSettings] settingsData:', settingsData)
+        console.log('[loadUserSettings] profileData:', profileData)
         if (settingsError && settingsError.message && settingsError.message.includes("does not exist")) {
           setSetupNeeded(true)
           setIsLoading(false)
