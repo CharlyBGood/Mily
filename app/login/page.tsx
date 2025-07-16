@@ -116,7 +116,7 @@ export default function LoginPage() {
     }
   }
 
-  if (loading || user) {
+  if ( user) {
     return <Loader />;
   }
 

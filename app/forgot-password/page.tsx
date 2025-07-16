@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
     )
   }
 
-  if (loading || user) {
+  if (user) {
       return <Loader />;
     }
 

@@ -61,20 +61,16 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
     setMounted(true);
   }, []);
 
-  // Forzar recarga de sesión y settings al montar y cuando cambia el usuario
+  // Solo cargar settings una vez al montar, no cada vez que cambia user/loading
   useEffect(() => {
     if (!mounted) return;
     if (!user) {
       router.push("/login");
       return;
     }
-    // Siempre refrescar sesión y settings al montar o cambiar user
-    (async () => {
-      await refreshSession();
-      await loadUserSettings();
-    })();
+    loadUserSettings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, user?.id]);
+  }, [mounted])
 
   useEffect(() => {
     // Check if settings have changed
@@ -713,11 +709,12 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
               <div className="relative">
                 <Input
                   id="username"
-                  value={settings.username || ""}
+                  value={settings.username}
                   onChange={(e) => handleUsernameChange(e.target.value)}
                   placeholder="tu_nombre_usuario"
                   autoComplete="off"
-                  className={`pr-10 ${settings.username && (usernameAvailable ? "border-green-500" : "border-red-500")}`}
+                  className={`pr-10 ${settings.username && (usernameAvailable ? "border-green-500" : "border-red-500")
+                    }`}
                 />
                 {settings.username && usernameAvailable && (
                   <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-500" />
