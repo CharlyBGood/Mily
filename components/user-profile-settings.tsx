@@ -333,23 +333,27 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
       }
       // Try to get user settings
       let settingsData = null
+      let settingsError = null
       try {
-        const { data, error } = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
-        if (!error) {
-          settingsData = data
-        } else if (error.message && error.message.includes("does not exist")) {
+        const result = await supabase.from("user_settings").select("*").eq("user_id", user.id).single()
+        settingsData = result.data
+        settingsError = result.error
+        if (settingsError && settingsError.message && settingsError.message.includes("does not exist")) {
           setSetupNeeded(true)
           setIsLoading(false)
           return
         }
       } catch (error) {
         console.error("Error checking user_settings table:", error)
+        // Si hay error real (no solo not found), mostrar error y no hacer fallback
+        setLoadError("No se pudieron cargar tus configuraciones. Por favor, intenta de nuevo más tarde.")
+        setIsLoading(false)
+        return
       }
-      // If we have settings data, use it
-      if (settingsData) {
-        // Solo usar el username de la base, nunca el email ni ningún fallback
+      // Si hay settings válidos, usarlos
+      if (settingsData && typeof settingsData.username === "string" && settingsData.username.length > 0) {
         const loadedSettings: UserSettings = {
-          username: typeof settingsData.username === "string" ? settingsData.username : "",
+          username: settingsData.username,
           cycleDuration: Number(settingsData.cycle_duration ?? 7),
           cycleStartDay: settingsData.cycle_start_day !== undefined && settingsData.cycle_start_day !== null
             ? Number(settingsData.cycle_start_day)
@@ -358,18 +362,18 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
         }
         setSettings(loadedSettings)
         setOriginalSettings(loadedSettings)
-        if (loadedSettings.username) setUsernameAvailable(true)
-      } else if (profileData) {
-        // Solo usar el username de profile si existe, nunca el email ni ningún fallback
+        setUsernameAvailable(true)
+      } else if (profileData && typeof profileData.username === "string" && profileData.username.length > 0) {
+        // Solo usar el username de profile si existe y es válido
         const defaultSettings: UserSettings = {
-          username: typeof profileData.username === "string" ? profileData.username : "",
+          username: profileData.username,
           cycleDuration: 7,
           cycleStartDay: 1,
           sweetDessertLimit: 3,
         }
         setSettings(defaultSettings)
         setOriginalSettings(defaultSettings)
-        if (defaultSettings.username) setUsernameAvailable(true)
+        setUsernameAvailable(true)
       } else {
         setSetupNeeded(true)
       }
