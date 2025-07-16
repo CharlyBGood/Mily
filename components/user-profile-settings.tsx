@@ -119,6 +119,13 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
     try {
       const supabase = getSupabaseClient()
 
+      // LOG: Mostrar el valor de user.email y el resultado de split
+      console.log('[setupDatabase] user.email:', user.email)
+      const usernameDefault = typeof user.email === 'string' && user.email.includes('@')
+        ? user.email.split('@')[0]
+        : '';
+      console.log('[setupDatabase] usernameDefault (antes de upsert):', usernameDefault)
+
       // Create tables if they don't exist
       const setupSql = `
       -- Create profiles table
