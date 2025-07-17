@@ -27,7 +27,7 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth()
   const router = useRouter()
   const [error, setError] = useState(null)
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -171,6 +171,7 @@ export default function LoginPage() {
                   </div>
                   <button
                     onClick={handleGoogleLogin}
+                    type="button"
                     disabled={isLoading}
                     className="w-full flex items-center justify-center gap-2 bg-white text-black py-3 rounded-md font-medium hover:bg-gray-100 disabled:opacity-70 border border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
                   >

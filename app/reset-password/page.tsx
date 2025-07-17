@@ -8,11 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/lib/auth-context"
-import { useRouter } from "next/navigation"
-import MilyLogo from "@/components/mily-logo"
 import { getSupabaseClient } from "@/lib/supabase-client"
+import { useRouter, useSearchParams } from "next/navigation"
 import HeaderBar from "@/components/header-bar"
+import { useAuth } from "@/lib/auth-context"
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("")
@@ -20,33 +19,37 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isTokenValid, setIsTokenValid] = useState<boolean | null>(null)
   const { toast } = useToast()
-  const { updatePassword } = useAuth()
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const searchParams = useSearchParams()
+  const { updatePassword } = useAuth();
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/");
-    }
-  }, [user, loading, router]);
-
-  useEffect(() => {
-    // Check if the reset token is valid
+    // Check if the reset token is valid and set session if needed
     const checkToken = async () => {
       try {
         const supabase = getSupabaseClient()
+        const access_token = searchParams.get("access_token")
+        const refresh_token = searchParams.get("refresh_token")
+        if (access_token && refresh_token) {
+          // Set the session with the recovery tokens
+          const { error: setSessionError } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          })
+          if (setSessionError) {
+            setIsTokenValid(false)
+            return
+          }
+        }
         const { error } = await supabase.auth.getSession()
-
-        // If there's no error, the token is valid
         setIsTokenValid(error ? false : true)
       } catch (error) {
         console.error("Error checking token:", error)
         setIsTokenValid(false)
       }
     }
-
     checkToken()
-  }, [])
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,8 +73,8 @@ export default function ResetPasswordPage() {
       return
     }
 
+    if (isTokenValid !== true) return;
     setIsLoading(true)
-
     try {
       const { success, error } = await updatePassword(password)
 
@@ -103,9 +106,7 @@ export default function ResetPasswordPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex justify-center">
-          <MilyLogo />
-        </header>
+        <HeaderBar backHref="/login" />
         <main className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
         </main>
@@ -116,9 +117,7 @@ export default function ResetPasswordPage() {
   if (isTokenValid === null) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex justify-center">
-          <MilyLogo />
-        </header>
+        <HeaderBar backHref="/login" />
         <main className="flex-1 flex items-center justify-center p-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
         </main>
@@ -129,9 +128,7 @@ export default function ResetPasswordPage() {
   if (isTokenValid === false) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex justify-center">
-          <MilyLogo />
-        </header>
+        <HeaderBar backHref="/login" />
         <main className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md">
             <CardHeader className="space-y-1">
@@ -151,49 +148,53 @@ export default function ResetPasswordPage() {
     )
   }
 
-  return (
-    <div className="flex flex-col min-h-screen bg-neutral-50">
-      <HeaderBar backHref="/login" />
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Restablecer contraseña</CardTitle>
-            <CardDescription className="text-center">Ingresa tu nueva contraseña</CardDescription>
-          </CardHeader>
+  // Renderiza el formulario solo si el token es válido
+  if (isTokenValid === true) {
+    return (
+      <div className="flex flex-col min-h-screen bg-neutral-50">
+        <HeaderBar backHref="/login" />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-2xl font-bold text-center">Restablecer contraseña</CardTitle>
+              <CardDescription className="text-center">Ingresa tu nueva contraseña</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleSubmit}>
+              <CardContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Nueva contraseña</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Actualizando..." : "Actualizar contraseña"}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </main>
+      </div>
+    )
+  }
 
-          <form onSubmit={handleSubmit}>
-            <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Nueva contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Actualizando..." : "Actualizar contraseña"}
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
-      </main>
-    </div>
-  )
+  return null
 }

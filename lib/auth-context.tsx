@@ -68,8 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"];
-
+    const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
     if (!loading && user && PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
       router.replace("/");
     }

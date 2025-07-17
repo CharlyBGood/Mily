@@ -799,7 +799,7 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
               </div>
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col gap-2">
             <Button
               onClick={saveSettings}
               disabled={isSaving || !hasChanges || (!!settings.username && !usernameAvailable)}
@@ -821,6 +821,14 @@ export default function UserProfileSettings({}: UserProfileSettingsProps) {
                   Guardar cambios
                 </>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push("/reset-password")}
+              type="button"
+            >
+              Cambiar contraseña
             </Button>
           </CardFooter>
         </Card>
