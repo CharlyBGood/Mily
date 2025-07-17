@@ -39,18 +39,48 @@ interface SheetContentProps
     VariantProps<typeof sheetVariants> {}
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, ...props }, ref) => (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-        {children}
-        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </SheetPrimitive.Close>
-      </SheetPrimitive.Content>
-    </SheetPortal>
-  ),
+  ({ side = "right", className, children, ...props }, ref) => {
+    // Detecta si ya hay un SheetHeader y SheetDescription en los hijos
+    const childrenArray = React.Children.toArray(children)
+    const hasHeader = childrenArray.some(
+      (child) =>
+        React.isValidElement(child) &&
+        (child.type as any)?.displayName === "SheetHeader",
+    )
+    const hasDescription = childrenArray.some(
+      (child) =>
+        React.isValidElement(child) &&
+        (child.type as any)?.displayName === "SheetDescription",
+    )
+
+    return (
+      <SheetPortal>
+        <SheetOverlay />
+        <SheetPrimitive.Content
+          ref={ref}
+          className={cn(sheetVariants({ side }), className, "pt-4 pb-2 px-0 sm:px-6")}
+          {...props}
+        >
+          {/* Header y descripción accesible por defecto si faltan */}
+          {!hasHeader && (
+            <SheetHeader>
+              <SheetTitle>Menú</SheetTitle>
+            </SheetHeader>
+          )}
+          {!hasDescription && (
+            <SheetDescription className="sr-only">Panel de opciones</SheetDescription>
+          )}
+          {/* Botón de cerrar, más visible y consistente */}
+          <SheetPrimitive.Close className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-foreground shadow-lg ring-1 ring-black/10 hover:bg-white focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+            <X className="h-5 w-5" />
+            <span className="sr-only">Cerrar</span>
+          </SheetPrimitive.Close>
+          {/* Contenido real */}
+          <div className="pt-2 px-6 pb-4">{children}</div>
+        </SheetPrimitive.Content>
+      </SheetPortal>
+    )
+  },
 )
 SheetContent.displayName = SheetPrimitive.Content.displayName
 
