@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { getSupabaseClient } from "./supabase-client";
-import { useStorage } from "./storage-provider";
 import type { Meal } from "./types";
 
 // Helper function to upload an image to Supabase Storage
@@ -146,13 +145,11 @@ export async function getUserMeals(): Promise<{
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error getting meals:", error);
       return { success: false, error };
     }
 
     return { success: true, data: data as unknown as Meal[] };
   } catch (error) {
-    console.error("Error in getUserMeals:", error);
     return { success: false, error };
   }
 }
@@ -241,9 +238,6 @@ export async function deleteMeal(
 // storage-layer helpers above.
 // ---------------------------------------------
 export function useMealService() {
-  // Grab the storage-aware helpers (local or Supabase)
-  const { getUserMeals, deleteMeal, saveMeal } = useStorage();
-
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -260,21 +254,18 @@ export function useMealService() {
       setError(error?.message || "Error al cargar comidas");
     }
     setLoading(false);
-  }, [getUserMeals]);
+  }, []);
 
-  // Initial fetch
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // Delete a meal and refresh state
   const removeMeal = async (id: string) => {
     const { success, error } = await deleteMeal(id);
     if (!success) throw error;
     setMeals((prev) => prev.filter((m) => m.id !== id));
   };
 
-  // Update / save a meal, then refresh state
   const updateMeal = async (id: string, updated: Meal) => {
     const { success, error } = await saveMeal({ ...updated, id });
     if (!success) throw error;

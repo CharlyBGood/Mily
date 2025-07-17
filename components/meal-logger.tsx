@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Camera, AlertTriangle, Info, Settings } from "lucide-react"
+import { Camera, AlertTriangle, Info } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -16,7 +16,7 @@ import type { Meal, MealType } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
-import { useStorage } from "@/lib/storage-provider"
+import { uploadImage, getUserMeals } from "@/lib/meal-service";
 import { useCycleSettings } from "@/lib/cycle-settings-context"
 import { useMealContext } from "@/lib/meal-context"
 import {
@@ -26,7 +26,7 @@ import {
 } from "@/lib/cycle-utils"
 
 export default function MealLogger() {
-  const { cycleStartDay, cycleDuration, sweetDessertLimit, loaded } = useCycleSettings()
+  const { cycleStartDay, cycleDuration, sweetDessertLimit } = useCycleSettings()
 
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -47,12 +47,12 @@ export default function MealLogger() {
   const { toast } = useToast()
   const router = useRouter()
   const { user } = useAuth()
-  const { saveMeal, uploadImage, storageType, getUserMeals } = useStorage()
+
   const { addOrUpdateMeal } = useMealContext()
 
   // Elimina la carga de settings desde loadUserSettings, solo usa el contexto
   const loadUserStats = async () => {
-    if (!user && storageType !== "local") return
+    if (!user) return
     try {
       const { success, data } = await getUserMeals()
       if (success && data && data.length > 0) {
@@ -153,7 +153,7 @@ export default function MealLogger() {
       return
     }
 
-    if (storageType === "supabase" && !user) {
+    if (!user) {
       toast({
         title: "No autenticado",
         description: "Debes iniciar sesión para guardar comidas",

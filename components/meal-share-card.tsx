@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { getMealTypeLabel } from "@/lib/utils"
-import type { Meal } from "@/lib/local-storage"
+import type { Meal } from "@/lib/types"
 import MilyLogo from "./mily-logo"
 import { useEffect, useState, useRef } from "react"
 

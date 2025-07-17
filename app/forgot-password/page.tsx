@@ -66,8 +66,8 @@ export default function ForgotPasswordPage() {
   }
 
   if (user) {
-      return <Loader />;
-    }
+    return <Loader />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">

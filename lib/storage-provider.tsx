@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useAuth } from "./auth-context"
-import * as localStorageService from "./local-storage"
 import * as supabaseService from "./meal-service"
 import type { Meal } from "./types"
 
@@ -42,15 +41,7 @@ export function StorageProvider({ children }: { children: ReactNode }) {
           const { success, data } = await supabaseService.getUserMeals()
 
           if (success && data && data.length > 0) {
-            setStorageType("supabase")
-          } else {
-            const { success: localSuccess, data: localData } = await localStorageService.getUserMeals()
-
-            if (localSuccess && localData && localData.length > 0) {
-              setStorageType("local")
-            } else {
-              setStorageType("supabase")
-            }
+            setStorageType("supabase")          
           }
         } catch (error) {
           console.error("Error checking storage type:", error)
@@ -69,41 +60,36 @@ export function StorageProvider({ children }: { children: ReactNode }) {
   const saveMeal = async (meal: Meal) => {
     if (storageType === "supabase" && user) {
       return supabaseService.saveMeal(meal)
-    } else {
-      return localStorageService.saveMeal(meal)
     }
+    return { success: false, error: "Not available", data: undefined }
   }
 
   const getUserMeals = async () => {
     if (storageType === "supabase" && user) {
       return supabaseService.getUserMeals()
-    } else {
-      return localStorageService.getUserMeals()
     }
+    return { success: false, error: "Not available", data: undefined }
   }
 
   const getMealById = async (id: string) => {
     if (storageType === "supabase" && user) {
       return supabaseService.getMealById(id)
-    } else {
-      return localStorageService.getMealById(id)
     }
+    return { success: false, error: "Not available", data: undefined }
   }
 
   const deleteMeal = async (id: string) => {
     if (storageType === "supabase" && user) {
       return supabaseService.deleteMeal(id)
-    } else {
-      return localStorageService.deleteMeal(id)
     }
+    return { success: false, error: "Not available" }
   }
 
   const uploadImage = async (file: File) => {
     if (storageType === "supabase" && user) {
       return supabaseService.uploadImage(file)
-    } else {
-      return localStorageService.savePhotoToLocalStorage(file)
     }
+    return Promise.reject("Not available")
   }
 
   const value = {

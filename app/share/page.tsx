@@ -1,13 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getUserMeals } from "@/lib/local-storage"
+import { getUserMeals } from "@/lib/meal-service"
 import { groupMealsByDay } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
 import { useRouter } from "next/navigation"
-import MilyLogo from "@/components/mily-logo"
 import DaySection from "@/components/day-section"
 import HeaderBar from "@/components/header-bar"
 

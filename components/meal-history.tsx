@@ -2,16 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter, Search } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
-import { groupMealsByCycle, getUserCycleSettings, type CycleGroup, getDayOfWeekName } from "@/lib/cycle-utils"
+import { groupMealsByCycle, getDayOfWeekName } from "@/lib/cycle-utils"
 import DaySection from "./day-section"
 import CycleSection from "./cycle-section"
 import MealEditor from "./meal-editor"
 import { useAuth } from "@/lib/auth-context"
-import { useStorage } from "@/lib/storage-provider"
 import { useRouter } from "next/navigation"
 import {
   AlertDialog,
@@ -24,10 +23,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Input } from "@/components/ui/input"
 import ShareDropdown from "./share-dropdown"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
 import { useMealContext } from "@/lib/meal-context"
@@ -37,12 +34,10 @@ export default function MealHistory() {
   const { meals, loading: mealsLoading, error, refresh, removeMeal } = useMealContext();
   const [viewMode, setViewMode] = useState<"days" | "cycles">("cycles");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
-  const { storageType } = useStorage();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [expandedCycle, setExpandedCycle] = useState<number | null>(null);
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
@@ -50,7 +45,7 @@ export default function MealHistory() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
 
   // LOG: Render principal
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -79,15 +74,9 @@ export default function MealHistory() {
 
   // Agrupación reactiva
   const safeMeals = Array.isArray(meals) ? meals : [];
-  const filteredMeals = searchQuery
-    ? safeMeals.filter((m) =>
-      m.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.notes?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    : safeMeals;
   // Forzar reagrupar cuando version cambia
-  const groupedMeals = groupMealsByDay(filteredMeals);
-  const cycleGroups = groupMealsByCycle(filteredMeals, cycleDuration, cycleStartDay);
+  const groupedMeals = groupMealsByDay(safeMeals);
+  const cycleGroups = groupMealsByCycle(safeMeals, cycleDuration, cycleStartDay);
 
   // Handlers
   const handleDeleteMeal = async (meal: Meal) => {
@@ -191,7 +180,7 @@ export default function MealHistory() {
       </div>
     )
   }
-  if (storageType === "supabase" && !user) {
+  if (!user) {
     console.log('[MealHistory] No user detected, showing login', { time: new Date().toISOString() });
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
@@ -327,19 +316,6 @@ export default function MealHistory() {
                             <Settings className="h-4 w-4 mr-2" />
                             Configurar
                           </Button>
-                          {storageType === "local" && user && (
-                            <Button
-                              variant="outline"
-                              onClick={() => {
-                                router.push("/migrate")
-                                setShowMobileFilters(false)
-                              }}
-                              className="h-12 text-teal-600 border-teal-600 hover:bg-teal-50 text-sm"
-                            >
-                              <Database className="h-4 w-4 mr-2" />
-                              Migrar
-                            </Button>
-                          )}
                           <div className="col-span-1">
                             <ShareDropdown meals={safeMeals} />
                           </div>
@@ -394,17 +370,6 @@ export default function MealHistory() {
                   <div className="flex-grow"></div>
 
                   <div className="flex space-x-2">
-                    {storageType === "local" && user && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push("/migrate")}
-                        className="text-teal-600 border-teal-600 hover:bg-teal-50 flex-shrink-0"
-                      >
-                        <Database className="h-4 w-4 mr-2" />
-                        Migrar
-                      </Button>
-                    )}
                     <ShareDropdown meals={safeMeals} />
                   </div>
                 </div>
@@ -453,23 +418,8 @@ export default function MealHistory() {
                   />
                 ))}
             </div>
-            {/* Empty Search Results */}
-            {searchQuery && filteredMeals.length === 0 && safeMeals.length > 0 && (
-              <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
-                <CardContent>
-                  <Search className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No se encontraron resultados</h3>
-                  <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">
-                    No hay comidas que coincidan con "{searchQuery}"
-                  </p>
-                  <Button variant="outline" onClick={() => setSearchQuery("")} className="text-sm sm:text-base">
-                    Limpiar búsqueda
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
             {/* Empty State for View Mode */}
-            {viewMode === "cycles" && cycleGroups.length === 0 && filteredMeals.length > 0 && (
+            {viewMode === "cycles" && cycleGroups.length === 0 && safeMeals.length > 0 && (
               <Card className="p-6 sm:p-8 text-center mt-6 sm:mt-8">
                 <CardContent>
                   <Calendar className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-3 sm:mb-4" />

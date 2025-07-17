@@ -12,7 +12,8 @@ import { Camera, AlertTriangle, ArrowLeft } from "lucide-react"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
-import { type Meal, type MealType, saveMeal, savePhotoToLocalStorage } from "@/lib/local-storage"
+import { type Meal, type MealType } from "@/lib/types"
+import { uploadImage } from "@/lib/meal-service"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useMealContext } from "@/lib/meal-context"
@@ -83,7 +84,7 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
     e.preventDefault()
 
     // Solo la foto y el tipo de comida son obligatorios
-    if ((!photo && !meal.photo_url) || !mealType) {
+    if (!meal.photo_url || !mealType) {
       toast({
         title: "Campos requeridos",
         description: "Debes agregar una foto y seleccionar el tipo de comida",
@@ -95,16 +96,12 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
     setIsSubmitting(true)
 
     try {
-      let photoUrl = meal.photo_url
-      if (photo) {
-        photoUrl = await savePhotoToLocalStorage(photo)
-      }
-
+      // Nunca permitir cambiar la foto en edición
       const updatedMeal: Meal = {
         ...meal,
         description: description || "",
         meal_type: mealType as MealType,
-        photo_url: photoUrl,
+        photo_url: meal.photo_url,
         notes: notes || "",
       }
 
@@ -140,35 +137,10 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
 
       <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
         <CardContent className="p-0">
-          {photoPreview ? (
-            <div className="bg-white flex justify-center w-full">
-              <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute bottom-2 right-2 bg-white/80 hover:bg-white"
-                onClick={triggerFileInput}
-              >
-                Cambiar
-              </Button>
-            </div>
-          ) : (
-            <div
-              className="flex flex-col items-center justify-center bg-neutral-100 min-h-[200px] p-6 cursor-pointer"
-              onClick={triggerFileInput}
-            >
-              <Camera className="h-12 w-12 text-neutral-400 mb-2" />
-              <p className="text-neutral-500 text-center text-base">Toca para tomar una foto de tu comida</p>
-            </div>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handlePhotoCapture}
-            ref={fileInputRef}
-          />
+          {/* Siempre mostrar solo la foto existente, nunca permitir cambiarla ni subir una nueva */}
+          <div className="bg-white flex justify-center w-full">
+            <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
+          </div>
         </CardContent>
       </Card>
 
@@ -196,11 +168,11 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
               <SelectItem value="desayuno">Desayuno</SelectItem>
               <SelectItem value="colacion1">Colación</SelectItem>
               <SelectItem value="almuerzo">Almuerzo</SelectItem>
-              <SelectItem value="postre1">Postre</SelectItem>
+              <SelectItem value="postre1">Postre (dulce)</SelectItem>
+              <SelectItem value="postre2">Postre (fruta)</SelectItem>
               <SelectItem value="merienda">Merienda</SelectItem>
               <SelectItem value="colacion2">Colación</SelectItem>
               <SelectItem value="cena">Cena</SelectItem>
-              <SelectItem value="postre2">Postre</SelectItem>
             </SelectContent>
           </Select>
         </div>
