@@ -161,6 +161,7 @@ export default function ResetPasswordClient() {
                   <Label htmlFor="password">Nueva contraseña</Label>
                   <Input
                     id="password"
+                    name="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -172,6 +173,7 @@ export default function ResetPasswordClient() {
                   <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
                   <Input
                     id="confirmPassword"
+                    name="confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}

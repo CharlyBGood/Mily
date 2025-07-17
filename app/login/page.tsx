@@ -27,12 +27,13 @@ export default function LoginPage() {
   const { signIn, signUp } = useAuth()
   const router = useRouter()
   const [error, setError] = useState(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
+    setFormError(null)
     try {
       if (activeTab === "login") {
         const { success, error } = await signIn(email, password)
@@ -45,6 +46,7 @@ export default function LoginPage() {
         } else {
           // More specific error messages based on error code
           if (error?.message?.includes("Email not confirmed")) {
+            setFormError("Por favor confirma tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.")
             toast({
               title: "Email no confirmado",
               description:
@@ -52,12 +54,14 @@ export default function LoginPage() {
               variant: "destructive",
             })
           } else if (error?.message?.includes("Invalid login credentials")) {
+            setFormError("El correo o la contraseña son incorrectos")
             toast({
               title: "Credenciales inválidas",
               description: "El correo o la contraseña son incorrectos",
               variant: "destructive",
             })
           } else {
+            setFormError(error?.message || "Error al iniciar sesión")
             toast({
               title: "Error",
               description: error?.message || "Error al iniciar sesión",
@@ -74,6 +78,7 @@ export default function LoginPage() {
           })
           setActiveTab("login")
         } else {
+          setFormError(error?.message || "Error al registrarse")
           toast({
             title: "Error",
             description: error?.message || "Error al registrarse",
@@ -83,6 +88,7 @@ export default function LoginPage() {
       }
     } catch (error) {
       console.error("Auth error:", error)
+      setFormError("Ocurrió un error durante la autenticación")
       toast({
         title: "Error",
         description: "Ocurrió un error durante la autenticación",
@@ -141,17 +147,20 @@ export default function LoginPage() {
               <TabsTrigger value="register">Registrarse</TabsTrigger>
             </TabsList>
             <TabsContent value="login">
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} noValidate>
                 <CardContent className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Correo electrónico</Label>
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="tu@ejemplo.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      aria-invalid={!!formError}
+                      aria-describedby={formError ? 'login-error-message' : undefined}
                     />
                   </div>
                   <div className="space-y-2">
@@ -163,12 +172,25 @@ export default function LoginPage() {
                     </div>
                     <Input
                       id="password"
+                      name="password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      aria-invalid={!!formError}
+                      aria-describedby={formError ? 'login-error-message' : undefined}
                     />
                   </div>
+                  {formError && (
+                    <div
+                      id="login-error-message"
+                      role="alert"
+                      aria-live="assertive"
+                      className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2 mt-2"
+                    >
+                      {formError}
+                    </div>
+                  )}
                   <button
                     onClick={handleGoogleLogin}
                     type="button"
@@ -193,6 +215,7 @@ export default function LoginPage() {
                     <Label htmlFor="email">Correo electrónico</Label>
                     <Input
                       id="email"
+                      name="email"
                       type="email"
                       placeholder="tu@ejemplo.com"
                       value={email}
@@ -204,6 +227,7 @@ export default function LoginPage() {
                     <Label htmlFor="password">Contraseña</Label>
                     <Input
                       id="password"
+                      name="password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
