@@ -173,6 +173,7 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
   const totalDays = Math.ceil((mostRecentCycleStart.getTime() - oldestAlignedCycleStart.getTime()) / 86400000)
   const cyclesNeeded = Math.ceil(totalDays / cycleDuration) + 1
 
+  // Agrupa las comidas por ciclo
   const groups: CycleGroup[] = []
 
   for (let i = 0; i < cyclesNeeded; i++) {
@@ -229,7 +230,14 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
     }
   }
 
-  return groups
+  // Invertir el array para que el ciclo 1 sea el más antiguo
+  const groupsChronological = [...groups].reverse()
+  // Renumerar los ciclos en orden cronológico
+  groupsChronological.forEach((group, idx) => {
+    group.cycleNumber = idx + 1
+  })
+
+  return groupsChronological
 }
 
 // ------------------ Back-compat exports ----------------------------------------------------------
