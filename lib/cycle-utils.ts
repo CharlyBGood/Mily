@@ -165,10 +165,12 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
   const today = new Date()
   const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay)
 
-  const oldest = new Date(sorted[0].date ?? sorted[0].created_at ?? Date.now())
+  // CAMBIO: El ciclo más antiguo también se alinea al cycleStartDay
+  const oldestMealDate = new Date(sorted[0].date ?? sorted[0].created_at ?? Date.now())
+  const oldestAlignedCycleStart = getLastCycleStart(oldestMealDate, cycleStartDay)
 
   // How many cycles do we need to walk back to cover everything?
-  const totalDays = Math.ceil((mostRecentCycleStart.getTime() - oldest.getTime()) / 86400000)
+  const totalDays = Math.ceil((mostRecentCycleStart.getTime() - oldestAlignedCycleStart.getTime()) / 86400000)
   const cyclesNeeded = Math.ceil(totalDays / cycleDuration) + 1
 
   const groups: CycleGroup[] = []

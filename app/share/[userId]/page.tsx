@@ -88,7 +88,7 @@ export default function SharePage() {
       // 1. Obtener settings del usuario compartido
       const { data: settingsData, error: settingsError } = await supabase
         .from("user_settings")
-        .select("cycle_start_day, cycle_duration")
+        .select("cycle_start_day, cycle_duration, username") // <-- Agregamos username
         .eq("user_id", userId)
         .single();
       if (settingsError) {
@@ -96,6 +96,7 @@ export default function SharePage() {
       }
       setCycleStartDayShared(settingsData?.cycle_start_day ?? 1)
       setCycleDurationShared(settingsData?.cycle_duration ?? 7)
+      setUsername(settingsData?.username ?? null) // <-- Guardamos el nombre
       // 2. Obtener comidas
       const { data, error } = await supabase
         .from("meals")
@@ -158,36 +159,8 @@ export default function SharePage() {
         : cycleGroups.filter((cycle) => cycle.cycleNumber.toString() === selectedCycle)
 
   const getFormattedDateRange = () => {
-    if (cycleGroups.length === 0) return "Historial de comidas compartido"
-
-    if (selectedCycle !== "all") {
-      if (selectedCycle === "current" && cycleGroups.length > 0) {
-        return `Ciclo actual: ${cycleGroups[0].displayDateRange.split(": ")[1]}`
-      } else {
-        const selectedCycleGroup = cycleGroups.find((c) => c.cycleNumber.toString() === selectedCycle)
-        if (selectedCycleGroup) {
-          return selectedCycleGroup.displayDateRange
-        }
-      }
-    } else {
-      const firstCycle = [...cycleGroups].sort((a, b) => a.cycleNumber - b.cycleNumber)[0]
-      const lastCycle = [...cycleGroups].sort((a, b) => b.cycleNumber - a.cycleNumber)[0]
-
-      if (firstCycle && lastCycle) {
-        try {
-          const startDate = parseISO(firstCycle.startDate)
-          const endDate = parseISO(lastCycle.endDate)
-          const startFormatted = format(startDate, "d 'de' MMMM", { locale: es })
-          const endFormatted = format(endDate, "d 'de' MMMM 'de' yyyy", { locale: es })
-          return `Historial del ${startFormatted} al ${endFormatted}`
-        } catch (error) {
-          console.error("Error formatting date range:", error)
-          return "Historial de comidas compartido"
-        }
-      }
-    }
-
-    return "Historial de comidas compartido"
+    // CAMBIO: Mostrar siempre 'Historial de Mily' como título principal
+    return "Historial de Mily"
   }
 
   // Patch: Listen for dialog open/close events globally
