@@ -110,20 +110,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("id", user.id)
           .maybeSingle()
 
-        // If no error and data exists, profile is set up
-        if (!profileError && profileData) {
-          return true
-        }
-
-        // If table doesn't exist or user doesn't have a profile, create it
+        // Si no existe, crearlo con username por defecto
         if (profileError || !profileData) {
+          const usernameDefault = user.email?.split("@")[0] || ""
           const { error: insertError } = await supabase.from("profiles").upsert({
             id: user.id,
             email: user.email || "",
-            username: user.email?.split("@")[0] || "",
+            username: usernameDefault,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          })
+          }, { onConflict: "id" })
 
           if (insertError && !insertError.message.includes("duplicate key")) {
             console.error("Error creating profile:", insertError)
@@ -142,16 +138,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("user_id", user.id)
           .maybeSingle()
 
-        // If no error and data exists, settings are set up
-        if (!settingsError && settingsData) {
-          return true
-        }
-
-        // If table doesn't exist or user doesn't have settings, create them
+        // Si no existe, crearlo con username por defecto y settings default
         if (settingsError || !settingsData) {
+          const usernameDefault = user.email?.split("@")[0] || ""
           const { error: insertError } = await supabase.from("user_settings").upsert({
             user_id: user.id,
-            username: user.email?.split("@")[0] || "",
+            username: usernameDefault,
             cycle_duration: 7,
             cycle_start_day: 1,
             sweet_dessert_limit: 3,
@@ -173,9 +165,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Error in ensureDbSetup:", error)
       return false
     }
-
-
-
   }, [user])
 
   // Initialize auth state
