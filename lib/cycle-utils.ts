@@ -212,7 +212,12 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
     const days: CycleGroupDay[] = Object.entries(dayBuckets).map(([localStr, dayMeals]) => ({
       date: localStr,
       displayDate: toDisplayDate(new Date(localStr)).replace(/^./, (c) => c.toUpperCase()),
-      meals: dayMeals,
+      // Ordena las comidas por hora ascendente
+      meals: dayMeals.sort((a, b) => {
+        const aDate = new Date(a.date ?? a.created_at ?? 0).getTime();
+        const bDate = new Date(b.date ?? b.created_at ?? 0).getTime();
+        return aDate - bDate;
+      }),
     }))
 
     // Only include cycles that actually contain meals
