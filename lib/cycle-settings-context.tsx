@@ -30,7 +30,7 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
     try {
       console.log('[CycleSettingsContext] reloadSettings: solicitando settings para user', user.id)
       const settings = await getUserCycleSettings(user.id)
-      setCycleStartDay(settings.cycleStartDay)
+      setCycleStartDay(Number(settings.cycleStartDay))
       setCycleDuration(settings.cycleDuration)
       setSweetDessertLimit(settings.sweetDessertLimit)
       setLoaded(true)

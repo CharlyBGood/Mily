@@ -94,8 +94,8 @@ export default function SharePage() {
       if (settingsError) {
         console.error("Error loading shared user settings:", settingsError)
       }
-      setCycleStartDayShared(settingsData?.cycle_start_day ?? 1)
-      setCycleDurationShared(settingsData?.cycle_duration ?? 7)
+      setCycleStartDayShared(Number(settingsData?.cycle_start_day ?? 1))
+      setCycleDurationShared(Number(settingsData?.cycle_duration ?? 7))
       setUsername(settingsData?.username ?? null) // <-- Guardamos el nombre
       // 2. Obtener comidas
       const { data, error } = await supabase
@@ -306,7 +306,7 @@ export default function SharePage() {
             <div className="flex items-center text-sm sm:text-base">
               <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
               <span className="ml-2 text-teal-700">
-                Inicia cada {getDayOfWeekName(cycleStartDayShared)}, duración {cycleDurationShared} días
+                Inicia cada {getDayOfWeekName(Number(cycleStartDayShared))}, duración {cycleDurationShared} días
               </span>
             </div>
           </Alert>

@@ -87,9 +87,9 @@ export async function getUserCycleSettings(userId: string): Promise<CycleSetting
       .single()
     if (!error && data) {
       const settings: CycleSettings = {
-        cycleDuration: Number(data.cycle_duration) || 7,
-        cycleStartDay: Number(data.cycle_start_day) || 1,
-        sweetDessertLimit: Number(data.sweet_dessert_limit) || 3,
+        cycleDuration: data.cycle_duration !== undefined && data.cycle_duration !== null ? Number(data.cycle_duration) : 7,
+        cycleStartDay: data.cycle_start_day !== undefined && data.cycle_start_day !== null ? Number(data.cycle_start_day) : 1,
+        sweetDessertLimit: data.sweet_dessert_limit !== undefined && data.sweet_dessert_limit !== null ? Number(data.sweet_dessert_limit) : 3,
       }
       settingsCache[userId] = { ts: Date.now(), data: settings }
       return settings

@@ -340,7 +340,7 @@ export default function MealLogger() {
                       Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
                       <br />
                       <span className="block mt-1 font-medium">
-                        El ciclo inicia cada <b>{getDayOfWeekName(cycleStartDay)}</b>.
+                        El ciclo inicia cada <b>{getDayOfWeekName(Number(cycleStartDay))}</b>.
                         Puedes seleccionar "Postre (fruta)" que no tiene límite.
                       </span>
                     </AlertDescription>

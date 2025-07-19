@@ -90,7 +90,7 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
   const calculateNextCycleStart = () => {
     const today = new Date()
     const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Monday, etc.
-    const targetDayOfWeek = settings.cycleStartDay
+    const targetDayOfWeek = Number(settings.cycleStartDay) // Asegura que es número
 
     // Calculate days until next cycle start
     let daysUntilNext = (targetDayOfWeek - dayOfWeek + 7) % 7
@@ -500,8 +500,7 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
   }
 
   const handleCycleStartDayChange = (value: string) => {
-    const dayValue = Number.parseInt(value)
-    console.log("Setting cycle start day to:", dayValue)
+    const dayValue = Number(value)
     setSettings({ ...settings, cycleStartDay: dayValue })
   }
 

@@ -383,7 +383,7 @@ export default function MealHistory() {
                   <AlertDescription className="text-teal-800 font-medium text-sm sm:text-base">
                     <span className="font-semibold">Ciclo actual:</span>
                     <span className="ml-2">
-                      Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                      Inicia cada {getDayOfWeekName(Number(cycleStartDay))}, duración {cycleDuration} días
                     </span>
                   </AlertDescription>
                 </Alert>
