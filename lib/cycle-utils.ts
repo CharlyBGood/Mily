@@ -189,21 +189,28 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
     for (let d = 0; d < cycleDuration; d++) {
       const day = new Date(start)
       day.setDate(start.getDate() + d)
-      dayBuckets[formatISO(day)] = []
+      // Agrupa por día local en formato YYYY-MM-DD (sv-SE)
+      const localDayStr = day.toLocaleDateString("sv-SE")
+      dayBuckets[localDayStr] = []
     }
 
     // Allocate meals into buckets
     for (const meal of sorted) {
-      const mealISO = formatISO(new Date(meal.date ?? meal.created_at ?? Date.now()))
-      if (mealISO >= startISO && mealISO <= endISO) {
-        dayBuckets[mealISO]?.push(meal)
+      // Usar fecha local para agrupar
+      const mealDateObj = new Date(meal.date ?? meal.created_at ?? Date.now())
+      const mealLocalStr = mealDateObj.toLocaleDateString("sv-SE")
+      // Determinar si la comida cae dentro del ciclo actual
+      const startLocalStr = start.toLocaleDateString("sv-SE")
+      const endLocalStr = end.toLocaleDateString("sv-SE")
+      if (mealLocalStr >= startLocalStr && mealLocalStr <= endLocalStr) {
+        dayBuckets[mealLocalStr]?.push(meal)
       }
     }
 
     // Convert to array & prettify
-    const days: CycleGroupDay[] = Object.entries(dayBuckets).map(([iso, dayMeals]) => ({
-      date: iso,
-      displayDate: toDisplayDate(new Date(iso)).replace(/^./, (c) => c.toUpperCase()),
+    const days: CycleGroupDay[] = Object.entries(dayBuckets).map(([localStr, dayMeals]) => ({
+      date: localStr,
+      displayDate: toDisplayDate(new Date(localStr)).replace(/^./, (c) => c.toUpperCase()),
       meals: dayMeals,
     }))
 
