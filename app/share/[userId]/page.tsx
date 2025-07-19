@@ -3,28 +3,17 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, ChevronDown, LayoutGrid, List } from "lucide-react"
-import MilyLogo from "@/components/mily-logo"
+import { LayoutGrid, List } from "lucide-react"
 import DaySection from "@/components/day-section"
 import CycleSection from "@/components/cycle-section"
 import { groupMealsByDay } from "@/lib/utils"
 import { groupMealsByCycle, type CycleGroup, getDayOfWeekName } from "@/lib/cycle-utils"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import type { Meal } from "@/lib/types"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Alert } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
-import { useCycleSettings } from "@/lib/cycle-settings-context"
 import HeaderBar from "@/components/header-bar"
 
 export default function SharePage() {
@@ -43,8 +32,9 @@ export default function SharePage() {
   const params = useParams()
   const userId = params.userId as string
 
-  // Get cycle settings from context
-  const { cycleStartDay, cycleDuration, sweetDessertLimit, loaded: cycleSettingsLoaded } = useCycleSettings()
+  // Estado local para los settings del usuario compartido
+  const [cycleStartDayShared, setCycleStartDayShared] = useState<number>(1)
+  const [cycleDurationShared, setCycleDurationShared] = useState<number>(7)
 
   useEffect(() => {
     setMounted(true)
@@ -104,8 +94,8 @@ export default function SharePage() {
       if (settingsError) {
         console.error("Error loading shared user settings:", settingsError)
       }
-      const cycleStartDayShared = settingsData?.cycle_start_day ?? 1;
-      const cycleDurationShared = settingsData?.cycle_duration ?? 7;
+      setCycleStartDayShared(settingsData?.cycle_start_day ?? 1)
+      setCycleDurationShared(settingsData?.cycle_duration ?? 7)
       // 2. Obtener comidas
       const { data, error } = await supabase
         .from("meals")
@@ -243,7 +233,7 @@ export default function SharePage() {
     };
   }, [userId]);
 
-  if (!mounted || loading || !cycleSettingsLoaded) {
+  if (!mounted || loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
@@ -343,7 +333,7 @@ export default function SharePage() {
             <div className="flex items-center text-sm sm:text-base">
               <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
               <span className="ml-2 text-teal-700">
-                Inicia cada {getDayOfWeekName(cycleStartDay)}, duración {cycleDuration} días
+                Inicia cada {getDayOfWeekName(cycleStartDayShared)}, duración {cycleDurationShared} días
               </span>
             </div>
           </Alert>
