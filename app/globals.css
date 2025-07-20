@@ -72,29 +72,6 @@
   }
 }
 
-/* Enhanced safe area utilities for iPhone */
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .pb-safe {
-    padding-bottom: max(env(safe-area-inset-bottom), 1.5rem);
-  }
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
-  .pl-safe {
-    padding-left: env(safe-area-inset-left);
-  }
-  .pr-safe {
-    padding-right: env(safe-area-inset-right);
-  }
-}
-
-/* Fallback for devices without safe area support */
-@supports not (padding-bottom: env(safe-area-inset-bottom)) {
-  .pb-safe {
-    padding-bottom: 1.5rem;
-  }
-}
-
 /* Mobile-first utilities */
 @layer utilities {
   /* Touch-friendly scrolling */
@@ -251,11 +228,6 @@
 
 /* iPhone specific optimizations */
 @supports (-webkit-touch-callout: none) {
-  /* iPhone Safari specific styles */
-  .pb-safe {
-    padding-bottom: max(env(safe-area-inset-bottom), 6rem);
-  }
-
   /* Fix for iPhone Safari address bar behavior */
   .min-h-screen {
     min-height: 100vh;

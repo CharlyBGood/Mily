@@ -38,47 +38,13 @@ export default function MealLogger() {
   const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
   const [photoRequired, setPhotoRequired] = useState<string | null>(null)
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const formRef = useRef<HTMLFormElement>(null)
   const { toast } = useToast()
   const router = useRouter()
   const { user } = useAuth()
 
   const { addOrUpdateMeal } = useMealContext()
-
-  // Handle keyboard visibility for mobile devices
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const handleResize = () => {
-      // Detect if keyboard is open on mobile
-      const isKeyboard = window.innerHeight < window.screen.height * 0.75
-      setIsKeyboardOpen(isKeyboard)
-    }
-
-    const handleFocus = (e: FocusEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        setTimeout(() => {
-          target.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "nearest",
-          })
-        }, 300)
-      }
-    }
-
-    window.addEventListener("resize", handleResize)
-    document.addEventListener("focusin", handleFocus)
-
-    return () => {
-      window.removeEventListener("resize", handleResize)
-      document.removeEventListener("focusin", handleFocus)
-    }
-  }, [])
 
   const loadUserStats = async () => {
     if (!user) return
@@ -118,6 +84,26 @@ export default function MealLogger() {
       setIsDessertLimitReached(false)
     }
   }, [sweetDessertsCount, sweetDessertLimit])
+
+  // Handle input focus for better mobile experience
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        // Small delay to ensure keyboard is open
+        setTimeout(() => {
+          target.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          })
+        }, 300)
+      }
+    }
+
+    document.addEventListener("focusin", handleFocus)
+    return () => document.removeEventListener("focusin", handleFocus)
+  }, [])
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -251,13 +237,13 @@ export default function MealLogger() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <main className="flex-1 relative">
-        {/* Mobile-optimized container with proper keyboard handling */}
-        <div className={`w-full transition-all duration-300 ${isKeyboardOpen ? "pb-4" : "pb-20 sm:pb-4"}`}>
-          <div className="max-w-md mx-auto px-4 pt-4">
-            {/* Photo section */}
-            <div className="mb-4">
-              <Label className="block text-sm font-medium text-gray-700 mb-2">
+      <main className="flex-1">
+        <div className="flex flex-col gap-4">
+          {/* Optimized container with proper mobile spacing */}
+          <div className="max-w-md mx-auto p-3 sm:p-4">
+            {/* Mobile-optimized photo section */}
+            <div className="mb-4 sm:mb-6">
+              <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
                 Foto <span className="text-red-500">*</span>
               </Label>
               <Card className={`mb-4 overflow-hidden w-full ${photoRequired ? "border-red-500" : ""}`}>
@@ -267,12 +253,12 @@ export default function MealLogger() {
                       <img
                         src={photoPreview || "/placeholder.svg"}
                         alt="Foto de comida"
-                        className="w-auto max-w-full max-h-72"
+                        className="w-auto max-w-full max-h-80 sm:max-h-96"
                       />
                       <Button
                         variant="outline"
                         size="sm"
-                        className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs"
+                        className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
                         onClick={triggerFileInput}
                       >
                         Cambiar
@@ -280,16 +266,20 @@ export default function MealLogger() {
                     </div>
                   ) : (
                     <div
-                      className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] p-4 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
+                      className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[180px] sm:min-h-[200px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
                       onClick={triggerFileInput}
                     >
-                      <Camera className={`h-10 w-10 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`} />
+                      <Camera
+                        className={`h-10 w-10 sm:h-12 sm:w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`}
+                      />
                       <p
-                        className={`text-center text-sm ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
+                        className={`text-center text-sm sm:text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
                       >
                         {photoRequired || "Toca para tomar una foto de tu comida"}
                       </p>
-                      {photoRequired && <p className="text-red-500 text-xs mt-1">Este campo es obligatorio</p>}
+                      {photoRequired && (
+                        <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>
+                      )}
                     </div>
                   )}
                   <input
@@ -311,20 +301,20 @@ export default function MealLogger() {
               </Alert>
             )}
 
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 pb-4">
               {mounted && (
-                <div className="text-sm text-neutral-500 mb-3 font-medium">
+                <div className="text-sm sm:text-base text-neutral-500 mb-3 sm:mb-4 font-medium">
                   {currentDate} • {currentTime}
                 </div>
               )}
 
-              {/* Meal type selection */}
+              {/* Mobile-optimized form fields */}
               <div className="space-y-2">
-                <Label htmlFor="meal-type" className="text-sm font-medium">
+                <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
                   Tipo de comida
                 </Label>
                 <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
-                  <SelectTrigger id="meal-type" className="text-sm h-11">
+                  <SelectTrigger id="meal-type" className="text-sm sm:text-base h-11 sm:h-12">
                     <SelectValue placeholder="Selecciona el tipo de comida" />
                   </SelectTrigger>
                   <SelectContent>
@@ -342,7 +332,7 @@ export default function MealLogger() {
                 </Select>
 
                 {mealType === "postre_dulce" || mealType === "postre1" ? (
-                  <div className="flex items-center justify-between text-xs mt-1">
+                  <div className="flex items-center justify-between text-xs sm:text-sm mt-1">
                     <span>
                       Postres dulces: {sweetDessertsCount}/{sweetDessertLimit} en este ciclo
                     </span>
@@ -352,7 +342,7 @@ export default function MealLogger() {
                 {isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1") && (
                   <Alert variant="default" className="mt-2">
                     <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
+                    <AlertDescription className="text-xs sm:text-sm">
                       Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
                       <br />
                       <span className="block mt-1 font-medium">
@@ -364,9 +354,8 @@ export default function MealLogger() {
                 )}
               </div>
 
-              {/* Description input */}
               <div className="space-y-2">
-                <Label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                <Label htmlFor="description" className="block text-sm sm:text-base font-medium text-gray-700">
                   Descripción <span className="text-gray-400">(opcional)</span>
                 </Label>
                 <Input
@@ -374,14 +363,13 @@ export default function MealLogger() {
                   placeholder="¿Qué comiste?"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="text-sm h-11"
-                  style={{ fontSize: "16px" }} // Prevent zoom on iOS
+                  className="text-sm sm:text-base h-11 sm:h-12"
+                  style={{ fontSize: "16px" }}
                 />
               </div>
 
-              {/* Notes textarea */}
               <div className="space-y-2">
-                <Label htmlFor="notes" className="text-sm font-medium">
+                <Label htmlFor="notes" className="text-sm sm:text-base font-medium">
                   Notas adicionales (opcional)
                 </Label>
                 <Textarea
@@ -389,26 +377,23 @@ export default function MealLogger() {
                   placeholder="Agrega cualquier nota adicional aquí..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="resize-none text-sm min-h-[80px]"
+                  className="resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px]"
                   rows={3}
-                  style={{ fontSize: "16px" }} // Prevent zoom on iOS
+                  style={{ fontSize: "16px" }}
                 />
               </div>
 
-              {/* Submit button - fixed positioning on mobile when keyboard is open */}
-              <div className={`${isKeyboardOpen ? "fixed bottom-4 left-4 right-4 z-50" : "pt-4"}`}>
-                <Button
-                  type="submit"
-                  className={`w-full bg-teal-600 hover:bg-teal-700 text-sm h-12 font-medium ${isKeyboardOpen ? "max-w-md mx-auto" : ""}`}
-                  disabled={
-                    !mealType ||
-                    isSubmitting ||
-                    (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))
-                  }
-                >
-                  {isSubmitting ? "Guardando..." : "Guardar comida"}
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium"
+                disabled={
+                  !mealType ||
+                  isSubmitting ||
+                  (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))
+                }
+              >
+                {isSubmitting ? "Guardando..." : "Guardar comida"}
+              </Button>
             </form>
           </div>
         </div>
