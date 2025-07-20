@@ -30,7 +30,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
 
     // Set title
-    document.title = "Mily - Registro de Comidas"
+    document.title = "Mily"
 
     // Set theme color
     const themeColor = document.querySelector('meta[name="theme-color"]') || document.createElement("meta")
