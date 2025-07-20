@@ -42,40 +42,6 @@ export default function SharePage() {
     loadMeals()
   }, [userId])
 
-  // Auto-refresh for real-time updates
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null
-    let lastHidden: number | null = null
-
-    const refreshMeals = () => {
-      if ((window as any).__milyDialogOpen) return
-      if (document.visibilityState === "visible") {
-        // Only refresh if tab was hidden for more than 30 seconds
-        if (lastHidden && Date.now() - lastHidden > 30000) {
-          loadMeals()
-          setLastUpdated(new Date())
-        }
-        lastHidden = null
-      } else if (document.visibilityState === "hidden") {
-        lastHidden = Date.now()
-      }
-    }
-
-    interval = setInterval(() => {
-      if ((window as any).__milyDialogOpen) return
-      if (document.visibilityState === "visible") {
-        loadMeals()
-        setLastUpdated(new Date())
-      }
-    }, 60000) // 1 min interval
-
-    document.addEventListener("visibilitychange", refreshMeals)
-    return () => {
-      if (interval) clearInterval(interval)
-      document.removeEventListener("visibilitychange", refreshMeals)
-    }
-  }, [userId])
-
   const loadMeals = async () => {
     setLoading(true)
     try {
