@@ -16,14 +16,10 @@ import type { Meal, MealType } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/lib/auth-context"
-import { uploadImage, getUserMeals } from "@/lib/meal-service";
+import { uploadImage, getUserMeals } from "@/lib/meal-service"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
 import { useMealContext } from "@/lib/meal-context"
-import {
-  countSweetDessertsInCurrentCycle,
-  calculateCycleInfo,
-  getDayOfWeekName,
-} from "@/lib/cycle-utils"
+import { countSweetDessertsInCurrentCycle, calculateCycleInfo, getDayOfWeekName } from "@/lib/cycle-utils"
 
 export default function MealLogger() {
   const { cycleStartDay, cycleDuration, sweetDessertLimit } = useCycleSettings()
@@ -223,20 +219,12 @@ export default function MealLogger() {
     }
   }
 
-  // Helper para el parámetro 'from'
-  const getCurrentPathWithQuery = () => {
-    if (typeof window !== "undefined") {
-      return window.location.pathname + window.location.search
-    }
-    return "/logger"
-  }
-
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Se eliminó el header con título y botón de settings para restaurar el diseño original */}
       <main className="flex-1">
         <div className="flex flex-col gap-4">
-          <div className="max-w-md mx-auto p-3 sm:p-4">
+          {/* iPhone Safari optimized container with bottom padding */}
+          <div className="max-w-md mx-auto p-3 sm:p-4 pb-24 sm:pb-4">
             {/* Mobile-optimized photo section */}
             <div className="mb-4 sm:mb-6">
               <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
@@ -273,7 +261,9 @@ export default function MealLogger() {
                       >
                         {photoRequired || "Toca para tomar una foto de tu comida"}
                       </p>
-                      {photoRequired && <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>}
+                      {photoRequired && (
+                        <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>
+                      )}
                     </div>
                   )}
                   <input
@@ -340,8 +330,8 @@ export default function MealLogger() {
                       Has alcanzado el límite de postres dulces para este ciclo. Nuevo ciclo en {daysLeftInCycle} días.
                       <br />
                       <span className="block mt-1 font-medium">
-                        El ciclo inicia cada <b>{getDayOfWeekName(Number(cycleStartDay))}</b>.
-                        Puedes seleccionar "Postre (fruta)" que no tiene límite.
+                        El ciclo inicia cada <b>{getDayOfWeekName(Number(cycleStartDay))}</b>. Puedes seleccionar
+                        "Postre (fruta)" que no tiene límite.
                       </span>
                     </AlertDescription>
                   </Alert>
@@ -378,7 +368,11 @@ export default function MealLogger() {
               <Button
                 type="submit"
                 className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium"
-                disabled={!mealType || isSubmitting || (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))}
+                disabled={
+                  !mealType ||
+                  isSubmitting ||
+                  (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))
+                }
               >
                 {isSubmitting ? "Guardando..." : "Guardar comida"}
               </Button>
