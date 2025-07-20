@@ -265,63 +265,38 @@ export default function MealHistory() {
               <CardContent className="p-3 sm:p-4">
                 {/* Mobile Controls */}
                 <div className="block sm:hidden space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex bg-gray-100 rounded-lg p-1">
-                      <Button
-                        variant={viewMode === "cycles" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("cycles")}
-                        className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
-                          }`}
-                      >
-                        <LayoutGrid className="h-3 w-3 mr-1" />
-                        Ciclos
-                      </Button>
-                      <Button
-                        variant={viewMode === "days" ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => setViewMode("days")}
-                        className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
-                          }`}
-                      >
-                        <List className="h-3 w-3 mr-1" />
-                        Días
-                      </Button>
-                    </div>
-
-                    <Sheet open={showMobileFilters} onOpenChange={setShowMobileFilters}>
-                      <SheetTrigger asChild>
-                        <Button variant="outline" size="sm" className="px-3 h-8 text-xs">
-                          <Filter className="h-3 w-3 mr-1" />
-                          Opciones
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
-                        <SheetHeader className="pb-4">
-                          <SheetTitle>Opciones</SheetTitle>
-                        </SheetHeader>
-                        <div className="grid grid-cols-2 gap-3 pb-6">
-                          <Button variant="outline" onClick={handleRefresh} className="h-12 text-sm">
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Actualizar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              router.push(`/profile/settings`);
-                              setShowMobileFilters(false);
-                            }}
-                            className="h-12 text-sm"
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Configurar
-                          </Button>
-                          <div className="col-span-1">
-                            <ShareDropdown meals={safeMeals} />
-                          </div>
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                  <div className="flex items-center justify-between gap-2">
+                    <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Actualizar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/profile/settings`)} className="flex-shrink-0">
+                      <Settings className="h-4 w-4 mr-1" />
+                      Configurar
+                    </Button>
+                    <ShareDropdown meals={safeMeals} />
+                  </div>
+                  <div className="flex bg-gray-100 rounded-lg p-1 mt-2">
+                    <Button
+                      variant={viewMode === "cycles" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("cycles")}
+                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
+                        }`}
+                    >
+                      <LayoutGrid className="h-3 w-3 mr-1" />
+                      Ciclos
+                    </Button>
+                    <Button
+                      variant={viewMode === "days" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("days")}
+                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"
+                        }`}
+                    >
+                      <List className="h-3 w-3 mr-1" />
+                      Días
+                    </Button>
                   </div>
                 </div>
 
