@@ -266,13 +266,11 @@ export default function MealHistory() {
                 {/* Mobile Controls */}
                 <div className="block sm:hidden space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <Button variant="outline" size="sm" onClick={handleRefresh} className="flex-shrink-0">
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Actualizar
+                    <Button variant="outline" size="icon" onClick={handleRefresh} className="flex-shrink-0" aria-label="Actualizar">
+                      <RefreshCw className="h-5 w-5" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/profile/settings`)} className="flex-shrink-0">
-                      <Settings className="h-4 w-4 mr-1" />
-                      Configurar
+                    <Button variant="outline" size="icon" onClick={() => router.push(`/profile/settings`)} className="flex-shrink-0" aria-label="Configurar">
+                      <Settings className="h-5 w-5" />
                     </Button>
                     <ShareDropdown meals={safeMeals} />
                   </div>
