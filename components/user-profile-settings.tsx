@@ -353,36 +353,33 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
         }
       } catch (error) {
         console.error("Error checking user_settings table:", error)
-        // Si hay error real (no solo not found), mostrar error y no hacer fallback
         setLoadError("No se pudieron cargar tus configuraciones. Por favor, intenta de nuevo más tarde.")
         setIsLoading(false)
         return
       }
-      // Si hay settings válidos, usarlos
+      // --- CORRECCIÓN DEL FLUJO DE USERNAME ---
+      let username = ""
       if (settingsData && typeof settingsData.username === "string" && settingsData.username.length > 0) {
-        const loadedSettings: UserSettings = {
-          username: settingsData.username,
-          cycleDuration: Number(settingsData.cycle_duration ?? 7),
-          cycleStartDay: settingsData.cycle_start_day !== undefined && settingsData.cycle_start_day !== null
-            ? Number(settingsData.cycle_start_day)
-            : 1,
-          sweetDessertLimit: Number(settingsData.sweet_dessert_limit ?? 3),
-        }
-        setSettings(loadedSettings)
-        setOriginalSettings(loadedSettings)
-        setUsernameAvailable(true)
+        username = settingsData.username
       } else if (profileData && typeof profileData.username === "string" && profileData.username.length > 0) {
-        // Solo usar el username de profile si existe y es válido
-        const defaultSettings: UserSettings = {
-          username: profileData.username,
-          cycleDuration: 7,
-          cycleStartDay: 1,
-          sweetDessertLimit: 3,
-        }
-        setSettings(defaultSettings)
-        setOriginalSettings(defaultSettings)
-        setUsernameAvailable(true)
-      } else {
+        username = profileData.username
+      } else if (user.email && typeof user.email === "string" && user.email.includes("@")) {
+        username = user.email.split("@")[0]
+      }
+      // Nunca usar el email completo como username
+      const loadedSettings: UserSettings = {
+        username,
+        cycleDuration: Number(settingsData?.cycle_duration ?? 7),
+        cycleStartDay: settingsData?.cycle_start_day !== undefined && settingsData?.cycle_start_day !== null
+          ? Number(settingsData.cycle_start_day)
+          : 1,
+        sweetDessertLimit: Number(settingsData?.sweet_dessert_limit ?? 3),
+      }
+      setSettings(loadedSettings)
+      setOriginalSettings(loadedSettings)
+      setUsernameAvailable(!!username)
+      // Si no hay username, pedir setup
+      if (!username) {
         setSetupNeeded(true)
       }
     } catch (error) {
