@@ -377,7 +377,7 @@ export default function MealHistory() {
                     isExpanded={expandedSection === group.date}
                   />
                 ))
-                : cycleGroups.map((cycle) => (
+                : [...cycleGroups].reverse().map((cycle) => (
                   <CycleSection
                     key={cycle.cycleNumber}
                     cycle={{

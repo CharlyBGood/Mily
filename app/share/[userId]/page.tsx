@@ -80,7 +80,9 @@ export default function SharePage() {
         const grouped = groupMealsByDay(meals)
         setGroupedMeals(grouped)
         // 3. Usar settings del usuario compartido para agrupar ciclos
-        const cycles = groupMealsByCycle(meals, cycleDurationShared, cycleStartDayShared)
+        const cycleStartDayNum = Math.max(0, Math.min(6, Number(settingsData?.cycle_start_day ?? 1)))
+        const cycleDurationNum = Math.max(7, Math.min(30, Number(settingsData?.cycle_duration ?? 7)))
+        const cycles = groupMealsByCycle(meals, cycleDurationNum, cycleStartDayNum)
         setCycleGroups(cycles)
       } else {
         setGroupedMeals([])
@@ -208,7 +210,6 @@ export default function SharePage() {
       <main className="flex-1">
         <div className="min-h-screen bg-gray-50 pt-16">
           <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-            {/* Copiado del historial principal: Card de controles, paddings, y layout */}
             <Card className="mb-4 sm:mb-6 border border-gray-200">
               <CardContent className="p-3 sm:p-4">
                 <div className="block sm:hidden space-y-3">
@@ -295,7 +296,7 @@ export default function SharePage() {
                     isSharedView={true}
                   />
                 ))
-                : filteredCycleGroups.map((cycle) => (
+                : [...filteredCycleGroups].reverse().map((cycle) => (
                   <CycleSection
                     key={cycle.cycleNumber}
                     cycle={cycle}
