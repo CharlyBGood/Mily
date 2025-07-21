@@ -32,14 +32,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     // Set title
     document.title = "Mily"
 
-    // Set theme color
-    const themeColor = document.querySelector('meta[name="theme-color"]') || document.createElement("meta")
-    themeColor.setAttribute("name", "theme-color")
-    themeColor.setAttribute("content", "#0d9488")
-    if (!document.querySelector('meta[name="theme-color"]')) {
-      document.head.appendChild(themeColor)
-    }
-
     // Set viewport for iPhone
     const viewport = document.querySelector('meta[name="viewport"]')
     if (viewport) {

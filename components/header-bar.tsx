@@ -20,7 +20,7 @@ export default function HeaderBar({ onBack, right, backHref, ariaLabel = "Volver
     if (backHref) router.push(backHref);
   };
   return (
-    <header className="p-4 border-b bg-white flex items-center w-full sticky top-0 z-40">
+    <header className="p-4 border-b bg-white flex items-center w-full fixed top-0 left-0 z-50">
       {backHref && (
         <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2" aria-label={ariaLabel}>
           <ArrowLeft className="h-5 w-5" />

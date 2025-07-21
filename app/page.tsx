@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation"
 import MilyLogo from "@/components/mily-logo"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import HeaderBar from "@/components/header-bar"
+import Loader from "@/components/ui/loader"
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("logger")
@@ -53,46 +54,13 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <header className="flex-shrink-0 bg-white border-b border-gray-200">
-          <div className="px-4 py-4 sm:px-6">
-            <div className="flex justify-center">
-              <MilyLogo className="w-24 h-auto" />
-            </div>
-          </div>
-        </header>
-        <main className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">
-          <div className="w-full max-w-sm mx-auto space-y-8">
-            <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-teal-500 rounded-2xl flex items-center justify-center mx-auto">
-                <Camera className="w-10 h-10 text-white" />
-              </div>
-              <div className="space-y-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
-                  Bienvenido a <span className="text-teal-600">Mily</span>
-                </h1>
-                <p className="text-gray-600 text-base leading-relaxed">
-                  Registra tus comidas diarias y lleva un seguimiento de tu alimentación de manera sencilla.
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3 w-full">
-              <Button
-                onClick={() => router.push("/login")}
-                className="w-full h-12 text-base bg-teal-600 hover:bg-teal-700 text-white font-medium"
-              >
-                Iniciar sesión
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => router.push("/login?tab=register")}
-                className="w-full h-12 text-base border-2 border-teal-600 text-teal-600 hover:bg-teal-50 font-medium"
-              >
-                Crear cuenta nueva
-              </Button>
-            </div>
-          </div>
-        </main>
+      <div className="flex flex-col min-h-screen bg-neutral-50">
+        <HeaderBar />
+        <div className="flex-1 flex items-center justify-center p-4">
+          <main className="flex-1 flex items-center justify-center p-4">
+            <Loader />
+          </main>
+        </div>
       </div>
     )
   }
@@ -145,24 +113,20 @@ export default function HomePage() {
             </Sheet>
           </>
         }
-        // No mostrar flecha atrás en páginas principales
+      // No mostrar flecha atrás en páginas principales
       />
-      <main className="flex-1">
-        {/* Elimina overflow-hidden de Tabs y main, y de TabsContent */}
+      <main className="flex-1 flex flex-col pt-16"> {/* pt-16 para compensar el header fijo */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-          {/* Main content area */}
-          <main className="flex-1">
-            <TabsContent value="logger" className="h-full p-0 m-0">
-              <div className="pb-20 sm:pb-6 min-h-full">
-                <MealLogger />
-              </div>
-            </TabsContent>
-            <TabsContent value="history" className="h-full p-0 m-0">
-              <div className="pb-20 sm:pb-6 min-h-full">
-                <MealHistory />
-              </div>
-            </TabsContent>
-          </main>
+          <TabsContent value="logger" className="h-full p-0 m-0">
+            <div className="pb-20 sm:pb-6 min-h-full">
+              <MealLogger />
+            </div>
+          </TabsContent>
+          <TabsContent value="history" className="h-full p-0 m-0">
+            <div className="pb-20 sm:pb-6 min-h-full">
+              <MealHistory />
+            </div>
+          </TabsContent>
 
           {/* Mobile Bottom Navigation */}
           <footer className="flex-shrink-0 sm:hidden border-t bg-white fixed bottom-0 left-0 right-0 z-50">

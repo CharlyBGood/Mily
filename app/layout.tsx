@@ -3,6 +3,10 @@ import type { Metadata } from "next"
 import ClientLayout from "./ClientLayout"
 import "./globals.css"
 
+export const viewport = {
+  themeColor: "#0d9488",
+}
+
 /**
  * Global metadata (favicons, OG, Twitter cards, etc.)
  * These tags are automatically injected into <head> by Next.js.
@@ -10,11 +14,10 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "Mily",
   description: "Mily, lleva un registro de tus comidas.",
-  themeColor: "#0d9488",
   icons: {
     icon: "/MiliFinalFinalFinalFinal.svg",
     shortcut: "/MiliFinalFinalFinalFinal.svg",
-    apple: "https://res.cloudinary.com/dr8pwzxzn/image/upload/v1752506646/MiliFinalFinalFinalFinal_pkdza3.svg",
+    apple: "/MiliFinalFinalFinalFinal.svg",
   },
   openGraph: {
     type: "website",
@@ -22,10 +25,16 @@ export const metadata: Metadata = {
     description: "Mily, lleva un registro de tus comidas.",
     images: [
       {
-        url: "https://res.cloudinary.com/dr8pwzxzn/image/upload/v1752506646/MiliFinalFinalFinalFinal_pkdza3.svg",
+        url: "/MiliFinalFinalFinalFinal.svg",
         width: 1200,
         height: 630,
-        alt: "Mily App Logo",
+        alt: "Mily App Logo SVG",
+      },
+      {
+        url: "/MiliFinalFinalFinalFinal.png",
+        width: 1200,
+        height: 630,
+        alt: "Mily App Logo PNG",
       },
     ],
   },
@@ -33,9 +42,12 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Mily - Registro de Comidas",
     description: "Mily, lleva un registro de tus comidas.",
-    images: ["https://res.cloudinary.com/dr8pwzxzn/image/upload/v1752506646/MiliFinalFinalFinalFinal_pkdza3.svg"],
+    images: [
+      "/MiliFinalFinalFinalFinal.png",
+      "/MiliFinalFinalFinalFinal.svg"
+    ],
   },
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
