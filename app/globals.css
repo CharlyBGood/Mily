@@ -72,6 +72,45 @@
   }
 }
 
+/* iOS Safari specific optimizations */
+@supports (-webkit-touch-callout: none) {
+  .ios-safe-area {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  .ios-keyboard-overlay {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+
+  .ios-input {
+    font-size: 16px !important;
+    -webkit-appearance: none;
+    border-radius: 0.375rem;
+  }
+
+  /* Fix for iOS Safari viewport height issues */
+  .min-h-screen {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Prevent bounce scrolling on iPhone */
+  body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Enhanced input handling for iOS */
+  input,
+  textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
 /* Mobile-first utilities */
 @layer utilities {
   /* Touch-friendly scrolling */
@@ -223,28 +262,6 @@
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-  }
-}
-
-/* iPhone specific optimizations */
-@supports (-webkit-touch-callout: none) {
-  /* Fix for iPhone Safari address bar behavior */
-  .min-h-screen {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-  }
-
-  /* Prevent bounce scrolling on iPhone */
-  body {
-    overscroll-behavior: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Enhanced input handling for iOS */
-  input,
-  textarea {
-    -webkit-user-select: text;
-    user-select: text;
   }
 }
 

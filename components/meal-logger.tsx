@@ -38,8 +38,10 @@ export default function MealLogger() {
   const [daysLeftInCycle, setDaysLeftInCycle] = useState(0)
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
   const [photoRequired, setPhotoRequired] = useState<string | null>(null)
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const router = useRouter()
   const { user } = useAuth()
@@ -85,12 +87,32 @@ export default function MealLogger() {
     }
   }, [sweetDessertsCount, sweetDessertLimit])
 
-  // Handle input focus for better mobile experience
+  // Enhanced keyboard detection for iOS Safari
   useEffect(() => {
-    const handleFocus = (e: FocusEvent) => {
+    if (typeof window === "undefined") return
+
+    const initialViewportHeight = window.visualViewport?.height || window.innerHeight
+    let currentViewportHeight = initialViewportHeight
+
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        currentViewportHeight = window.visualViewport.height
+        const keyboardHeight = initialViewportHeight - currentViewportHeight
+        setIsKeyboardVisible(keyboardHeight > 150) // Threshold for keyboard detection
+      }
+    }
+
+    const handleResize = () => {
+      const newHeight = window.innerHeight
+      const heightDifference = initialViewportHeight - newHeight
+      setIsKeyboardVisible(heightDifference > 150)
+    }
+
+    const handleFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        // Small delay to ensure keyboard is open
+        setIsKeyboardVisible(true)
+        // Scroll the focused element into view with delay for iOS
         setTimeout(() => {
           target.scrollIntoView({
             behavior: "smooth",
@@ -101,8 +123,32 @@ export default function MealLogger() {
       }
     }
 
-    document.addEventListener("focusin", handleFocus)
-    return () => document.removeEventListener("focusin", handleFocus)
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        setIsKeyboardVisible(false)
+      }, 100)
+    }
+
+    // Use visualViewport API if available (modern iOS Safari)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange)
+    } else {
+      // Fallback for older browsers
+      window.addEventListener("resize", handleResize)
+    }
+
+    document.addEventListener("focusin", handleFocusIn)
+    document.addEventListener("focusout", handleFocusOut)
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportChange)
+      } else {
+        window.removeEventListener("resize", handleResize)
+      }
+      document.removeEventListener("focusin", handleFocusIn)
+      document.removeEventListener("focusout", handleFocusOut)
+    }
   }, [])
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,12 +282,18 @@ export default function MealLogger() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-1">
-        <div className="flex flex-col gap-4">
-          {/* Optimized container with proper mobile spacing */}
-          <div className="max-w-md mx-auto p-3 sm:p-4">
-            {/* Mobile-optimized photo section */}
+    <div className="flex flex-col min-h-screen ios-safe-area">
+      <main className="flex-1 relative">
+        <div
+          ref={containerRef}
+          className={`w-full transition-all duration-300 ${isKeyboardVisible ? "pb-2" : "pb-20 sm:pb-4"}`}
+          style={{
+            minHeight: isKeyboardVisible ? "auto" : "100vh",
+            paddingBottom: isKeyboardVisible ? "0.5rem" : undefined,
+          }}
+        >
+          <div className="max-w-md mx-auto px-3 sm:px-4 pt-4">
+            {/* Photo section */}
             <div className="mb-4 sm:mb-6">
               <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
                 Foto <span className="text-red-500">*</span>
@@ -253,7 +305,7 @@ export default function MealLogger() {
                       <img
                         src={photoPreview || "/placeholder.svg"}
                         alt="Foto de comida"
-                        className="w-auto max-w-full max-h-80 sm:max-h-96"
+                        className="w-auto max-w-full max-h-72 sm:max-h-80"
                       />
                       <Button
                         variant="outline"
@@ -266,7 +318,7 @@ export default function MealLogger() {
                     </div>
                   ) : (
                     <div
-                      className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[180px] sm:min-h-[200px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
+                      className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] sm:min-h-[180px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
                       onClick={triggerFileInput}
                     >
                       <Camera
@@ -301,14 +353,14 @@ export default function MealLogger() {
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 pb-4">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
               {mounted && (
                 <div className="text-sm sm:text-base text-neutral-500 mb-3 sm:mb-4 font-medium">
                   {currentDate} • {currentTime}
                 </div>
               )}
 
-              {/* Mobile-optimized form fields */}
+              {/* Meal type selection */}
               <div className="space-y-2">
                 <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
                   Tipo de comida
@@ -354,6 +406,7 @@ export default function MealLogger() {
                 )}
               </div>
 
+              {/* Description input */}
               <div className="space-y-2">
                 <Label htmlFor="description" className="block text-sm sm:text-base font-medium text-gray-700">
                   Descripción <span className="text-gray-400">(opcional)</span>
@@ -363,11 +416,11 @@ export default function MealLogger() {
                   placeholder="¿Qué comiste?"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="text-sm sm:text-base h-11 sm:h-12"
-                  style={{ fontSize: "16px" }}
+                  className="text-sm sm:text-base h-11 sm:h-12 ios-input"
                 />
               </div>
 
+              {/* Notes textarea */}
               <div className="space-y-2">
                 <Label htmlFor="notes" className="text-sm sm:text-base font-medium">
                   Notas adicionales (opcional)
@@ -377,26 +430,49 @@ export default function MealLogger() {
                   placeholder="Agrega cualquier nota adicional aquí..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px]"
+                  className="resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px] ios-input"
                   rows={3}
-                  style={{ fontSize: "16px" }}
                 />
               </div>
 
+              {/* Submit button - adaptive positioning */}
+              <div className={`${isKeyboardVisible ? "mt-4" : "mt-6"}`}>
+                <Button
+                  type="submit"
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium shadow-lg"
+                  disabled={
+                    !mealType ||
+                    isSubmitting ||
+                    (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))
+                  }
+                >
+                  {isSubmitting ? "Guardando..." : "Guardar comida"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Fixed button overlay for keyboard mode on iOS */}
+        {isKeyboardVisible && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 ios-keyboard-overlay">
+            <div className="max-w-md mx-auto">
               <Button
                 type="submit"
-                className="w-full bg-teal-600 hover:bg-teal-700 text-sm sm:text-base h-12 sm:h-14 font-medium"
+                form="meal-form"
+                className="w-full bg-teal-600 hover:bg-teal-700 text-sm font-medium h-12 shadow-lg"
                 disabled={
                   !mealType ||
                   isSubmitting ||
                   (isDessertLimitReached && (mealType === "postre_dulce" || mealType === "postre1"))
                 }
+                onClick={handleSubmit}
               >
                 {isSubmitting ? "Guardando..." : "Guardar comida"}
               </Button>
-            </form>
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   )
