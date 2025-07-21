@@ -206,107 +206,109 @@ export default function SharePage() {
     <div className="flex flex-col min-h-screen">
       <HeaderBar backHref="/" />
       <main className="flex-1">
-        <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
-          {/* Copiado del historial principal: Card de controles, paddings, y layout */}
-          <Card className="mb-4 sm:mb-6 border border-gray-200">
-            <CardContent className="p-3 sm:p-4">
-              <div className="block sm:hidden space-y-3">
-                <div className="flex items-center justify-between">
+        <div className="min-h-screen bg-gray-50 pt-16">
+          <div className="w-full px-3 sm:px-4 py-4 sm:py-6 max-w-7xl mx-auto">
+            {/* Copiado del historial principal: Card de controles, paddings, y layout */}
+            <Card className="mb-4 sm:mb-6 border border-gray-200">
+              <CardContent className="p-3 sm:p-4">
+                <div className="block sm:hidden space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <Button
+                        variant={viewMode === "cycles" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("cycles")}
+                        className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
+                      >
+                        <LayoutGrid className="h-3 w-3 mr-1" />
+                        Ciclos
+                      </Button>
+                      <Button
+                        variant={viewMode === "days" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setViewMode("days")}
+                        className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
+                      >
+                        <List className="h-3 w-3 mr-1" />
+                        Días
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden sm:flex flex-wrap gap-3 items-center">
                   <div className="flex bg-gray-100 rounded-lg p-1">
                     <Button
                       variant={viewMode === "cycles" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("cycles")}
-                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
+                      className={`flex items-center ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
                     >
-                      <LayoutGrid className="h-3 w-3 mr-1" />
+                      <LayoutGrid className="h-4 w-4 mr-2" />
                       Ciclos
                     </Button>
                     <Button
                       variant={viewMode === "days" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("days")}
-                      className={`flex items-center text-xs px-2 py-1.5 h-8 ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
+                      className={`flex items-center ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
                     >
-                      <List className="h-3 w-3 mr-1" />
+                      <List className="h-4 w-4 mr-2" />
                       Días
                     </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+            {/* Card de título y usuario compartido */}
+            <Card className="bg-teal-500 text-white p-3 sm:p-6 mb-4 sm:mb-6 text-center border-0 rounded-lg">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{titleDateRange}</h1>
+              <p className="text-teal-100 text-sm sm:text-base">
+                {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
+              </p>
+              <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-teal-100">
+                Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
               </div>
-              <div className="hidden sm:flex flex-wrap gap-3 items-center">
-                <div className="flex bg-gray-100 rounded-lg p-1">
-                  <Button
-                    variant={viewMode === "cycles" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("cycles")}
-                    className={`flex items-center ${viewMode === "cycles" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
-                  >
-                    <LayoutGrid className="h-4 w-4 mr-2" />
-                    Ciclos
-                  </Button>
-                  <Button
-                    variant={viewMode === "days" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("days")}
-                    className={`flex items-center ${viewMode === "days" ? "bg-teal-500 text-white" : "text-gray-600 hover:text-teal-600"}`}
-                  >
-                    <List className="h-4 w-4 mr-2" />
-                    Días
-                  </Button>
-                </div>
+            </Card>
+            <Alert className="mb-3 sm:mb-6 border-teal-200 bg-teal-50 rounded-lg">
+              <div className="flex items-center text-sm sm:text-base">
+                <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
+                <span className="ml-2 text-teal-700">
+                  Inicia cada {getDayOfWeekName(Number(cycleStartDayShared))}, duración {cycleDurationShared} días
+                </span>
               </div>
-            </CardContent>
-          </Card>
-          {/* Card de título y usuario compartido */}
-          <Card className="bg-teal-500 text-white p-3 sm:p-6 mb-4 sm:mb-6 text-center border-0 rounded-lg">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">{titleDateRange}</h1>
-            <p className="text-teal-100 text-sm sm:text-base">
-              {username ? `Compartido por ${username}` : "Este es un historial de las ingestas de Mily"}
-            </p>
-            <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-teal-100">
-              Última actualización: {format(lastUpdated, "HH:mm", { locale: es })}
+            </Alert>
+            {/* Content Section */}
+            <div className="space-y-3 sm:space-y-4">
+              {viewMode === "days"
+                ? groupedMeals.map((group) => (
+                  <DaySection
+                    key={group.date}
+                    date={group.date}
+                    displayDate={group.displayDate}
+                    meals={group.meals}
+                    onDeleteMeal={handleDeleteClick}
+                    onEditMeal={handleEditClick}
+                    onExpand={handleSectionExpand}
+                    isExpanded={expandedSection === group.date}
+                    showEditButton={false}
+                    showDeleteButton={false}
+                    isSharedView={true}
+                  />
+                ))
+                : filteredCycleGroups.map((cycle) => (
+                  <CycleSection
+                    key={cycle.cycleNumber}
+                    cycle={cycle}
+                    onDeleteMeal={handleDeleteClick}
+                    onEditMeal={handleEditClick}
+                    onExpand={handleCycleExpand}
+                    isExpanded={expandedCycle === cycle.cycleNumber}
+                    showEditButton={false}
+                    showDeleteButton={false}
+                    isSharedView={true}
+                  />
+                ))}
             </div>
-          </Card>
-          <Alert className="mb-3 sm:mb-6 border-teal-200 bg-teal-50 rounded-lg">
-            <div className="flex items-center text-sm sm:text-base">
-              <span className="font-semibold text-teal-800">Configuración de ciclo:</span>
-              <span className="ml-2 text-teal-700">
-                Inicia cada {getDayOfWeekName(Number(cycleStartDayShared))}, duración {cycleDurationShared} días
-              </span>
-            </div>
-          </Alert>
-          {/* Content Section */}
-          <div className="space-y-3 sm:space-y-4">
-            {viewMode === "days"
-              ? groupedMeals.map((group) => (
-                <DaySection
-                  key={group.date}
-                  date={group.date}
-                  displayDate={group.displayDate}
-                  meals={group.meals}
-                  onDeleteMeal={handleDeleteClick}
-                  onEditMeal={handleEditClick}
-                  onExpand={handleSectionExpand}
-                  isExpanded={expandedSection === group.date}
-                  showEditButton={false}
-                  showDeleteButton={false}
-                  isSharedView={true}
-                />
-              ))
-              : filteredCycleGroups.map((cycle) => (
-                <CycleSection
-                  key={cycle.cycleNumber}
-                  cycle={cycle}
-                  onDeleteMeal={handleDeleteClick}
-                  onEditMeal={handleEditClick}
-                  onExpand={handleCycleExpand}
-                  isExpanded={expandedCycle === cycle.cycleNumber}
-                  showEditButton={false}
-                  showDeleteButton={false}
-                  isSharedView={true}
-                />
-              ))}
           </div>
         </div>
       </main>
