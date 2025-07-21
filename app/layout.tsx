@@ -25,13 +25,7 @@ export const metadata: Metadata = {
     description: "Mily, lleva un registro de tus comidas.",
     images: [
       {
-        url: "/MiliFinalFinalFinalFinal.svg",
-        width: 1200,
-        height: 630,
-        alt: "Mily App Logo SVG",
-      },
-      {
-        url: "/MiliFinalFinalFinalFinal.png",
+        url: "https://res.cloudinary.com/dr8pwzxzn/image/upload/v1752506646/MiliFinalFinalFinalFinal_pkdza3.png",
         width: 1200,
         height: 630,
         alt: "Mily App Logo PNG",
@@ -43,8 +37,7 @@ export const metadata: Metadata = {
     title: "Mily - Registro de Comidas",
     description: "Mily, lleva un registro de tus comidas.",
     images: [
-      "/MiliFinalFinalFinalFinal.png",
-      "/MiliFinalFinalFinalFinal.svg"
+      "https://res.cloudinary.com/dr8pwzxzn/image/upload/v1752506646/MiliFinalFinalFinalFinal_pkdza3.png"
     ],
   },
   generator: 'v0.dev'
