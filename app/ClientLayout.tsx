@@ -48,23 +48,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <html lang="es" suppressHydrationWarning>
-      {/* Document <head> */}
-      <head>
-        {/* Favicon / icons */}
-        {/* Mobile & theme config */}
-      </head>
-
-      <body className={inter.className} suppressHydrationWarning>
-        {/* Global providers */}
-        <ThemeProvider attribute="class" defaultTheme="light">
-          <AuthProvider>
-            <CycleSettingsProvider>
-              <MealProvider>{children}</MealProvider>
-            </CycleSettingsProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </body>
-    </html>
+    <ThemeProvider attribute="class" defaultTheme="light">
+      <AuthProvider>
+        <CycleSettingsProvider>
+          <MealProvider>{children}</MealProvider>
+        </CycleSettingsProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

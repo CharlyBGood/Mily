@@ -148,15 +148,16 @@ export default function HomePage() {
         // No mostrar flecha atrás en páginas principales
       />
       <main className="flex-1">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col overflow-hidden">
+        {/* Elimina overflow-hidden de Tabs y main, y de TabsContent */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
           {/* Main content area */}
-          <main className="flex-1 overflow-hidden">
-            <TabsContent value="logger" className="h-full p-0 m-0 overflow-y-auto">
+          <main className="flex-1">
+            <TabsContent value="logger" className="h-full p-0 m-0">
               <div className="pb-20 sm:pb-6 min-h-full">
                 <MealLogger />
               </div>
             </TabsContent>
-            <TabsContent value="history" className="h-full p-0 m-0 overflow-y-auto">
+            <TabsContent value="history" className="h-full p-0 m-0">
               <div className="pb-20 sm:pb-6 min-h-full">
                 <MealHistory />
               </div>
