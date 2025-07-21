@@ -21,38 +21,39 @@ interface ShareDropdownProps {
 }
 
 export function ShareDropdown({ meals, disabled = false }: ShareDropdownProps) {
-  const [dropdownOpen, setDropdownOpen] = useState(false)
   const buttonDisabled = disabled || meals.length === 0
 
-  const handleShareClick = (e: React.MouseEvent) => {
-    // Prevent the dropdown from closing when share button is clicked
-    e.preventDefault()
-    e.stopPropagation()
-    // Keep dropdown open while modal is being opened
-    setDropdownOpen(true)
+  const handleNativeShare = async () => {
+    const url = window.location.origin + "/share/" + (meals[0]?.user_id || "")
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Mily - Historial de comidas",
+          text: "Mira mi historial en Mily",
+          url,
+        })
+      } catch (err) {
+        // Si el usuario cancela o hay error, no hacer nada
+      }
+    } else {
+      // Fallback: abrir el modal actual
+      setDropdownOpen(true)
+    }
   }
 
-  return (
-    <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={buttonDisabled} className="min-w-[100px]">
-          <Share2 className="h-4 w-4 mr-2" />
-          <span>Compartir</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 p-2">
-        <DropdownMenuLabel className="text-sm font-medium text-gray-700 px-2 py-1">
-          Compartir Historial
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
-        <div className="space-y-1">
-          <div onClick={handleShareClick} className="cursor-pointer">
-            <DirectShareButton compact onModalOpen={() => setDropdownOpen(false)} />
-          </div>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={buttonDisabled}
+      className="min-w-[100px]"
+      onClick={handleNativeShare}
+    >
+      <Share2 className="h-4 w-4 mr-2" />
+      <span>Compartir</span>
+    </Button>
   )
 }
 
