@@ -12,6 +12,7 @@ import MilyLogo from "@/components/mily-logo"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import HeaderBar from "@/components/header-bar"
 import Loader from "@/components/ui/loader"
+import { Card } from "@/components/ui/card"
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("logger")
@@ -56,17 +57,22 @@ export default function HomePage() {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <HeaderBar />
-        <div className="flex-1 flex items-center justify-center p-4">
-          <main className="flex-1 flex items-center justify-center p-4">
-            {/* Aquí iba el contenido de bienvenida */}
-            <div>
-              <h1 className="text-2xl font-bold mb-2">Te damos la bienvenida a Mily</h1>
-              <p className="mb-4 text-gray-600">Lleva un registro ordenado de tus comidas y compartelo con quien necesites..</p>
-              <Button onClick={() => router.push("/login")}>Iniciar sesión</Button>
-              <Button onClick={() => router.push("/register")} variant="outline" className="ml-2">Crear cuenta</Button>
+        <main className="flex-1 flex items-center justify-center px-4">
+          <Card className="w-full max-w-md shadow-lg border border-gray-200">
+            <div className="flex flex-col items-center space-y-6 p-8">
+              <h1 className="text-2xl font-bold text-center text-teal-700">Te damos la bienvenida</h1>
+              <p className="text-center text-gray-600">
+                Con <span className="font-semibold text-teal-600">Mily</span> podrás llevar un registro alimenticio y compartir tu historial.
+              </p>
+              <Button onClick={() => router.push("/login")} className="w-full h-12 text-base font-semibold">
+                Iniciar sesión
+              </Button>
+              <Button onClick={() => router.push("/login?tab=register")} className="w-full h-12 text-base font-semibold" variant="outline">
+                Registrarse
+              </Button>
             </div>
-          </main>
-        </div>
+          </Card>
+        </main>
       </div>
     )
   }

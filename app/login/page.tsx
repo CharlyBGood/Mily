@@ -30,6 +30,16 @@ export default function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const { user } = useAuth()
 
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab");
+  if (tab === "register") {
+    setActiveTab("register");
+  } else {
+    setActiveTab("login");
+  }
+}, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
