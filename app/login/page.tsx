@@ -131,7 +131,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
-      <HeaderBar backHref="/login" />
+      <HeaderBar backHref="/" />
       <main className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">

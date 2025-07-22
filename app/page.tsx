@@ -58,7 +58,13 @@ export default function HomePage() {
         <HeaderBar />
         <div className="flex-1 flex items-center justify-center p-4">
           <main className="flex-1 flex items-center justify-center p-4">
-            <Loader />
+            {/* Aquí iba el contenido de bienvenida */}
+            <div>
+              <h1 className="text-2xl font-bold mb-2">Te damos la bienvenida a Mily</h1>
+              <p className="mb-4 text-gray-600">Lleva un registro ordenado de tus comidas y compartelo con quien necesites..</p>
+              <Button onClick={() => router.push("/login")}>Iniciar sesión</Button>
+              <Button onClick={() => router.push("/register")} variant="outline" className="ml-2">Crear cuenta</Button>
+            </div>
           </main>
         </div>
       </div>
