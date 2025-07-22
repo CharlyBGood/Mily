@@ -57,7 +57,7 @@ export default function HomePage() {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <HeaderBar />
-        <main className="flex-1 flex items-center justify-center px-4">
+        <main className="flex-1 flex items-center justify-center px-4" style={{ minHeight: 'calc(100vh - 64px)' }}>
           <Card className="w-full max-w-md shadow-lg border border-gray-200">
             <div className="flex flex-col items-center space-y-6 p-8">
               <h1 className="text-2xl font-bold text-center text-teal-700">Te damos la bienvenida</h1>
@@ -82,7 +82,6 @@ export default function HomePage() {
       <HeaderBar
         right={
           <>
-            {/* Desktop: icono usuario */}
             <Button
               variant="ghost"
               size="icon"
@@ -92,7 +91,6 @@ export default function HomePage() {
             >
               <User className="h-6 w-6" />
             </Button>
-            {/* Mobile: hamburguesa */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button
@@ -125,9 +123,8 @@ export default function HomePage() {
             </Sheet>
           </>
         }
-      // No mostrar flecha atrás en páginas principales
       />
-      <main className="flex-1 flex flex-col pt-16"> {/* pt-16 para compensar el header fijo */}
+      <main className="flex-1 flex flex-col pt-16">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
           <TabsContent value="logger" className="h-full p-0 m-0">
             <div className="pb-20 sm:pb-6 min-h-full">
@@ -140,7 +137,6 @@ export default function HomePage() {
             </div>
           </TabsContent>
 
-          {/* Mobile Bottom Navigation */}
           <footer className="flex-shrink-0 sm:hidden border-t bg-white fixed bottom-0 left-0 right-0 z-50">
             <div className="pb-safe">
               <TabsList className="w-full grid grid-cols-2 bg-transparent h-auto p-2">
@@ -162,7 +158,6 @@ export default function HomePage() {
             </div>
           </footer>
 
-          {/* Desktop Tab Navigation */}
           <footer className="hidden sm:block flex-shrink-0 border-t bg-white">
             <div className="max-w-7xl mx-auto px-6 py-4">
               <TabsList className="bg-gray-100 p-1">

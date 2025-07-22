@@ -68,14 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const PUBLIC_PATHS = ["/login", "/register", "/forgot-password"];
+    const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/profile", "/profile/settings"];
     if (!loading && user && PUBLIC_PATHS.some(path => pathname.startsWith(path))) {
       router.replace("/");
     }
   }, [user, loading, pathname, router]);
 
-
-  // Function to refresh the session
   const refreshSession = useCallback(async () => {
     try {
       const supabase = getSupabaseClient()
@@ -95,14 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Function to ensure database tables are set up
   const ensureDbSetup = useCallback(async () => {
     if (!user) return false
-
     try {
       const supabase = getSupabaseClient()
-
-      // Check if profiles table exists and has a record for this user
       try {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
@@ -110,7 +104,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("id", user.id)
           .maybeSingle()
 
-        // Si no existe, crearlo con username por defecto
         if (profileError || !profileData) {
           const usernameDefault = user.email?.split("@")[0] || ""
           const { error: insertError } = await supabase.from("profiles").upsert({
@@ -130,7 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error("Error checking profiles:", error)
       }
 
-      // Check if user_settings table exists and has a record for this user
       try {
         const { data: settingsData, error: settingsError } = await supabase
           .from("user_settings")
@@ -138,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq("user_id", user.id)
           .maybeSingle()
 
-        // Si no existe, crearlo con username por defecto y settings default
+
         if (settingsError || !settingsData) {
           const usernameDefault = user.email?.split("@")[0] || ""
           const { error: insertError } = await supabase.from("user_settings").upsert({
@@ -167,7 +159,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user])
 
-  // Initialize auth state
   useEffect(() => {
     let authListener: { subscription: { unsubscribe: () => void } } | null = null;
     let isMounted = true;
@@ -177,7 +168,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("Initializing auth context")
         const supabase = getSupabaseClient()
 
-        // Get initial session
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
 
         if (!isMounted) return;
@@ -195,7 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setFirstSessionChecked(true)
 
-        // Set up auth state change listener only once
         authListener = supabase.auth.onAuthStateChange(async (event, newSession) => {
           console.log("Auth state changed:", event, newSession?.user?.id)
 
@@ -243,7 +232,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true)
@@ -276,7 +264,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Sign up with email and password
   const signUp = async (email: string, password: string) => {
     try {
       setLoading(true)
@@ -299,7 +286,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("Sign up successful:", data)
 
-      // Note: For email confirmation flow, user won't be signed in immediately
       if (data.session) {
         setSession(data.session)
         setUser(data.user)
@@ -316,18 +302,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Sign out
   const signOut = async () => {
     try {
       setLoading(true)
       const supabase = getSupabaseClient()
       await supabase.auth.signOut({ scope: "local" })
 
-      // Clear state
       setSession(null)
       setUser(null)
 
-      // Reset the Supabase client to ensure a clean state
       resetSupabaseClient()
     } catch (err) {
       console.error("Error in signOut:", err)
@@ -337,7 +320,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Reset password
   const resetPassword = async (email: string) => {
     try {
       setLoading(true)
@@ -366,7 +348,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Update password
   const updatePassword = async (password: string) => {
     try {
       setLoading(true)
@@ -395,7 +376,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Update profile
   const updateProfile = async (fields: {
     username?: string | null
     full_name?: string | null
@@ -413,13 +393,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const supabase = getSupabaseClient()
 
-      // Ensure database is set up
       const isDbSetup = await ensureDbSetup()
       if (!isDbSetup) {
         throw new Error("Database setup failed")
       }
 
-      // Update profiles table
       const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: user.id,
@@ -436,7 +414,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: profileError }
       }
 
-      // Update username in user_settings if provided
       if (fields.username) {
         const { error: settingsError } = await supabase
           .from("user_settings")
@@ -445,11 +422,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (settingsError) {
           console.error("Update user_settings error:", settingsError)
-          // Continue anyway, the main profile was updated
         }
       }
 
-      console.log("Profile updated successfully")
       return { success: true, error: null }
     } catch (err) {
       console.error("Error in updateProfile:", err)
@@ -461,7 +436,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Cambia loading a false solo cuando la sesión inicial fue chequeada
   const contextValue = {
     user,
     session,

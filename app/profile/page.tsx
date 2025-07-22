@@ -25,19 +25,12 @@ export default function ProfilePage() {
   const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
-    // Don't redirect immediately, wait for auth to load
     if (loading) return
 
     if (!loading && !user) {
-      router.push("/login");
+      router.push("/");
     };
 
-    if (!user) {
-      router.push("/login")
-      return
-    }
-
-    // Load user profile to get username
     loadUserProfile()
   }, [user, loading, router, retryCount])
 
@@ -48,7 +41,6 @@ export default function ProfilePage() {
       setIsLoadingProfile(true)
       setError(null)
 
-      // Ensure database is set up
       const isDbSetup = await ensureDbSetup()
       if (!isDbSetup) {
         setSetupNeeded(true)
@@ -58,7 +50,6 @@ export default function ProfilePage() {
 
       const supabase = getSupabaseClient()
 
-      // Try to get from profiles table
       try {
         if (!supabase) {
           console.error("Supabase client is not initialized")
@@ -82,7 +73,6 @@ export default function ProfilePage() {
         console.error("Error checking profiles table:", error)
       }
 
-      // If no profile found, try user_settings
       try {
         if (!supabase) {
           console.error("Supabase client is not initialized")
@@ -109,7 +99,6 @@ export default function ProfilePage() {
         console.error("Error checking user_settings table:", error)
       }
 
-      // If we got here, setup is needed
       setSetupNeeded(true)
     } catch (error) {
       console.error("Error loading user profile:", error)
@@ -123,8 +112,7 @@ export default function ProfilePage() {
     setIsSettingUpDatabase(true)
     setError(null)
 
-    try {
-      // Ensure database is set up
+    try {      
       const isDbSetup = await ensureDbSetup()
       if (isDbSetup) {
         router.push("/profile/settings")
@@ -164,16 +152,7 @@ export default function ProfilePage() {
     setRetryCount((prev) => prev + 1)
   }
 
-  // Helper to get current path and query (ya no se usa 'from')
-  const getCurrentPathWithQuery = () => {
-    if (typeof window !== "undefined") {
-      return window.location.pathname + window.location.search;
-    }
-    return "/profile";
-  };
-
-  if (typeof window !== "undefined" && (typeof loading === "undefined" || typeof isLoadingProfile === "undefined")) {
-    // fallback: si por alguna razón loading no está definido, muestra spinner
+  if (typeof window !== "undefined" && (typeof loading === "undefined" || typeof isLoadingProfile === "undefined")) {    
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
         <header className="p-4 border-b bg-white flex items-center">
