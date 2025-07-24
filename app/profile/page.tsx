@@ -10,12 +10,12 @@ import MilyLogo from "@/components/mily-logo"
 import { ArrowLeft, LogOut, Settings, AlertCircle, Database, RefreshCw } from "lucide-react"
 import { getSupabaseClient } from "@/lib/supabase-client"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import HeaderBar from "@/components/header-bar"
 
 export default function ProfilePage() {
-  const { user, signOut, refreshSession, ensureDbSetup, loading } = useAuth()
+  const { user, signOut, ensureDbSetup, loading } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
-  // Eliminado useSearchParams y from
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
@@ -112,7 +112,7 @@ export default function ProfilePage() {
     setIsSettingUpDatabase(true)
     setError(null)
 
-    try {      
+    try {
       const isDbSetup = await ensureDbSetup()
       if (isDbSetup) {
         router.push("/profile/settings")
@@ -152,67 +152,15 @@ export default function ProfilePage() {
     setRetryCount((prev) => prev + 1)
   }
 
-  if (typeof window !== "undefined" && (typeof loading === "undefined" || typeof isLoadingProfile === "undefined")) {    
-    return (
-      <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => {
-            router.push("/");
-          }} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo />
-          </div>
-          <div className="w-10"></div>
-        </header>
-        <main className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-        </main>
-      </div>
-    )
-  }
-
-  if ((typeof loading !== "undefined" && loading) || (typeof isLoadingProfile !== "undefined" && isLoadingProfile)) {
-    return (
-      <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={() => {
-            router.push("/");
-          }} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo className="w-24 h-auto" />
-          </div>
-          <div className="w-10"></div>
-        </header>
-        <main className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-        </main>
-      </div>
-    )
-  }
-
   if (!user) {
     return null;
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-neutral-50">
-      <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={() => {
-          router.push("/");
-        }} className="mr-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1 flex justify-center">
-          <MilyLogo />
-        </div>
-        <div className="w-10"></div> {/* Spacer for centering */}
-      </header>
+      <HeaderBar backHref="/" ariaLabel="Volver" />
 
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main className="flex-1 flex items-center justify-center pt-16 p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Perfil de usuario</CardTitle>

@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import HeaderBar from "@/components/header-bar"
 
 interface UserSettings {
   username: string
@@ -414,7 +415,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
       return
     }
 
-    // If username is the same as original, it's available
     if (username === originalSettings.username) {
       setUsernameError(null)
       setUsernameAvailable(true)
@@ -423,8 +423,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
 
     try {
       const supabase = getSupabaseClient()
-
-      // Check if username exists in user_settings
       try {
         if (!supabase) {
           throw new Error("Supabase client is not initialized")
@@ -445,7 +443,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
         console.error("Error checking username in user_settings:", error)
       }
 
-      // Check if username exists in profiles
       try {
         if (!supabase) {
           throw new Error("Supabase client is not initialized")
@@ -466,7 +463,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
         console.error("Error checking username in profiles:", error)
       }
 
-      // If we got here, username is available
       setUsernameError(null)
       setUsernameAvailable(true)
     } catch (error) {
@@ -479,12 +475,10 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
   const handleUsernameChange = (value: string) => {
     setSettings({ ...settings, username: value })
 
-    // Clear previous timeout
     if (usernameCheckTimeout) {
       clearTimeout(usernameCheckTimeout)
     }
 
-    // Set new timeout to check username availability
     const timeout = setTimeout(() => {
       checkUsernameAvailability(value)
     }, 500)
@@ -501,7 +495,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
     setSettings({ ...settings, cycleStartDay: dayValue })
   }
 
-  // Cuando el usuario guarda settings, notifica a otras pestañas y fuerza recarga de ciclos
   const saveSettings = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -511,7 +504,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
       if (!supabase) throw new Error("Supabase client is not initialized")
       if (!user) throw new Error("Usuario no autenticado")
 
-      // Update user_settings table
       try {
         const upsertPayload = {
           user_id: user.id,
@@ -530,13 +522,13 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
           console.error("Error saving settings:", settingsError)
           throw settingsError
         }
-        // Esperar un pequeño delay para asegurar que la base de datos refleje el cambio
+
         await new Promise(res => setTimeout(res, 350));
       } catch (error) {
         console.error("Error upserting user_settings:", error)
         throw error
       }
-      // Also update the profiles table to keep username in sync
+
       if (settings.username) {
         try {
           const { error: profileError } = await supabase.from("profiles").upsert(
@@ -554,22 +546,22 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
           console.error("Error upserting profile:", error)
         }
       }
-      // Limpia cache de ciclo-utils si existe
+
       try {
         const cycleUtils = await import("@/lib/cycle-utils")
         if (typeof cycleUtils.clearCycleSettingsCache === "function") {
           cycleUtils.clearCycleSettingsCache(user.id)
         }
       } catch (error) {
-        // Silenciar error
+        console.error("Error clearing cycle settings cache:", error);
       }
-      // Forzar recarga de settings en esta pestaña y notificar a otras
+
       await loadUserSettings()
       console.log('[UserProfileSettings] Guardado: llamando reloadSettings()')
-      await reloadSettings() // <--- ACTUALIZA EL CONTEXTO GLOBAL
-      console.log('[UserProfileSettings] Guardado: disparando evento localStorage cycleSettingsUpdated')
+      await reloadSettings()
+
       localStorage.setItem("cycleSettingsUpdated", Date.now().toString())
-      // Notificar a otras rutas internas de la SPA (custom event)
+
       window.dispatchEvent(new Event("cycleSettingsUpdatedInternal"));
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 2000)
@@ -589,7 +581,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
     }
   }
 
-  // Eliminar cuenta y todos los datos asociados
   type DeleteState = "idle" | "loading" | "success" | "error"
   const [deleteState, setDeleteState] = useState<DeleteState>("idle")
 
@@ -599,18 +590,12 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
     try {
       const supabase = getSupabaseClient()
       if (!supabase) throw new Error("Supabase client is not initialized")
-      // 1. Eliminar datos custom del usuario
-      // Borra primero de tablas hijas si hay relaciones
+
       await supabase.from("user_settings").delete().eq("user_id", user.id)
       await supabase.from("profiles").delete().eq("id", user.id)
-      // Si tienes más tablas relacionadas, agrégalas aquí
-      // 2. Eliminar usuario de auth (requiere privilegios de servicio)
-      // Si tienes una función RPC protegida para esto, llama aquí
-      // Si no, usa el método de signOut y deja el usuario huérfano (menos ideal)
-      // Aquí intentamos signOut y borrado de sesión
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
-      // Redirige a login y muestra toast
+      
       setDeleteState("success")
       toast({
         title: "Cuenta eliminada",
@@ -630,24 +615,15 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
     }
   }
 
-  // Navegación simplificada
   const handleBack = () => {
-    router.push("/"); // Vuelve a la home
+    router.push("/"); 
   }
 
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo />
-          </div>
-          <div className="w-10"></div>
-        </header>
-        <main className="flex-1 flex items-center justify-center">
+        <HeaderBar backHref="/profile" ariaLabel="Volver al perfil" />
+        <main className="flex-1 flex items-center justify-center pt-16">
           <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
         </main>
       </div>
@@ -657,16 +633,8 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
   if (setupNeeded) {
     return (
       <div className="flex flex-col min-h-screen bg-neutral-50">
-        <header className="p-4 border-b bg-white flex items-center">
-          <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1 flex justify-center">
-            <MilyLogo />
-          </div>
-          <div className="w-10"></div>
-        </header>
-        <main className="flex-1 flex items-center justify-center p-4">
+        <HeaderBar backHref="/profile" ariaLabel="Volver al perfil" />
+        <main className="flex-1 flex items-center justify-center pt-16 p-4">
           <Card className="max-w-md mx-auto w-full">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -713,17 +681,9 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
-      <header className="p-4 border-b bg-white flex items-center">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="mr-2">
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1 flex justify-center">
-          <MilyLogo />
-        </div>
-        <div className="w-10"></div>
-      </header>
+      <HeaderBar backHref="/profile" ariaLabel="Volver al perfil" />
 
-      <main className="flex-1 p-4">
+      <main className="flex-1 pt-16 p-4">
         {loadError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
