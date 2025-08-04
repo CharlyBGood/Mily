@@ -83,11 +83,19 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Solo la foto y el tipo de comida son obligatorios
-    if (!meal.photo_url || !mealType) {
+    // Eliminar validación de foto obligatoria
+    // if (!meal.photo_url || !mealType) {
+    //   toast({
+    //     title: "Campos requeridos",
+    //     description: "Debes agregar una foto y seleccionar el tipo de comida",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
+    if (!mealType) {
       toast({
-        title: "Campos requeridos",
-        description: "Debes agregar una foto y seleccionar el tipo de comida",
+        title: "Tipo de comida requerido",
+        description: "Por favor selecciona el tipo de comida",
         variant: "destructive",
       })
       return
@@ -137,10 +145,53 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
 
       <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
         <CardContent className="p-0">
-          {/* Siempre mostrar solo la foto existente, nunca permitir cambiarla ni subir una nueva */}
-          <div className="bg-white flex justify-center w-full">
-            <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full" />
-          </div>
+          {(!meal.photo_url && !photoPreview) ? (
+            <div
+              className="flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] sm:min-h-[180px] p-4 sm:p-6 cursor-pointer"
+              onClick={triggerFileInput}
+            >
+              <Camera className="h-10 w-10 sm:h-12 sm:w-12 mb-2 text-neutral-400" />
+              <p className="text-center text-sm sm:text-base text-neutral-500">
+                Toca para añadir una foto de tu comida
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
+                onClick={triggerFileInput}
+              >
+                Añadir foto
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoCapture}
+                ref={fileInputRef}
+              />
+            </div>
+          ) : (
+            <div className="bg-white relative flex justify-center w-full">
+              <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full max-h-72 sm:max-h-80" />
+              <Button
+                variant="outline"
+                size="sm"
+                className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
+                onClick={triggerFileInput}
+              >
+                {meal.photo_url ? "Cambiar" : "Añadir foto"}
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoCapture}
+                ref={fileInputRef}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

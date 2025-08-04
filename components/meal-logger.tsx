@@ -193,15 +193,16 @@ export default function MealLogger() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!photo) {
-      setPhotoRequired("Por favor agrega una foto de tu comida")
-      toast({
-        title: "Foto requerida",
-        description: "Por favor agrega una foto de tu comida",
-        variant: "destructive",
-      })
-      return
-    }
+    // Eliminar validación de foto obligatoria
+    // if (!photo) {
+    //   setPhotoRequired("Por favor agrega una foto de tu comida")
+    //   toast({
+    //     title: "Foto requerida",
+    //     description: "Por favor agrega una foto de tu comida",
+    //     variant: "destructive",
+    //   })
+    //   return
+    // }
 
     if (!mealType) {
       toast({
