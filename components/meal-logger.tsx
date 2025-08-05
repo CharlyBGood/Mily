@@ -297,9 +297,9 @@ export default function MealLogger() {
             {/* Photo section */}
             <div className="mb-4 sm:mb-6">
               <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
-                Foto <span className="text-red-500">*</span>
+                Foto
               </Label>
-              <Card className={`mb-4 overflow-hidden w-full ${photoRequired ? "border-red-500" : ""}`}>
+              <Card className={`mb-4 overflow-hidden w-full`}>
                 <CardContent className="p-0">
                   {photoPreview ? (
                     <div className="bg-white relative flex justify-center w-full">
@@ -319,20 +319,13 @@ export default function MealLogger() {
                     </div>
                   ) : (
                     <div
-                      className={`flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] sm:min-h-[180px] p-4 sm:p-6 cursor-pointer ${photoRequired ? "bg-red-50" : ""}`}
+                      className="flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] sm:min-h-[180px] p-4 sm:p-6 cursor-pointer"
                       onClick={triggerFileInput}
                     >
-                      <Camera
-                        className={`h-10 w-10 sm:h-12 sm:w-12 mb-2 ${photoRequired ? "text-red-400" : "text-neutral-400"}`}
-                      />
-                      <p
-                        className={`text-center text-sm sm:text-base ${photoRequired ? "text-red-500 font-medium" : "text-neutral-500"}`}
-                      >
-                        {photoRequired || "Toca para tomar una foto de tu comida"}
+                      <Camera className="h-10 w-10 sm:h-12 sm:w-12 mb-2 text-neutral-400" />
+                      <p className="text-center text-sm sm:text-base text-neutral-500">
+                        Toca para tomar una foto de tu comida
                       </p>
-                      {photoRequired && (
-                        <p className="text-red-500 text-xs sm:text-sm mt-1">Este campo es obligatorio</p>
-                      )}
                     </div>
                   )}
                   <input

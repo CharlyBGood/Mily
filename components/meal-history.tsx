@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
@@ -43,6 +43,7 @@ export default function MealHistory() {
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [editingCycleRange, setEditingCycleRange] = useState<{ start: string; end: string } | null>(null);
 
   // LOG: Render principal
 
@@ -162,7 +163,7 @@ export default function MealHistory() {
 
   // Renderizado
   if (editingMeal) {
-    return <MealEditor meal={editingMeal} onCancel={handleEditCancel} onSaved={handleEditSaved} />
+    return <MealEditor meal={editingMeal} onCancel={() => { setEditingMeal(null); setEditingCycleRange(null); }} onSaved={handleEditSaved} cycleRange={editingCycleRange ?? undefined} />
   }
   if (!mounted) {
     return (
@@ -388,6 +389,52 @@ export default function MealHistory() {
                     onEditMeal={handleEditClick}
                     onExpand={handleCycleExpand}
                     isExpanded={expandedCycle === cycle.cycleNumber}
+                    // Agregar icono + para agregar registro
+                    addButton={
+                      <>
+                        {/* Mobile: solo icono */}
+                        <Plus
+                          className="w-7 h-7 text-teal-600 cursor-pointer sm:hidden ml-2 drop-shadow"
+                          aria-label="Agregar registro"
+                          onClick={() => {
+                            setEditingMeal({
+                              id: undefined,
+                              user_id: undefined,
+                              description: "",
+                              meal_type: "" as Meal["meal_type"],
+                              notes: "",
+                              photo_url: undefined,
+                              created_at: cycle.startDate,
+                              updated_at: undefined,
+                            });
+                            setEditingCycleRange({ start: cycle.startDate, end: cycle.endDate });
+                          }}
+                        />
+                        {/* Desktop: botón con icono y texto */}
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="ml-2 hidden sm:flex items-center bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-sm"
+                          onClick={() => {
+                            setEditingMeal({
+                              id: undefined,
+                              user_id: undefined,
+                              description: "",
+                              meal_type: "" as Meal["meal_type"],
+                              notes: "",
+                              photo_url: undefined,
+                              created_at: cycle.startDate,
+                              updated_at: undefined,
+                            });
+                            setEditingCycleRange({ start: cycle.startDate, end: cycle.endDate });
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Agregar registro
+                        </Button>
+                      </>
+                    }
+                    onAddMeal={undefined}
                   />
                 ))}
             </div>

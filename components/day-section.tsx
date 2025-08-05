@@ -106,7 +106,7 @@ export default function DaySection({
                   {isToday && <Badge className="bg-teal-500 text-white text-xs px-2 py-1">Hoy</Badge>}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 ml-6">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
                     <span>

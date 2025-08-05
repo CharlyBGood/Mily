@@ -22,9 +22,10 @@ interface MealEditorProps {
   meal: Meal
   onCancel: () => void
   onSaved: () => void
+  cycleRange?: { start: string; end: string }
 }
 
-export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps) {
+export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: MealEditorProps) {
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(meal.photo_url || null)
   const [description, setDescription] = useState(meal.description || "")
@@ -36,6 +37,8 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
   const [currentTime, setCurrentTime] = useState("")
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [originalDate, setOriginalDate] = useState<string>("")
+  const [date, setDate] = useState(meal.created_at ? meal.created_at.slice(0, 16) : "")
+  const [dateError, setDateError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const router = useRouter()
@@ -80,18 +83,24 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
     fileInputRef.current?.click()
   }
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDate(e.target.value)
+    setDateError(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    // Eliminar validación de foto obligatoria
-    // if (!meal.photo_url || !mealType) {
-    //   toast({
-    //     title: "Campos requeridos",
-    //     description: "Debes agregar una foto y seleccionar el tipo de comida",
-    //     variant: "destructive",
-    //   })
-    //   return
-    // }
+    // Validar fecha si es nuevo registro y hay rango
+    if (!meal.id && cycleRange) {
+      const selected = new Date(date)
+      const start = new Date(cycleRange.start)
+      const end = new Date(cycleRange.end)
+      if (selected < start || selected > end) {
+        setDateError("La fecha debe estar dentro del ciclo seleccionado")
+        return
+      }
+    }
+    // Validar tipo de comida
     if (!mealType) {
       toast({
         title: "Tipo de comida requerido",
@@ -104,15 +113,14 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
     setIsSubmitting(true)
 
     try {
-      // Nunca permitir cambiar la foto en edición
       const updatedMeal: Meal = {
         ...meal,
         description: description || "",
         meal_type: mealType as MealType,
-        photo_url: meal.photo_url,
+        photo_url: photoPreview || meal.photo_url,
         notes: notes || "",
+        created_at: !meal.id ? new Date(date).toISOString() : meal.created_at,
       }
-
       await addOrUpdateMeal(updatedMeal)
 
       toast({
@@ -140,7 +148,7 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
           <ArrowLeft className="h-4 w-4 mr-1" />
           <span>Volver</span>
         </Button>
-        <h2 className="text-lg font-medium">Editar comida</h2>
+        <h2 className="text-lg font-medium">{meal.id ? "Editar comida" : "Agregar comida"}</h2>
       </div>
 
       <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
@@ -194,15 +202,30 @@ export default function MealEditor({ meal, onCancel, onSaved }: MealEditorProps)
           )}
         </CardContent>
       </Card>
-
-      {storageWarning && (
+      {dateError && (
         <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{storageWarning}</AlertDescription>
+          <AlertDescription>{dateError}</AlertDescription>
         </Alert>
       )}
-
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Campo de fecha editable solo si es nuevo registro */}
+        {!meal.id && (
+          <div className="space-y-2">
+            <Label htmlFor="date" className="text-base">Fecha y hora</Label>
+            <Input
+              id="date"
+              type="datetime-local"
+              value={date}
+              onChange={handleDateChange}
+              className="text-base"
+              min={cycleRange?.start?.slice(0, 16)}
+              max={cycleRange?.end?.slice(0, 16)}
+              required
+            />
+          </div>
+        )}
+
         {mounted && originalDate && (
           <div className="text-base text-neutral-500 mb-2 font-medium">Fecha original: {originalDate}</div>
         )}

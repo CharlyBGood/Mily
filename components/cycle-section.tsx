@@ -21,6 +21,8 @@ interface CycleSectionProps {
   showEditButton?: boolean
   showDeleteButton?: boolean
   isSharedView?: boolean
+  onAddMeal?: (cycle: CycleGroup) => void
+  addButton?: React.ReactNode
 }
 
 export default function CycleSection({
@@ -32,6 +34,8 @@ export default function CycleSection({
   showEditButton = true,
   showDeleteButton = true,
   isSharedView = false,
+  onAddMeal,
+  addButton,
 }: CycleSectionProps) {
   const [mounted, setMounted] = useState(false)
   const [formattedDateRange, setFormattedDateRange] = useState(cycle.displayDateRange)
@@ -104,17 +108,18 @@ export default function CycleSection({
                   <h3 className="text-lg font-semibold text-gray-900 truncate">{formattedDateRange}</h3>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 ml-11">
+                <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
                   <Badge variant="secondary" className="bg-teal-50 text-teal-700 border-teal-200 px-2 py-1">
                     {totalMeals} comidas
                   </Badge>
-
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
                     <span>
                       {activeDays}/{cycle.days.length} días
                     </span>
                   </div>
+                  {/* Botón agregar registro aquí */}
+                  {addButton}
                 </div>
               </div>
 
