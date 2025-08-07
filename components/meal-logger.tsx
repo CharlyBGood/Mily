@@ -294,9 +294,8 @@ export default function MealLogger() {
           }}
         >
           <div className="max-w-md mx-auto px-3 sm:px-4 pt-4">
-            {/* Photo section */}
             <div className="mb-4 sm:mb-6">
-              <Label className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
+              <Label htmlFor="photo" className="block text-sm sm:text-base font-medium text-gray-700 mb-2">
                 Foto
               </Label>
               <Card className={`mb-4 overflow-hidden w-full`}>
@@ -329,6 +328,8 @@ export default function MealLogger() {
                     </div>
                   )}
                   <input
+                    id="photo"
+                    name="photo"
                     type="file"
                     accept="image/*"
                     capture="environment"
@@ -354,12 +355,11 @@ export default function MealLogger() {
                 </div>
               )}
 
-              {/* Meal type selection */}
               <div className="space-y-2">
                 <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
                   Tipo de comida
                 </Label>
-                <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
+                <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required name="mealType">
                   <SelectTrigger id="meal-type" className="text-sm sm:text-base h-11 sm:h-12">
                     <SelectValue placeholder="Selecciona el tipo de comida" />
                   </SelectTrigger>
@@ -400,7 +400,6 @@ export default function MealLogger() {
                 )}
               </div>
 
-              {/* Description input */}
               <div className="space-y-2">
                 <Label htmlFor="description" className="block text-sm sm:text-base font-medium text-gray-700">
                   Descripción <span className="text-gray-400">(opcional)</span>
@@ -414,7 +413,6 @@ export default function MealLogger() {
                 />
               </div>
 
-              {/* Notes textarea */}
               <div className="space-y-2">
                 <Label htmlFor="notes" className="text-sm sm:text-base font-medium">
                   Notas adicionales (opcional)
@@ -429,7 +427,6 @@ export default function MealLogger() {
                 />
               </div>
 
-              {/* Submit button - adaptive positioning */}
               <div className={`${isKeyboardVisible ? "mt-4" : "mt-6"}`}>
                 <Button
                   type="submit"
@@ -447,7 +444,6 @@ export default function MealLogger() {
           </div>
         </div>
 
-        {/* Fixed button overlay for keyboard mode on iOS */}
         {isKeyboardVisible && (
           <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 ios-keyboard-overlay">
             <div className="max-w-md mx-auto">

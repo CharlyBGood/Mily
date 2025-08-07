@@ -182,11 +182,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setFirstSessionChecked(true)
 
         authListener = supabase.auth.onAuthStateChange(async (event, newSession) => {
-
           if (!isMounted) return;
 
           setSession(prevSession => {
-
             if (!prevSession && newSession || prevSession && newSession && prevSession.access_token !== newSession.access_token) {
               setUser(newSession?.user || null);
               return newSession;
@@ -195,24 +193,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
 
           if (!newSession) {
-            return setUser(null);
+            setSession(null);
+            setUser(null);
+            setFirstSessionChecked(true);
+            setLoading(false);
+            return;
           }
 
+          setSession(newSession);
+          setUser(newSession.user);
+          setFirstSessionChecked(true);
           setLoading(false);
-
-          if (newSession) {
-            setSession(newSession)
-            setUser(newSession.user)
-          } else {
-            setSession(null)
-            setUser(null)
-          }
-
-          setLoading(false)
         }).data;
       } catch (err) {
         console.error("Error in auth initialization:", err)
         setError(err instanceof Error ? err : new Error(String(err)))
+        setFirstSessionChecked(true) // <-- Asegura que el loader desaparezca aunque haya error
         setLoading(false)
       }
     }
