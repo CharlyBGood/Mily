@@ -23,12 +23,11 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
   const [loaded, setLoaded] = useState(false)
   const [version, setVersion] = useState(0) // Para forzar rerender
   const lastUserIdRef = useRef<string | null>(null)
-  const lastSettingsRef = useRef<{cycleStartDay: number, cycleDuration: number, sweetDessertLimit: number} | null>(null)
+  const lastSettingsRef = useRef<{ cycleStartDay: number, cycleDuration: number, sweetDessertLimit: number } | null>(null)
 
   const reloadSettings = async () => {
     if (!user) return
     try {
-      console.log('[CycleSettingsContext] reloadSettings: solicitando settings para user', user.id)
       const settings = await getUserCycleSettings(user.id)
       setCycleStartDay(Number(settings.cycleStartDay))
       setCycleDuration(settings.cycleDuration)
@@ -40,15 +39,13 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
         setVersion(v => v + 1)
         lastSettingsRef.current = settings
       }
-      console.log('[CycleSettingsContext] reloadSettings: nuevos valores', settings)
     } catch (e) {
       setCycleStartDay(1)
       setCycleDuration(7)
       setSweetDessertLimit(3)
       setLoaded(true)
       setVersion(v => v + 1)
-      lastSettingsRef.current = {cycleStartDay: 1, cycleDuration: 7, sweetDessertLimit: 3}
-      console.log('[CycleSettingsContext] reloadSettings: error, valores por defecto', e)
+      lastSettingsRef.current = { cycleStartDay: 1, cycleDuration: 7, sweetDessertLimit: 3 }
     }
   }
 
@@ -61,7 +58,6 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
     // Escucha storage para sincronizar entre pestañas
     const handler = (e: StorageEvent) => {
       if (e.key === "cycleSettingsUpdated") {
-        console.log('[CycleSettingsContext] Evento storage: cycleSettingsUpdated detectado, recargando settings')
         reloadSettings()
       }
     }
@@ -78,7 +74,7 @@ export const CycleSettingsProvider = ({ children }: { children: ReactNode }) => 
       setCycleDuration: (d) => setCycleDuration(d),
       reloadSettings,
       loaded,
-      version // Nuevo: para forzar reactividad en consumidores
+      version
     }}>
       {children}
     </CycleSettingsContext.Provider>

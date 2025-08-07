@@ -165,7 +165,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       try {
-        console.log("Initializing auth context")
         const supabase = getSupabaseClient()
 
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
@@ -176,17 +175,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error("Error getting session:", sessionError)
           setError(sessionError)
         } else if (sessionData?.session) {
-          console.log("Session found:", sessionData.session.user.id)
           setSession(sessionData.session)
           setUser(sessionData.session.user)
-        } else {
-          console.log("No session found")
         }
 
         setFirstSessionChecked(true)
 
         authListener = supabase.auth.onAuthStateChange(async (event, newSession) => {
-          console.log("Auth state changed:", event, newSession?.user?.id)
 
           if (!isMounted) return;
 
@@ -249,7 +244,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error }
       }
 
-      console.log("Sign in successful:", data.user?.id)
       setSession(data.session)
       setUser(data.user)
 
@@ -283,8 +277,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(error)
         return { success: false, error }
       }
-
-      console.log("Sign up successful:", data)
 
       if (data.session) {
         setSession(data.session)
@@ -336,7 +328,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error }
       }
 
-      console.log("Password reset email sent to:", email)
       return { success: true, error: null }
     } catch (err) {
       console.error("Error in resetPassword:", err)
@@ -363,8 +354,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(error)
         return { success: false, error }
       }
-
-      console.log("Password updated successfully")
       return { success: true, error: null }
     } catch (err) {
       console.error("Error in updatePassword:", err)

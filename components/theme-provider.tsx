@@ -20,13 +20,11 @@ const ThemeProviderContext = createContext<{
 })
 
 export function ThemeProvider({ children, defaultTheme = "light", attribute = "class", ...props }: ThemeProviderProps) {
-  // Use state with no initial value to prevent hydration mismatch
   const [theme, setTheme] = useState<Theme | null>(null)
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
-    // Get stored theme or default to light
     const storedTheme = localStorage.getItem("theme") as Theme
     setTheme(storedTheme || defaultTheme)
   }, [defaultTheme])
@@ -36,10 +34,8 @@ export function ThemeProvider({ children, defaultTheme = "light", attribute = "c
 
     const root = window.document.documentElement
 
-    // Remove all theme classes
     root.classList.remove("light", "dark")
 
-    // Add the current theme class
     if (theme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
       root.classList.add(systemTheme)
@@ -49,7 +45,6 @@ export function ThemeProvider({ children, defaultTheme = "light", attribute = "c
       root.style.colorScheme = theme
     }
 
-    // Save theme to localStorage
     localStorage.setItem("theme", theme)
   }, [theme, isMounted])
 
@@ -60,7 +55,6 @@ export function ThemeProvider({ children, defaultTheme = "light", attribute = "c
     },
   }
 
-  // Only render context provider after mounting to avoid hydration mismatch
   if (!isMounted) {
     return <>{children}</>
   }

@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/card"
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState("logger")
   const [mounted, setMounted] = useState(false)
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -36,7 +36,8 @@ export default function HomePage() {
     setActiveTab(value)
   }
 
-  if (!mounted) {
+
+  if (!mounted || loading) {
     return (
       <div className="flex flex-col h-screen bg-gray-50">
         <header className="flex-shrink-0 bg-white border-b border-gray-200">

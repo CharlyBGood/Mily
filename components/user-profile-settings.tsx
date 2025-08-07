@@ -121,14 +121,10 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
     try {
       const supabase = getSupabaseClient()
 
-      // LOG: Mostrar el valor de user.email y el resultado de split
-      console.log('[setupDatabase] user.email:', user.email)
       const usernameDefault = typeof user.email === 'string' && user.email.includes('@')
         ? user.email.split('@')[0]
         : '';
-      console.log('[setupDatabase] usernameDefault (antes de upsert):', usernameDefault)
 
-      // Create tables if they don't exist
       const setupSql = `
       -- Create profiles table
       CREATE TABLE IF NOT EXISTS public.profiles (
@@ -512,12 +508,10 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
           cycle_start_day: settings.cycleStartDay,
           sweet_dessert_limit: settings.sweetDessertLimit,
         };
-        console.log('[UserProfileSettings] Payload enviado a upsert user_settings:', upsertPayload);
         const { data: upsertData, error: settingsError } = await supabase.from("user_settings").upsert(
           [upsertPayload],
           { onConflict: "user_id" },
         );
-        console.log('[UserProfileSettings] Respuesta upsert user_settings:', { upsertData, settingsError });
         if (settingsError) {
           console.error("Error saving settings:", settingsError)
           throw settingsError
@@ -557,7 +551,6 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
       }
 
       await loadUserSettings()
-      console.log('[UserProfileSettings] Guardado: llamando reloadSettings()')
       await reloadSettings()
 
       localStorage.setItem("cycleSettingsUpdated", Date.now().toString())
@@ -595,7 +588,7 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
       await supabase.from("profiles").delete().eq("id", user.id)
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
-      
+
       setDeleteState("success")
       toast({
         title: "Cuenta eliminada",
@@ -616,7 +609,7 @@ export default function UserProfileSettings({ }: UserProfileSettingsProps) {
   }
 
   const handleBack = () => {
-    router.push("/"); 
+    router.push("/");
   }
 
   if (isLoading) {

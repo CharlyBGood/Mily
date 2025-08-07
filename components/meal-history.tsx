@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Filter, Plus } from "lucide-react"
+import { RefreshCw, Database, LayoutGrid, List, Calendar, AlertCircle, Settings, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { Meal } from "@/lib/types"
 import { groupMealsByDay } from "@/lib/utils"
@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent } from "@/components/ui/card"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import ShareDropdown from "./share-dropdown"
 import { useCycleSettings } from "@/lib/cycle-settings-context"
 import { useMealContext } from "@/lib/meal-context"
@@ -45,41 +44,14 @@ export default function MealHistory() {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const [editingCycleRange, setEditingCycleRange] = useState<{ start: string; end: string } | null>(null);
 
-  // LOG: Render principal
-
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // LOG: Cambios en settings de ciclo
-  useEffect(() => {
-    console.log("[MealHistory] Cambiaron settings de ciclo", {
-      cycleStartDay,
-      cycleDuration,
-      loaded,
-      version
-    });
-  }, [cycleStartDay, cycleDuration, loaded, version]);
-
-  // LOG: Cambios en usuario
-  useEffect(() => {
-    console.log("[MealHistory] Cambió usuario", user);
-  }, [user]);
-
-  useEffect(() => {
-    console.log('[MealHistory] meals changed', {
-      mealsCount: Array.isArray(meals) ? meals.length : 'N/A',
-      time: new Date().toISOString(),
-    });
-  }, [meals]);
-
-  // Agrupación reactiva
   const safeMeals = Array.isArray(meals) ? meals : [];
-  // Forzar reagrupar cuando version cambia
   const groupedMeals = groupMealsByDay(safeMeals);
   const cycleGroups = groupMealsByCycle(safeMeals, cycleDuration, cycleStartDay);
 
-  // Handlers
   const handleDeleteMeal = async (meal: Meal) => {
     if (!meal.id) return;
     try {
@@ -98,7 +70,6 @@ export default function MealHistory() {
   };
 
   const handleRefresh = () => {
-    console.log('[MealHistory] handleRefresh called', { time: new Date().toISOString() });
     refresh();
   };
 
@@ -138,21 +109,17 @@ export default function MealHistory() {
     }
   };
 
-  // Recarga settings si viene de settings (query param)
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("settingsUpdated") === "1") {
       reloadSettings();
-      // Limpia el query param para evitar loops
       const params = new URLSearchParams(window.location.search);
       params.delete("settingsUpdated");
       router.replace(window.location.pathname + (params.toString() ? `?${params}` : ""));
     }
   }, [reloadSettings, router]);
 
-  // Sincronización de settings entre rutas internas (SPA)
   useEffect(() => {
     const handleSettingsUpdate = () => {
-      console.log('[MealHistory] Recibido evento cycleSettingsUpdatedInternal, recargando settings');
       if (typeof reloadSettings === 'function') reloadSettings();
     };
     window.addEventListener('cycleSettingsUpdatedInternal', handleSettingsUpdate);
@@ -161,7 +128,6 @@ export default function MealHistory() {
     };
   }, [reloadSettings]);
 
-  // Renderizado
   if (editingMeal) {
     return <MealEditor meal={editingMeal} onCancel={() => { setEditingMeal(null); setEditingCycleRange(null); }} onSaved={handleEditSaved} cycleRange={editingCycleRange ?? undefined} />
   }
@@ -182,7 +148,6 @@ export default function MealHistory() {
     )
   }
   if (!user) {
-    console.log('[MealHistory] No user detected, showing login', { time: new Date().toISOString() });
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center">
         <Card className="p-6 max-w-sm mx-auto w-full bg-white border border-gray-200">
@@ -389,10 +354,8 @@ export default function MealHistory() {
                     onEditMeal={handleEditClick}
                     onExpand={handleCycleExpand}
                     isExpanded={expandedCycle === cycle.cycleNumber}
-                    // Agregar icono + para agregar registro
                     addButton={
                       <>
-                        {/* Mobile: solo icono */}
                         <Plus
                           className="w-7 h-7 text-teal-600 cursor-pointer sm:hidden ml-2 drop-shadow"
                           aria-label="Agregar registro"

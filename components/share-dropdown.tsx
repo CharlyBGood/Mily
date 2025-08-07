@@ -6,14 +6,6 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Share2 } from "lucide-react"
 import type { Meal } from "@/lib/types"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu"
-import DirectShareButton from "@/components/direct-share-button"
 
 interface ShareDropdownProps {
   meals: Meal[]
@@ -33,10 +25,9 @@ export function ShareDropdown({ meals, disabled = false }: ShareDropdownProps) {
           url,
         })
       } catch (err) {
-        // Si el usuario cancela o hay error, no hacer nada
+        console.error("Error sharing via native share:", err);
       }
     } else {
-      // Fallback: abrir el modal actual
       setDropdownOpen(true)
     }
   }

@@ -2,44 +2,52 @@
 // Cycle-related utilities  (mobile-first refactor - production build)
 // -------------------------------------------------------------------------------------------------
 
-import type { Meal } from "@/lib/types"
+import type { Meal } from "@/lib/types";
 // import { getSupabaseClient } from "@/lib/supabase-client"  // ← Uncomment when real settings fetch
 
 // ---------- Types --------------------------------------------------------------------------------
 
 export interface CycleSettings {
-  cycleDuration: number // days in a cycle
-  cycleStartDay: number // 0-6  (0 = Sunday)
-  sweetDessertLimit: number // allowed “postre1” per cycle
+  cycleDuration: number; // days in a cycle
+  cycleStartDay: number; // 0-6  (0 = Sunday)
+  sweetDessertLimit: number; // allowed “postre1” per cycle
 }
 
 export interface CycleInfo {
-  cycleNumber: number
-  startDate: Date
-  endDate: Date
-  progress: number // 0-1 (percentage of cycle completed)
+  cycleNumber: number;
+  startDate: Date;
+  endDate: Date;
+  progress: number; // 0-1 (percentage of cycle completed)
 }
 
 export interface CycleGroupDay {
-  date: string // YYYY-MM-DD
-  displayDate: string // Lunes 1 Ene, …
-  meals: Meal[]
+  date: string; // YYYY-MM-DD
+  displayDate: string; // Lunes 1 Ene, …
+  meals: Meal[];
 }
 
 export interface CycleGroup {
-  cycleNumber: number
-  startDate: string // YYYY-MM-DD
-  endDate: string // YYYY-MM-DD
-  displayDateRange: string // Ciclo 1: 01 Ene – 07 Ene
-  days: CycleGroupDay[]
+  cycleNumber: number;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  displayDateRange: string; // Ciclo 1: 01 Ene – 07 Ene
+  days: CycleGroupDay[];
 }
 
 // ---------- Internal helpers ---------------------------------------------------------------------
 
-const DAYS_ES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+const DAYS_ES = [
+  "Domingo",
+  "Lunes",
+  "Martes",
+  "Miércoles",
+  "Jueves",
+  "Viernes",
+  "Sábado",
+];
 
 function formatISO(date: Date) {
-  return date.toISOString().split("T")[0]
+  return date.toISOString().split("T")[0];
 }
 
 function toDisplayDate(date: Date) {
@@ -47,180 +55,222 @@ function toDisplayDate(date: Date) {
     weekday: "long",
     day: "numeric",
     month: "long",
-  })
+  });
 }
 
 // Helper: get the last cycle start date before or equal to a given date, based on cycleStartDay
 function getLastCycleStart(date: Date, cycleStartDay: number) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  const day = d.getDay()
-  const diff = (day - cycleStartDay + 7) % 7
-  d.setDate(d.getDate() - diff)
-  return d
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = (day - cycleStartDay + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  return d;
 }
 
 // ---------- Exported helpers ---------------------------------------------------------------------
 
 export function getDayOfWeekName(day: number) {
   // Normaliza a 0-6 para evitar valores fuera de rango
-  const normalized = ((Math.round(day) % 7) + 7) % 7
-  return DAYS_ES[normalized]
+  const normalized = ((Math.round(day) % 7) + 7) % 7;
+  return DAYS_ES[normalized];
 }
 
 // Cached settings (5 min TTL) — keeps client fast without extra network
-const settingsCache: Record<string, { ts: number; data: CycleSettings }> = {}
-const TTL = 5 * 60 * 1000
+const settingsCache: Record<string, { ts: number; data: CycleSettings }> = {};
+const TTL = 5 * 60 * 1000;
 
-export async function getUserCycleSettings(userId: string): Promise<CycleSettings> {
+export async function getUserCycleSettings(
+  userId: string
+): Promise<CycleSettings> {
   // 1. return cached
-  const cache = settingsCache[userId]
-  if (cache && Date.now() - cache.ts < TTL) return cache.data
+  const cache = settingsCache[userId];
+  if (cache && Date.now() - cache.ts < TTL) return cache.data;
 
   // 2. Fetch from Supabase
   try {
-    const supabase = (await import("@/lib/supabase-client")).getSupabaseClient()
+    const supabase = (
+      await import("@/lib/supabase-client")
+    ).getSupabaseClient();
     const { data, error } = await supabase
       .from("user_settings")
       .select("cycle_duration, cycle_start_day, sweet_dessert_limit")
       .eq("user_id", userId)
-      .single()
+      .single();
     if (!error && data) {
       const settings: CycleSettings = {
-        cycleDuration: data.cycle_duration !== undefined && data.cycle_duration !== null ? Number(data.cycle_duration) : 7,
-        cycleStartDay: data.cycle_start_day !== undefined && data.cycle_start_day !== null ? Number(data.cycle_start_day) : 1,
-        sweetDessertLimit: data.sweet_dessert_limit !== undefined && data.sweet_dessert_limit !== null ? Number(data.sweet_dessert_limit) : 3,
-      }
-      settingsCache[userId] = { ts: Date.now(), data: settings }
-      return settings
+        cycleDuration:
+          data.cycle_duration !== undefined && data.cycle_duration !== null
+            ? Number(data.cycle_duration)
+            : 7,
+        cycleStartDay:
+          data.cycle_start_day !== undefined && data.cycle_start_day !== null
+            ? Number(data.cycle_start_day)
+            : 1,
+        sweetDessertLimit:
+          data.sweet_dessert_limit !== undefined &&
+          data.sweet_dessert_limit !== null
+            ? Number(data.sweet_dessert_limit)
+            : 3,
+      };
+      settingsCache[userId] = { ts: Date.now(), data: settings };
+      return settings;
     }
   } catch (err) {
-    console.error("Error fetching user cycle settings from Supabase:", err)
+    console.error("Error fetching user cycle settings from Supabase:", err);
   }
 
   // 3. Fallback defaults
-  const defaults: CycleSettings = { cycleDuration: 7, cycleStartDay: 1, sweetDessertLimit: 3 }
-  settingsCache[userId] = { ts: Date.now(), data: defaults }
-  return defaults
+  const defaults: CycleSettings = {
+    cycleDuration: 7,
+    cycleStartDay: 1,
+    sweetDessertLimit: 3,
+  };
+  settingsCache[userId] = { ts: Date.now(), data: defaults };
+  return defaults;
 }
 
 // Limpia el cache de settings para un usuario
 export function clearCycleSettingsCache(userId: string) {
-  delete settingsCache[userId]
+  delete settingsCache[userId];
 }
 
 // ------------------ Simple aggregations ----------------------------------------------------------
 
 export async function getUserCycleDuration(userId?: string, fallback = 7) {
-  if (!userId) return fallback
-  return (await getUserCycleSettings(userId)).cycleDuration
+  if (!userId) return fallback;
+  return (await getUserCycleSettings(userId)).cycleDuration;
 }
 
 export async function getUserSweetDessertLimit(userId?: string, fallback = 3) {
-  if (!userId) return fallback
-  return (await getUserCycleSettings(userId)).sweetDessertLimit
+  if (!userId) return fallback;
+  return (await getUserCycleSettings(userId)).sweetDessertLimit;
 }
 
-export function countSweetDessertsInCurrentCycle(meals: Meal[] = [], cycleDuration = 7): number {
-  if (!meals.length) return 0
-  const now = new Date()
-  const since = new Date(now.getTime() - cycleDuration * 24 * 60 * 60 * 1000)
+export function countSweetDessertsInCurrentCycle(
+  meals: Meal[] = [],
+  cycleDuration = 7
+): number {
+  if (!meals.length) return 0;
+  const now = new Date();
+  const since = new Date(now.getTime() - cycleDuration * 24 * 60 * 60 * 1000);
   return meals.reduce((n, m) => {
-    if (m.meal_type !== "postre1" || !m.created_at) return n
-    const d = new Date(m.created_at)
-    return d >= since && d <= now ? n + 1 : n
-  }, 0)
+    if (m.meal_type !== "postre1" || !m.created_at) return n;
+    const d = new Date(m.created_at);
+    return d >= since && d <= now ? n + 1 : n;
+  }, 0);
 }
 
 // ------------------ Cycle maths ------------------------------------------------------------------
 
-export function calculateCycleInfo(today: Date, firstMealDate: Date, cycleDuration: number, cycleStartDay: number = 1) {
+export function calculateCycleInfo(
+  today: Date,
+  firstMealDate: Date,
+  cycleDuration: number,
+  cycleStartDay: number = 1
+) {
   // Find the most recent cycle start before or equal to today
-  const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay)
-  const dayDiff = Math.floor((mostRecentCycleStart.getTime() - firstMealDate.getTime()) / 86400000)
-  const cycleNumber = Math.floor(dayDiff / cycleDuration) + 1
-  const daysSinceCycleStart = Math.floor((today.getTime() - mostRecentCycleStart.getTime()) / 86400000)
-  const daysLeft = cycleDuration - daysSinceCycleStart
-  return { cycleNumber, daysLeft }
+  const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay);
+  const dayDiff = Math.floor(
+    (mostRecentCycleStart.getTime() - firstMealDate.getTime()) / 86400000
+  );
+  const cycleNumber = Math.floor(dayDiff / cycleDuration) + 1;
+  const daysSinceCycleStart = Math.floor(
+    (today.getTime() - mostRecentCycleStart.getTime()) / 86400000
+  );
+  const daysLeft = cycleDuration - daysSinceCycleStart;
+  return { cycleNumber, daysLeft };
 }
 
 export function getCycleInfo(): CycleInfo {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), 1)
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  const progress = (now.getTime() - start.getTime()) / (end.getTime() - start.getTime())
-  return { cycleNumber: now.getMonth() + 1, startDate: start, endDate: end, progress }
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const progress =
+    (now.getTime() - start.getTime()) / (end.getTime() - start.getTime());
+  return {
+    cycleNumber: now.getMonth() + 1,
+    startDate: start,
+    endDate: end,
+    progress,
+  };
 }
 
 // groupMealsByCycle  (used by history & share pages)
-export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleStartDay = 1): CycleGroup[] {
-  if (!meals.length) return []
+export function groupMealsByCycle(
+  meals: Meal[] = [],
+  cycleDuration = 7,
+  cycleStartDay = 1
+): CycleGroup[] {
+  if (!meals.length) return [];
 
   // Sort old→new (easier to slice ranges)
   const sorted = [...meals].sort(
-    (a, b) => new Date(a.date ?? a.created_at ?? 0).getTime() - new Date(b.date ?? b.created_at ?? 0).getTime(),
-  )
+    (a, b) =>
+      new Date(a.date ?? a.created_at ?? 0).getTime() -
+      new Date(b.date ?? b.created_at ?? 0).getTime()
+  );
 
-  // CAMBIO: El ciclo más reciente se alinea al último cycleStartDay anterior o igual a HOY
-  const today = new Date()
-  const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay)
+  const today = new Date();
+  const mostRecentCycleStart = getLastCycleStart(today, cycleStartDay);
 
-  // CAMBIO: El ciclo más antiguo también se alinea al cycleStartDay
-  const oldestMealDate = new Date(sorted[0].date ?? sorted[0].created_at ?? Date.now())
-  const oldestAlignedCycleStart = getLastCycleStart(oldestMealDate, cycleStartDay)
+  const oldestMealDate = new Date(
+    sorted[0].date ?? sorted[0].created_at ?? Date.now()
+  );
+  const oldestAlignedCycleStart = getLastCycleStart(
+    oldestMealDate,
+    cycleStartDay
+  );
 
-  // How many cycles do we need to walk back to cover everything?
-  const totalDays = Math.ceil((mostRecentCycleStart.getTime() - oldestAlignedCycleStart.getTime()) / 86400000)
-  const cyclesNeeded = Math.ceil(totalDays / cycleDuration) + 1
+  const totalDays = Math.ceil(
+    (mostRecentCycleStart.getTime() - oldestAlignedCycleStart.getTime()) /
+      86400000
+  );
+  const cyclesNeeded = Math.ceil(totalDays / cycleDuration) + 1;
 
-  // Agrupa las comidas por ciclo
-  const groups: CycleGroup[] = []
+  const groups: CycleGroup[] = [];
 
   for (let i = 0; i < cyclesNeeded; i++) {
-    const start = new Date(mostRecentCycleStart)
-    start.setDate(start.getDate() - i * cycleDuration)
-    const end = new Date(start)
-    end.setDate(end.getDate() + cycleDuration - 1)
+    const start = new Date(mostRecentCycleStart);
+    start.setDate(start.getDate() - i * cycleDuration);
+    const end = new Date(start);
+    end.setDate(end.getDate() + cycleDuration - 1);
 
-    const startISO = formatISO(start)
-    const endISO = formatISO(end)
+    const startISO = formatISO(start);
+    const endISO = formatISO(end);
 
-    // Build a bucket for each day
-    const dayBuckets: Record<string, Meal[]> = {}
+    const dayBuckets: Record<string, Meal[]> = {};
     for (let d = 0; d < cycleDuration; d++) {
-      const day = new Date(start)
-      day.setDate(start.getDate() + d)
-      // Agrupa por día local en formato YYYY-MM-DD (sv-SE)
-      const localDayStr = day.toLocaleDateString("sv-SE")
-      dayBuckets[localDayStr] = []
+      const day = new Date(start);
+      day.setDate(start.getDate() + d);
+      const localDayStr = day.toLocaleDateString("sv-SE");
+      dayBuckets[localDayStr] = [];
     }
 
-    // Allocate meals into buckets
     for (const meal of sorted) {
-      // Usar fecha local para agrupar
-      const mealDateObj = new Date(meal.date ?? meal.created_at ?? Date.now())
-      const mealLocalStr = mealDateObj.toLocaleDateString("sv-SE")
-      // Determinar si la comida cae dentro del ciclo actual
-      const startLocalStr = start.toLocaleDateString("sv-SE")
-      const endLocalStr = end.toLocaleDateString("sv-SE")
+      const mealDateObj = new Date(meal.date ?? meal.created_at ?? Date.now());
+      const mealLocalStr = mealDateObj.toLocaleDateString("sv-SE");
+      const startLocalStr = start.toLocaleDateString("sv-SE");
+      const endLocalStr = end.toLocaleDateString("sv-SE");
       if (mealLocalStr >= startLocalStr && mealLocalStr <= endLocalStr) {
-        dayBuckets[mealLocalStr]?.push(meal)
+        dayBuckets[mealLocalStr]?.push(meal);
       }
     }
 
-    // Convert to array & prettify
-    const days: CycleGroupDay[] = Object.entries(dayBuckets).map(([localStr, dayMeals]) => ({
-      date: localStr,
-      displayDate: toDisplayDate(new Date(localStr)).replace(/^./, (c) => c.toUpperCase()),
-      // Ordena las comidas por hora ascendente
-      meals: dayMeals.sort((a, b) => {
-        const aDate = new Date(a.date ?? a.created_at ?? 0).getTime();
-        const bDate = new Date(b.date ?? b.created_at ?? 0).getTime();
-        return aDate - bDate;
-      }),
-    }))
+    const days: CycleGroupDay[] = Object.entries(dayBuckets).map(
+      ([localStr, dayMeals]) => ({
+        date: localStr,
+        displayDate: toDisplayDate(new Date(localStr)).replace(/^./, (c) =>
+          c.toUpperCase()
+        ),
+        meals: dayMeals.sort((a, b) => {
+          const aDate = new Date(a.date ?? a.created_at ?? 0).getTime();
+          const bDate = new Date(b.date ?? b.created_at ?? 0).getTime();
+          return aDate - bDate;
+        }),
+      })
+    );
 
-    // Only include cycles that actually contain meals
     if (days.some((d) => d.meals.length)) {
       groups.push({
         cycleNumber: i + 1,
@@ -229,22 +279,25 @@ export function groupMealsByCycle(meals: Meal[] = [], cycleDuration = 7, cycleSt
         displayDateRange: `Ciclo ${i + 1}: ${start.toLocaleDateString("es-ES", {
           day: "numeric",
           month: "short",
-        })} - ${end.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}`,
-        days: days.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-      })
+        })} - ${end.toLocaleDateString("es-ES", {
+          day: "numeric",
+          month: "short",
+        })}`,
+        days: days.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        ),
+      });
     }
   }
 
-  // Invertir el array para que el ciclo 1 sea el más antiguo
-  const groupsChronological = [...groups].reverse()
-  // Renumerar los ciclos en orden cronológico
+  const groupsChronological = [...groups].reverse();
   groupsChronological.forEach((group, idx) => {
-    group.cycleNumber = idx + 1
-  })
+    group.cycleNumber = idx + 1;
+  });
 
-  return groupsChronological
+  return groupsChronological;
 }
 
 // ------------------ Back-compat exports ----------------------------------------------------------
 
-export { getCycleInfo as getCurrentCycleInfo } // legacy alias
+export { getCycleInfo as getCurrentCycleInfo }; // legacy alias
