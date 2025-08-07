@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect, useCallback } from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { X, ZoomIn, ZoomOut, RotateCw, Download, Share2 } from "lucide-react"
 
@@ -153,7 +153,17 @@ export default function PhotoViewer({ src, alt, isOpen, onClose }: PhotoViewerPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 bg-black border-0 m-0">
+      <DialogContent
+        className="max-w-[100vw] max-h-[100vh] w-full h-full p-0 bg-black border-0 m-0"
+        aria-labelledby="photo-viewer-title"
+        aria-describedby={undefined}
+      >
+        <DialogTitle className="sr-only" id="photo-viewer-title">
+          Foto ampliada
+        </DialogTitle>
+        <DialogDescription className="sr-only" id="photo-viewer-desc">
+          Vista ampliada de la foto seleccionada. Usa los controles para acercar, rotar o descargar.
+        </DialogDescription>
         <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
           {/* Top Controls */}
           <div
