@@ -143,9 +143,9 @@ export default function MealCard({
             )}
           </div>
         ) : (
-          // Si no hay foto, igual mostrar badge y hora arriba
-          <div className="relative bg-gray-50 aspect-square flex flex-col justify-between">
-            <div className="flex justify-between p-2">
+          // Si no hay foto, igual mostrar badge y hora arriba y el texto "Sin foto"
+          <div className="relative bg-gray-50 aspect-square flex flex-col justify-between items-center">
+            <div className="flex justify-between w-full p-2">
               <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-xs px-2 py-1 border`}>
                 {getMealTypeLabel(meal.meal_type)}
               </Badge>
@@ -155,6 +155,9 @@ export default function MealCard({
                   {formattedTime}
                 </Badge>
               )}
+            </div>
+            <div className="flex-1 flex items-center justify-center w-full">
+              <span className="text-gray-400 text-sm font-medium italic select-none">Sin foto</span>
             </div>
           </div>
         )}

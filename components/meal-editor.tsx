@@ -37,6 +37,9 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
   const [currentTime, setCurrentTime] = useState("")
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [originalDate, setOriginalDate] = useState<string>("")
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
   // Utilidad para formato local compatible con datetime-local (sin segundos)
   function toLocalInputString(date: Date) {
     const pad = (n: number) => n.toString().padStart(2, "0")
@@ -105,6 +108,66 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
     setCurrentDate(format(new Date(), "EEEE, d 'de' MMMM", { locale: es }))
     setCurrentTime(format(new Date(), "HH:mm"))
   }, [meal])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const initialViewportHeight = window.visualViewport?.height || window.innerHeight
+    let currentViewportHeight = initialViewportHeight
+
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        currentViewportHeight = window.visualViewport.height
+        const keyboardHeight = initialViewportHeight - currentViewportHeight
+        setIsKeyboardVisible(keyboardHeight > 150)
+      }
+    }
+
+    const handleResize = () => {
+      const newHeight = window.innerHeight
+      const heightDifference = initialViewportHeight - newHeight
+      setIsKeyboardVisible(heightDifference > 150)
+    }
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        setIsKeyboardVisible(true)
+        setTimeout(() => {
+          target.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          })
+        }, 300)
+      }
+    }
+
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        setIsKeyboardVisible(false)
+      }, 100)
+    }
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange)
+    } else {
+      window.addEventListener("resize", handleResize)
+    }
+
+    document.addEventListener("focusin", handleFocusIn)
+    document.addEventListener("focusout", handleFocusOut)
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportChange)
+      } else {
+        window.removeEventListener("resize", handleResize)
+      }
+      document.removeEventListener("focusin", handleFocusIn)
+      document.removeEventListener("focusout", handleFocusOut)
+    }
+  }, [])
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -201,153 +264,183 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
   }
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <div className="flex items-center mb-4">
-        <Button variant="ghost" size="sm" onClick={onCancel} className="mr-2">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          <span>Volver</span>
-        </Button>
-        <h2 className="text-lg font-medium">{meal.id ? "Editar comida" : "Agregar comida"}</h2>
-      </div>
+    <div className="flex flex-col min-h-screen ios-safe-area">
+      <main className="flex-1 relative">
+        <div
+          ref={containerRef}
+          className={`p-4 max-w-md mx-auto w-full transition-all duration-300 ${isKeyboardVisible ? "pb-2" : "pb-20 sm:pb-4"}`}
+          style={{
+            minHeight: isKeyboardVisible ? "auto" : "100vh",
+            paddingBottom: isKeyboardVisible ? "0.5rem" : undefined,
+          }}
+        >
+          <div className="flex items-center mb-4">
+            <Button variant="ghost" size="sm" onClick={onCancel} className="mr-2">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              <span>Volver</span>
+            </Button>
+            <h2 className="text-lg font-medium">{meal.id ? "Editar comida" : "Agregar comida"}</h2>
+          </div>
 
-      <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
-        <CardContent className="p-0">
-          {(!meal.photo_url && !photoPreview) ? (
-            <div
-              className="flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] sm:min-h-[180px] p-4 sm:p-6 cursor-pointer"
-              onClick={triggerFileInput}
-            >
-              <Camera className="h-10 w-10 sm:h-12 sm:w-12 mb-2 text-neutral-400" />
-              <p className="text-center text-sm sm:text-base text-neutral-500">
-                Toca para añadir una foto de tu comida
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
-                onClick={triggerFileInput}
-              >
-                Añadir foto
-              </Button>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handlePhotoCapture}
-                ref={fileInputRef}
-              />
-            </div>
-          ) : (
-            <div className="bg-white relative flex justify-center w-full">
-              <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full max-h-72 sm:max-h-80" />
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
-                onClick={triggerFileInput}
-              >
-                {meal.photo_url ? "Cambiar" : "Añadir foto"}
-              </Button>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handlePhotoCapture}
-                ref={fileInputRef}
-              />
-            </div>
+          <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">
+            <CardContent className="p-0">
+              {(!meal.photo_url && !photoPreview) ? (
+                <div
+                  className="flex flex-col items-center justify-center bg-neutral-100 min-h-[160px] sm:min-h-[180px] p-4 sm:p-6 cursor-pointer"
+                  onClick={triggerFileInput}
+                >
+                  <Camera className="h-10 w-10 sm:h-12 sm:w-12 mb-2 text-neutral-400" />
+                  <p className="text-center text-sm sm:text-base text-neutral-500">
+                    Toca para añadir una foto de tu comida
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
+                    onClick={triggerFileInput}
+                  >
+                    Añadir foto
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handlePhotoCapture}
+                    ref={fileInputRef}
+                  />
+                </div>
+              ) : (
+                <div className="bg-white relative flex justify-center w-full">
+                  <img src={photoPreview || "/placeholder.svg"} alt="Foto de comida" className="w-auto max-w-full max-h-72 sm:max-h-80" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute bottom-3 right-3 bg-white/90 hover:bg-white shadow-sm border-neutral-200 text-xs sm:text-sm"
+                    onClick={triggerFileInput}
+                  >
+                    {meal.photo_url ? "Cambiar" : "Añadir foto"}
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handlePhotoCapture}
+                    ref={fileInputRef}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          {dateError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{dateError}</AlertDescription>
+            </Alert>
           )}
-        </CardContent>
-      </Card>
-      {dateError && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{dateError}</AlertDescription>
-        </Alert>
-      )}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Campo de fecha editable para nuevo y edición */}
-        <div className="space-y-2">
-          <Label htmlFor="date" className="text-base">Fecha y hora</Label>
-          <Input
-            id="date"
-            type="datetime-local"
-            value={date}
-            onChange={handleDateChange}
-            className="text-base"
-            min={getCycleStartForInput()}
-            max={getCycleEndForInput()}
-            required
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-4" id="meal-form">
+            {/* Campo de fecha editable para nuevo y edición */}
+            <div className="space-y-2">
+              <Label htmlFor="date" className="text-base">Fecha y hora</Label>
+              <Input
+                id="date"
+                type="datetime-local"
+                value={date}
+                onChange={handleDateChange}
+                className="text-base"
+                min={getCycleStartForInput()}
+                max={getCycleEndForInput()}
+                required
+              />
+            </div>
 
-        {mounted && originalDate && (
-          <div className="text-base text-neutral-500 mb-2 font-medium">Fecha original: {originalDate}</div>
+            {mounted && originalDate && (
+              <div className="text-base text-neutral-500 mb-2 font-medium">Fecha original: {originalDate}</div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="meal-type" className="text-base">
+                Tipo de comida
+              </Label>
+              <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
+                <SelectTrigger id="meal-type" className="text-base">
+                  <SelectValue placeholder="Selecciona el tipo de comida" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desayuno">Desayuno</SelectItem>
+                  <SelectItem value="colacion1">Colación</SelectItem>
+                  <SelectItem value="almuerzo">Almuerzo</SelectItem>
+                  <SelectItem value="postre1">Postre (dulce)</SelectItem>
+                  <SelectItem value="postre2">Postre (fruta)</SelectItem>
+                  <SelectItem value="merienda">Merienda</SelectItem>
+                  <SelectItem value="colacion2">Colación</SelectItem>
+                  <SelectItem value="cena">Cena</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description" className="text-base">
+                Descripción
+              </Label>
+              <Input
+                id="description"
+                placeholder="¿Qué comiste?"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="text-base"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-base">
+                Notas adicionales (opcional)
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Agrega cualquier nota adicional aquí..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="resize-none text-base"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex space-x-2 mt-6">
+              <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-base"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </form>
+        </div>
+        {/* Botón fijo para mobile cuando el teclado está visible */}
+        {isKeyboardVisible && (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 ios-keyboard-overlay">
+            <div className="max-w-md mx-auto flex space-x-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                form="meal-form"
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-base"
+                disabled={isSubmitting}
+                onClick={handleSubmit}
+              >
+                {isSubmitting ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
         )}
-
-        <div className="space-y-2">
-          <Label htmlFor="meal-type" className="text-base">
-            Tipo de comida
-          </Label>
-          <Select value={mealType} onValueChange={(value) => setMealType(value as MealType)} required>
-            <SelectTrigger id="meal-type" className="text-base">
-              <SelectValue placeholder="Selecciona el tipo de comida" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="desayuno">Desayuno</SelectItem>
-              <SelectItem value="colacion1">Colación</SelectItem>
-              <SelectItem value="almuerzo">Almuerzo</SelectItem>
-              <SelectItem value="postre1">Postre (dulce)</SelectItem>
-              <SelectItem value="postre2">Postre (fruta)</SelectItem>
-              <SelectItem value="merienda">Merienda</SelectItem>
-              <SelectItem value="colacion2">Colación</SelectItem>
-              <SelectItem value="cena">Cena</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description" className="text-base">
-            Descripción
-          </Label>
-          <Input
-            id="description"
-            placeholder="¿Qué comiste?"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="text-base"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="notes" className="text-base">
-            Notas adicionales (opcional)
-          </Label>
-          <Textarea
-            id="notes"
-            placeholder="Agrega cualquier nota adicional aquí..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="resize-none text-base"
-            rows={3}
-          />
-        </div>
-
-        <div className="flex space-x-2">
-          <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            className="flex-1 bg-teal-600 hover:bg-teal-700 text-base"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Guardando..." : "Guardar cambios"}
-          </Button>
-        </div>
-      </form>
+      </main>
     </div>
   )
 }
