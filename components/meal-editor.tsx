@@ -37,7 +37,55 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
   const [currentTime, setCurrentTime] = useState("")
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [originalDate, setOriginalDate] = useState<string>("")
-  const [date, setDate] = useState(meal.created_at ? meal.created_at.slice(0, 16) : "")
+  // Utilidad para formato local compatible con datetime-local (sin segundos)
+  function toLocalInputString(date: Date) {
+    const pad = (n: number) => n.toString().padStart(2, "0")
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  }
+
+  // Estado date inicializado correctamente
+  const [date, setDate] = useState(() => {
+    if (meal.created_at) {
+      const d = new Date(meal.created_at)
+      return toLocalInputString(d)
+    }
+    return toLocalInputString(new Date())
+  })
+
+  // Utilidad para crear Date local desde YYYY-MM-DD
+  function parseLocalDate(dateStr: string, hour = 0, minute = 0) {
+    const [year, month, day] = dateStr.split("-").map(Number)
+    return new Date(year, month - 1, day, hour, minute, 0, 0)
+  }
+
+  const getCycleStartForInput = () => {
+    if (!cycleRange?.start) return undefined
+    // Si viene con hora, usarla; si no, forzar a 00:00 local
+    const [datePart, timePart] = cycleRange.start.split("T")
+    let dateObj
+    if (timePart) {
+      const [h, m] = timePart.split(":").map(Number)
+      dateObj = parseLocalDate(datePart, h, m)
+    } else {
+      dateObj = parseLocalDate(datePart, 0, 0)
+    }
+    return toLocalInputString(dateObj)
+  }
+
+  const getCycleEndForInput = () => {
+    if (!cycleRange?.end) return undefined
+    // Si viene con hora, usarla; si no, forzar a 23:59 local
+    const [datePart, timePart] = cycleRange.end.split("T")
+    let dateObj
+    if (timePart) {
+      const [h, m] = timePart.split(":").map(Number)
+      dateObj = parseLocalDate(datePart, h, m)
+    } else {
+      dateObj = parseLocalDate(datePart, 23, 59)
+    }
+    return toLocalInputString(dateObj)
+  }
+
   const [dateError, setDateError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
@@ -90,11 +138,13 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Validar fecha si es nuevo registro y hay rango
     if (!meal.id && cycleRange) {
       const selected = new Date(date)
-      const start = new Date(cycleRange.start)
-      const end = new Date(cycleRange.end)
+      // Usar parseLocalDate para rango local
+      const [startDatePart] = cycleRange.start.split("T")
+      const [endDatePart] = cycleRange.end.split("T")
+      const start = parseLocalDate(startDatePart, 0, 0)
+      const end = parseLocalDate(endDatePart, 23, 59)
       if (selected < start || selected > end) {
         setDateError("La fecha debe estar dentro del ciclo seleccionado")
         return
@@ -113,13 +163,22 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
     setIsSubmitting(true)
 
     try {
+      // Parsear el valor del input como local para evitar desfase horario
+      const [datePart, timePart] = date.split("T")
+      let localDate: Date
+      if (timePart) {
+        const [h, m] = timePart.split(":").map(Number)
+        localDate = parseLocalDate(datePart, h, m)
+      } else {
+        localDate = parseLocalDate(datePart, 0, 0)
+      }
       const updatedMeal: Meal = {
         ...meal,
         description: description || "",
         meal_type: mealType as MealType,
         photo_url: photoPreview || meal.photo_url,
         notes: notes || "",
-        created_at: !meal.id ? new Date(date).toISOString() : meal.created_at,
+        created_at: localDate.toISOString(), // Ahora sí es la hora local seleccionada
       }
       await addOrUpdateMeal(updatedMeal)
 
@@ -209,22 +268,20 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
         </Alert>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Campo de fecha editable solo si es nuevo registro */}
-        {!meal.id && (
-          <div className="space-y-2">
-            <Label htmlFor="date" className="text-base">Fecha y hora</Label>
-            <Input
-              id="date"
-              type="datetime-local"
-              value={date}
-              onChange={handleDateChange}
-              className="text-base"
-              min={cycleRange?.start?.slice(0, 16)}
-              max={cycleRange?.end?.slice(0, 16)}
-              required
-            />
-          </div>
-        )}
+        {/* Campo de fecha editable para nuevo y edición */}
+        <div className="space-y-2">
+          <Label htmlFor="date" className="text-base">Fecha y hora</Label>
+          <Input
+            id="date"
+            type="datetime-local"
+            value={date}
+            onChange={handleDateChange}
+            className="text-base"
+            min={getCycleStartForInput()}
+            max={getCycleEndForInput()}
+            required
+          />
+        </div>
 
         {mounted && originalDate && (
           <div className="text-base text-neutral-500 mb-2 font-medium">Fecha original: {originalDate}</div>

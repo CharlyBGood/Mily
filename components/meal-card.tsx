@@ -114,29 +114,25 @@ export default function MealCard({
       <Card
         className={`overflow-hidden bg-white border border-gray-200 hover:border-teal-300 hover:shadow-md transition-all duration-200 ${isPdfMode ? "pdf-meal-card" : ""}`}
       >
-        {/* Photo Section */}
-        {meal.photo_url && !imageError && (
+        {/* Photo Section o encabezado visual */}
+        {meal.photo_url && !imageError ? (
           <div className="relative overflow-hidden bg-gray-50 cursor-pointer aspect-square" onClick={handlePhotoClick}>
             <img
               ref={imageRef}
               src={meal.photo_url || "/placeholder.svg"}
               alt={meal.description}
-              className={`w-full h-full object-cover transition-transform duration-200 ${
-                isPdfMode ? "pdf-image" : "hover:scale-105"
-              }`}
+              className={`w-full h-full object-cover transition-transform duration-200 ${isPdfMode ? "pdf-image" : "hover:scale-105"}`}
               onLoad={handleImageLoad}
               onError={handleImageError}
               crossOrigin="anonymous"
             />
-
-            {/* Meal type badge */}
+            {/* Badge tipo de comida */}
             <div className="absolute top-2 left-2">
               <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-xs px-2 py-1 border`}>
                 {getMealTypeLabel(meal.meal_type)}
               </Badge>
             </div>
-
-            {/* Time badge - Always visible */}
+            {/* Hora */}
             {formattedTime && (
               <div className="absolute top-2 right-2">
                 <Badge className="bg-white/90 text-gray-700 font-medium text-xs px-2 py-1 border border-gray-200">
@@ -145,6 +141,21 @@ export default function MealCard({
                 </Badge>
               </div>
             )}
+          </div>
+        ) : (
+          // Si no hay foto, igual mostrar badge y hora arriba
+          <div className="relative bg-gray-50 aspect-square flex flex-col justify-between">
+            <div className="flex justify-between p-2">
+              <Badge className={`${getMealTypeColor(meal.meal_type)} font-medium text-xs px-2 py-1 border`}>
+                {getMealTypeLabel(meal.meal_type)}
+              </Badge>
+              {formattedTime && (
+                <Badge className="bg-white/90 text-gray-700 font-medium text-xs px-2 py-1 border border-gray-200 ml-2">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {formattedTime}
+                </Badge>
+              )}
+            </div>
           </div>
         )}
 
