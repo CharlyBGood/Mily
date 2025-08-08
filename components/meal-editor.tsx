@@ -355,10 +355,6 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
               />
             </div>
 
-            {mounted && originalDate && (
-              <div className="text-base text-neutral-500 mb-2 font-medium">Fecha original: {originalDate}</div>
-            )}
-
             <div className="space-y-2">
               <Label htmlFor="meal-type" className="text-base">
                 Tipo de comida

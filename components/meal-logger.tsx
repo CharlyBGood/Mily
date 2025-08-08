@@ -376,11 +376,7 @@ export default function MealLogger() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              {mounted && (
-                <div className="text-sm sm:text-base text-neutral-500 mb-3 sm:mb-4 font-medium">
-                  {currentDate} • {currentTime}
-                </div>
-              )}
+
 
               {/* Campo de fecha editable */}
               <div className="space-y-2">
