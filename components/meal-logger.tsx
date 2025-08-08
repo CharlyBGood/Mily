@@ -21,6 +21,13 @@ import { useCycleSettings } from "@/lib/cycle-settings-context"
 import { useMealContext } from "@/lib/meal-context"
 import { countSweetDessertsInCurrentCycle, calculateCycleInfo, getDayOfWeekName } from "@/lib/cycle-utils"
 
+
+// Utilidad para formato local compatible con datetime-local (sin segundos)
+function toLocalInputString(date: Date) {
+  const pad = (n: number) => n.toString().padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export default function MealLogger() {
   const { cycleStartDay, cycleDuration, sweetDessertLimit } = useCycleSettings()
 
@@ -39,6 +46,9 @@ export default function MealLogger() {
   const [isDessertLimitReached, setIsDessertLimitReached] = useState(false)
   const [photoRequired, setPhotoRequired] = useState<string | null>(null)
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
+  // Estado para fecha/hora editable
+  const [date, setDate] = useState(() => toLocalInputString(new Date()))
+  const [dateError, setDateError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -183,11 +193,18 @@ export default function MealLogger() {
     setMealType("")
     setNotes("")
     setStorageWarning(null)
-    setPhotoRequired(null)
+  setPhotoRequired(null)
+  setDate(toLocalInputString(new Date()))
+  setDateError(null)
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
+  }
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setDate(e.target.value)
+    setDateError(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -245,16 +262,26 @@ export default function MealLogger() {
       if (mealType === "postre_dulce") finalMealType = "postre1"
       if (mealType === "postre_fruta") finalMealType = "postre2"
 
+      // Parsear el valor del input como local para evitar desfase horario
+      const [datePart, timePart] = date.split("T")
+      let localDate: Date
+      if (timePart) {
+        const [h, m] = timePart.split(":").map(Number)
+        const [year, month, day] = datePart.split("-").map(Number)
+        localDate = new Date(year, month - 1, day, h, m, 0, 0)
+      } else {
+        const [year, month, day] = datePart.split("-").map(Number)
+        localDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+      }
+
       const meal: Meal = {
         description: description || "Sin descripción",
         meal_type: finalMealType,
         photo_url: photoUrl,
         notes: notes || undefined,
         metadata: mealType === "postre_dulce" || mealType === "postre_fruta" ? { dessert_type: mealType } : undefined,
+        created_at: localDate.toISOString(),
       }
-
-      const now = new Date()
-      meal.created_at = now.toISOString()
 
       await addOrUpdateMeal(meal)
 
@@ -354,6 +381,27 @@ export default function MealLogger() {
                   {currentDate} • {currentTime}
                 </div>
               )}
+
+              {/* Campo de fecha editable */}
+              <div className="space-y-2">
+                <Label htmlFor="date" className="text-sm sm:text-base font-medium">
+                  Fecha y hora
+                </Label>
+                <Input
+                  id="date"
+                  type="datetime-local"
+                  value={date}
+                  onChange={handleDateChange}
+                  className="text-sm sm:text-base h-11 sm:h-12"
+                  required
+                />
+                {dateError && (
+                  <Alert variant="destructive" className="mb-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{dateError}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="meal-type" className="text-sm sm:text-base font-medium">
