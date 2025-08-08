@@ -279,7 +279,7 @@ export default function MealEditor({ meal, onCancel, onSaved, cycleRange }: Meal
               <ArrowLeft className="h-4 w-4 mr-1" />
               <span>Volver</span>
             </Button>
-            <h2 className="text-lg font-medium">{meal.id ? "Editar comida" : "Agregar comida"}</h2>
+            <h2 className="text-lg font-medium">Editar comida</h2>
           </div>
 
           <Card className="mb-4 overflow-hidden w-full max-w-md mx-auto">

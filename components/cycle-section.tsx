@@ -21,8 +21,6 @@ interface CycleSectionProps {
   showEditButton?: boolean
   showDeleteButton?: boolean
   isSharedView?: boolean
-  onAddMeal?: (cycle: CycleGroup) => void
-  addButton?: React.ReactNode
 }
 
 export default function CycleSection({
@@ -34,8 +32,6 @@ export default function CycleSection({
   showEditButton = true,
   showDeleteButton = true,
   isSharedView = false,
-  onAddMeal,
-  addButton,
 }: CycleSectionProps) {
   const [mounted, setMounted] = useState(false)
   const [formattedDateRange, setFormattedDateRange] = useState(cycle.displayDateRange)
@@ -118,11 +114,8 @@ export default function CycleSection({
                       {activeDays}/{cycle.days.length} días
                     </span>
                   </div>
-                  {/* Botón agregar registro aquí */}
-                  {addButton}
                 </div>
               </div>
-
               <Button variant="ghost" size="sm" className="ml-4 flex-shrink-0">
                 {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
               </Button>
