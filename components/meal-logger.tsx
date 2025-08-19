@@ -359,7 +359,6 @@ export default function MealLogger() {
                     name="photo"
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     className="hidden"
                     onChange={handlePhotoCapture}
                     ref={fileInputRef}
