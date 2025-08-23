@@ -10,6 +10,8 @@ import MealCard from "./meal-card"
 import type { Meal } from "@/lib/types"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import CommentButton from "./comment-button"
+import NoteButton from "./note-button"
 
 interface DaySectionProps {
   date: string
@@ -36,8 +38,9 @@ export default function DaySection({
   showDeleteButton = true,
   isSharedView = false,
 }: DaySectionProps) {
-  const [mounted, setMounted] = useState(false)
-  const [formattedDate, setFormattedDate] = useState(displayDate)
+  const [mounted, setMounted] = useState(false);
+  const [formattedDate, setFormattedDate] = useState(displayDate);
+  const [comment, setComment] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setMounted(true)
@@ -106,7 +109,7 @@ export default function DaySection({
                   {isToday && <Badge className="bg-teal-500 text-white text-xs px-2 py-1">Hoy</Badge>}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                <div className="flex flex-wrap items-center gap-1 text-sm text-gray-600">
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
                     <span>
@@ -120,6 +123,12 @@ export default function DaySection({
                       <span>{timeRange}</span>
                     </div>
                   )}
+                  {isSharedView &&
+                    <CommentButton
+                      onSave={setComment}
+                      onDelete={() => setComment(undefined)}
+                      comment={comment} />}
+                  {isSharedView && <NoteButton comment={comment} />}
                 </div>
               </div>
 

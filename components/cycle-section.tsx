@@ -11,6 +11,8 @@ import type { CycleGroup } from "@/lib/cycle-utils"
 import type { Meal } from "@/lib/types"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import CommentButton from "./comment-button"
+import NoteButton from "./note-button"
 
 interface CycleSectionProps {
   cycle: CycleGroup
@@ -21,6 +23,8 @@ interface CycleSectionProps {
   showEditButton?: boolean
   showDeleteButton?: boolean
   isSharedView?: boolean
+  addButton?: React.ReactNode
+  onAddMeal?: () => void
 }
 
 export default function CycleSection({
@@ -33,9 +37,10 @@ export default function CycleSection({
   showDeleteButton = true,
   isSharedView = false,
 }: CycleSectionProps) {
-  const [mounted, setMounted] = useState(false)
-  const [formattedDateRange, setFormattedDateRange] = useState(cycle.displayDateRange)
-  const [expandedDay, setExpandedDay] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false);
+  const [formattedDateRange, setFormattedDateRange] = useState(cycle.displayDateRange);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [comment, setComment] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setMounted(true)
@@ -104,7 +109,7 @@ export default function CycleSection({
                   <h3 className="text-lg font-semibold text-gray-900 truncate">{formattedDateRange}</h3>
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600 mt-2">
                   <Badge variant="secondary" className="bg-teal-50 text-teal-700 border-teal-200 px-2 py-1">
                     {totalMeals} comidas
                   </Badge>
@@ -114,6 +119,12 @@ export default function CycleSection({
                       {activeDays}/{cycle.days.length} días
                     </span>
                   </div>
+                  {isSharedView &&
+                    <CommentButton
+                      onSave={setComment}
+                      onDelete={() => setComment(undefined)}
+                      comment={comment} />}
+                  {isSharedView && <NoteButton comment={comment} />}
                 </div>
               </div>
               <Button variant="ghost" size="sm" className="ml-4 flex-shrink-0">

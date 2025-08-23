@@ -4,12 +4,14 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Trash2, Edit, Clock, Calendar } from "lucide-react"
+import CommentButton from "./comment-button"
 import { format, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { getMealTypeLabel } from "@/lib/utils"
 import type { Meal } from "@/lib/types"
 import { useEffect, useState, useRef } from "react"
 import PhotoViewer from "./photo-viewer"
+import NoteButton from "./note-button"
 
 interface MealCardProps {
   meal: Meal
@@ -32,10 +34,11 @@ export default function MealCard({
 }: MealCardProps) {
   let formattedDate = ""
   let formattedTime = ""
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [imageError, setImageError] = useState(false)
-  const [showPhotoViewer, setShowPhotoViewer] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null)
+  const [comment, setComment] = useState<string | undefined>(undefined);
 
   // Always format date and time for every card
   if (meal.created_at) {
@@ -185,9 +188,19 @@ export default function MealCard({
         </CardContent>
 
         {/* Actions Footer */}
-        {!isPdfMode && (showDeleteButton || showEditButton) && (onDelete || onEdit) && (
+        {!isPdfMode && (showDeleteButton || showEditButton || true) && (onDelete || onEdit) && (
           <CardFooter className="px-3 py-2 bg-gray-50 border-t">
             <div className="flex justify-end space-x-1 w-full">
+              {isSharedView && (
+                <>
+                  <CommentButton
+                    onSave={setComment}
+                    onDelete={() => setComment(undefined)}
+                    comment={comment}
+                  />
+                  <NoteButton comment={comment} />
+                </>
+              )}
               {showEditButton && onEdit && (
                 <Button
                   variant="ghost"
