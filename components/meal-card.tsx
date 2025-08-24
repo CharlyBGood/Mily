@@ -21,6 +21,9 @@ interface MealCardProps {
   showEditButton?: boolean
   isPdfMode?: boolean
   isSharedView?: boolean
+  comment?: string
+  onSaveComment?: (comment: string) => void
+  onDeleteComment?: () => void
 }
 
 export default function MealCard({
@@ -31,6 +34,9 @@ export default function MealCard({
   showEditButton = true,
   isPdfMode = false,
   isSharedView = false,
+  comment,
+  onSaveComment,
+  onDeleteComment,
 }: MealCardProps) {
   let formattedDate = ""
   let formattedTime = ""
@@ -38,7 +44,7 @@ export default function MealCard({
   const [imageError, setImageError] = useState(false);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null)
-  const [comment, setComment] = useState<string | undefined>(undefined);
+  // const [comment, setComment] = useState<string | undefined>(undefined);
 
   // Always format date and time for every card
   if (meal.created_at) {
@@ -194,8 +200,8 @@ export default function MealCard({
               {isSharedView && (
                 <>
                   <CommentButton
-                    onSave={setComment}
-                    onDelete={() => setComment(undefined)}
+                    onSave={onSaveComment ?? (() => { })}
+                    onDelete={onDeleteComment ?? (() => { })}
                     comment={comment}
                   />
                   <NoteButton comment={comment} />

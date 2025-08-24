@@ -41,11 +41,10 @@ export default function DaySection({
   const [mounted, setMounted] = useState(false);
   const [formattedDate, setFormattedDate] = useState(displayDate);
   const [comment, setComment] = useState<string | undefined>(undefined);
+  const [mealComments, setMealComments] = useState<{ [mealId: string]: string | undefined }>({});
 
   useEffect(() => {
     setMounted(true)
-
-    // Real-time date formatting
     try {
       const dateObj = parseISO(date)
       const formatted = format(dateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
@@ -144,7 +143,8 @@ export default function DaySection({
             {meals.length > 0 ? (
               <div className="grid gap-3 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 w-full max-w-full min-w-0">
                 {meals.map((meal) => (
-                  <MealCard
+                  !meal.id ? null : (
+                    <MealCard
                     key={meal.id}
                     meal={meal}
                     onDelete={onDeleteMeal}
@@ -152,7 +152,11 @@ export default function DaySection({
                     showDeleteButton={showDeleteButton}
                     showEditButton={showEditButton}
                     isSharedView={isSharedView}
+                    comment={mealComments[meal.id] ?? ""}
+                    onSaveComment={c => setMealComments(prev => ({ ...prev, [String(meal.id)]: c }))}
+                    onDeleteComment={() => setMealComments(prev => ({ ...prev, [String(meal.id)]: undefined }))}
                   />
+                  )
                 ))}
               </div>
             ) : (
