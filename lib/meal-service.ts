@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { getSupabaseClient } from "./supabase-client";
 import type { Meal } from "./types";
-import { create } from "domain";
 
 // Helper function to upload an image to Supabase Storage
 export async function uploadImage(file: File): Promise<string> {
